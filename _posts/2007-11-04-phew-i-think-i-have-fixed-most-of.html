@@ -1,0 +1,13 @@
+---
+layout: post
+title: Shadow Fixes
+date: '2007-11-04T15:29:00.000+01:00'
+author: Andre Weissflog
+tags:
+- Nebula
+modified_time: '2007-11-04T15:31:27.436+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-2969841205249805334
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/11/phew-i-think-i-have-fixed-most-of.html
+---
+
+Phew, I think I have fixed most of the pressing problems in the VSM code. I didn't manage to get the number of executed instructions in the pixel shader down to a reasonable number with dynamic branching as I was hoping. So I went the shader-library way and added shader variations for 1 local light, 2 local lights, etc... up to 8 local lights, so that performance with a low number of dynamic lights has become dramatically better especially on graphics cards with low fillrate (shader optimizations aren't a big priority yet however). Shader model 3.0 still has some annoying restrictions when trying to do a single-pass/multiple-light shader, so the übershader approach isn't very practical in the end. Hmpfh. I'm almost starting to consider deferred lighting... at least as a second option. Shadow quality has been improved a little bit because some bugs in the 2x2 downsample and gaussian blur filters have been fixed, finally I'm now emulating bilinear filtering when sampling the shadow buffer in the pixel shader so that shadow borders should now be properly smoothed also on cards which don't support bilinear filtering of G16R16F texture formats (like ATI's).<br /><br />I'll try to get a new SDK out of the door next week, it's a little more complicated to coordinate a release now that 3 people are actively working on N3.

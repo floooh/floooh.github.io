@@ -1,0 +1,14 @@
+---
+layout: post
+title: Status Update...
+date: '2007-06-23T12:36:00.000+01:00'
+author: Andre Weissflog
+tags:
+- Nebula
+- Xbox360
+modified_time: '2007-06-24T12:29:05.609+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-7898953687366731341
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/06/status-update.html
+---
+
+Busy...<br /><br />Working on the Xbox360 is total joy. Unfortunately I can't go into details because of NDA. I did some work on the original Xbox already, so it's not all new to me, but I was once again pleasantly surprised how painless the XDK setup is. All you have to do is plug-in some cables, double-click the installer, and after the installation ends (10..15 minutes) you're ready to compile and remote-debug the samples inside Visual Studio. Very impressive. The APIs basically offer everything a game programmer ever needs (and misses on the PC), the documentation is excellent. There's a wealth of high level APIs, but it's absolutely possible (and relatively painless) to go down to the metal if needed. Both is very important on a console. When the high level APIs are missing, too much time is wasted reinventing wheels (I guess that's one of the reasons why ports from the 360 to PS3 often take so long), and the low level stuff is necessary for optimizing performance-critical code (which is usually not possible or worthwhile on the PC because of all the different hardware configurations).<br /><br />At the moment I only have 2 or 3 hours daily and the weekends to actually work on Nebula3, but despite that it's coming along nicely.<br /><br />The Nebula3 Foundation Layer is already up and running on the 360. This is not a quick "just-fix-the-compile-errors" port", but a "proper" port which makes use of the 360's specialties. I had to take 2 things out, and move into a new "Add-On Layer": the HTTP stuff and the Database subsystem. The only other things that needed to be fixed were some data alignment issues and (naturally) byte order issues in the BinaryReader/BinaryWriter classes. I'll add some testing and benchmarking classes next week and then move on to the Render Layer.<br /><br />Considering the differences between the 2 platforms (different byte order, 32 bit vs. 64 bit, different compiler back ends), everything was completely painless. The usual first experience when bringing code to a new platform is looking at pages of compiler warnings scrolling by. On the 360 SDK most of Nebula3 compiled and ran out of the box on warning level 4 without warnings.<br /><br />I really wish MS would bring ALL the high level XDK APIs and tools over to Windows! They already started with XACT, XInput and PIX, but there's so much more cool stuff on the 360 that's missing on the PC and which would make a PC game programmer's life so much easier...<br /><br />PS: Prince Of Persia Classic rocks. Best Arcade game ever :)

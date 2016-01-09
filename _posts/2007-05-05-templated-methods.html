@@ -1,0 +1,15 @@
+---
+layout: post
+title: Templated Methods
+date: '2007-05-05T14:04:00.000+01:00'
+author: Andre Weissflog
+tags:
+- C++
+- English
+- Nebula
+modified_time: '2007-05-05T14:29:30.281+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-3662288746367796787
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/05/templated-methods.html
+---
+
+I wasn't aware that one can do something like this in C++:<br /><br />Ptr< MyClass > myObj = factory->Create< MyClass >(MyClass::RTTI);<br /><br />I only saw this in some XNA code examples, and took it for something that's specific to C# generics. Turns out it works in C++ as well. When working with smart pointers, this is pretty nice, because automatic pointer casting doesn't work between smart pointers of different types. So the alternative to the above code would be (assuming the Create() method returns a Ptr<>):<br /><br />Ptr< MyClass > myObj = (MyClass*) factory->Create().get();<br /><br />Pretty ugly with the required cast and the .get() method...<br /><br />In some cases, templated method calls may also save an implicit hidden construction of a smart pointer object. I'm not completely sold yet however:<br /><br />The bad:<br /><ul><li>it seems to be an unusual construct, haven't seen this yet in C++ code, maybe some compilers choke on this<br /></li><li>templated methods MUST be inline, and cannot be virtual, so it maybe that the mechanism cannot be used everywhere where it would make sense</li></ul>On the other hand:<br /><ul><li>it's a perfect fit for smart pointers</li><li>it may produce more efficient code (and should never produce less efficient code)</li></ul>I'll have to ponder over this for a little while... I feel that the underlying problem is that a smart pointer doesn't provide a cast-operator to a different (compatible) pointer type... maybe with the newfound wisdom there is a way to add a templated cast operator to the smart pointer class itself, which would make the raw pointer casts and calling the .get() method unnecessary, but this would still require implicit object construction at method calls in some cases.<br /><br />Nonetheless C++ never stops to amaze me, in some sort of scary way...

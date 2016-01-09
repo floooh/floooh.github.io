@@ -1,0 +1,14 @@
+---
+layout: post
+title: Nebula2 support in Nebula3 + status update
+date: '2007-04-29T13:31:00.000+01:00'
+author: Andre Weissflog
+tags:
+- English
+- Nebula
+modified_time: '2007-04-29T14:04:29.438+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-7286427539710217476
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/04/nebula2-support-in-nebula3.html
+---
+
+I'm currently working on the low-level graphics subsystem, resource management and basic scene rendering code. I plan to do the next SDK release as soon as the Tiger tank from the Toolkit examples will render.<br /><br />A few info tidbits until then:<br /><ul><li>Resource setup will be decoupled from the actual resource objects through resource loaders. This was an optional mechanism in Nebula2, but is now the only way to setup a resource object. This modular approach allows more freedom for 3rd parties to extend the Nebula resource management and makes the code cleaner and easier to understand (its a similar concept to Streams and StreamReaders/StreamWriters)<br /></li><li>Asynchronous loading for all graphical resources will be supported right from the beginning.</li><li>Nebula2 binary file formats (nvx2, nax2, n2) will be supported directly through legacy loader classes. It is possible to remove legacy file format support by changing a #define to reduce the code footprint. This should make migration to Nebula3 much simpler, since Nebula2 asset tools can be used to create resources for Nebula3 in the beginning.<br /></li><li>There is now a clear separation of per-model data (shared across all instances of a model), and per-instance data. Per-instance shader attributes must now be explicitly requested by the application. This allows the rendering code to perform more optimizations under the hood for instance rendering, and it makes the rendering code much simpler.<br /></li><li>Access to per-instance data is much simpler, more intuitive and much more efficient (no more nRenderContexts).</li><li>Most per-instance data now persists between frames, and doesn't have to be recomputed every time an instance is rendered (which may be up to multiple times per frame). Nebula2 did this only when absolutely necessary (particle systems and skinned characters). Nebula3 increases the per-instance memory footprint slightly (which is bad), but simplifies the rendering code a lot, and reduces per-instance state switch overhead drastically (which is good).<br /></li></ul>

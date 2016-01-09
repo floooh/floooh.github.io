@@ -1,0 +1,12 @@
+---
+layout: post
+title: Diminishing Returns
+date: '2013-02-10T19:24:00.004+01:00'
+author: Andre Weissflog
+tags: 
+modified_time: '2013-02-10T19:24:55.651+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-2027207120847071735
+blogger_orig_url: http://flohofwoe.blogspot.com/2013/02/diminishing-returns.html
+---
+
+Weekend was kinda semi-successful as far as coding is concerned. I tried various ways to reduce GL calls further, and was able to reduce the number of GL calls by about 25%: from about 4100 down to about 3000 in the initial screen of the Drakensang Online map viewer demo. Although this sounds pretty good, I'm a bit disappointed because I was hoping that bundling vertex data chunks into big vertex buffer would have a bigger effect:<br /><br />- Bundling vertex data into big vertex buffers cut the number of glVertexAttribPointer() calls by almost half from about 950 down to about 500. With the GL_vertex_array_object extension however, I could save double the GL calls for "free" (so the demo would be down to 3100 GL calls without any additional optimizations), and the savings would be more consistent (right now it depends a lot on the order of draw calls). The bundling added *a lot* of complex code, so it's probably not really worth it, since at least Chrome already supports OES_vertex_array_object in WebGL, so it would make more sense to support that.<br /><br />- All the rest was gained by simply filtering redundant texture updates (glActiveTexture, glBindTexture, glUniform1i). This was a big win for very little code, but this also varies with the actual textures applied to the objects. Fewer shared textures means more updates.<br /><br />I also tried to generally filter redundant shader uniform updates, but with little effect. Apart from the texture updates, an entire frame had less then 10 redundant uniform updates, so not worth it.<br /><br />I'll give the GL call optimization a little rest for now and concentrate on adding features. There's still some untapped potential in grouping transform matrix updates into arrays, and by better sorting inside batches. But right now I've had enough ;)<br /><br />

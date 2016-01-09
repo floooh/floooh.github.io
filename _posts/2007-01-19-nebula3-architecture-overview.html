@@ -1,0 +1,14 @@
+---
+layout: post
+title: Nebula3 Architecture Overview
+date: '2007-01-19T16:20:00.000+01:00'
+author: Andre Weissflog
+tags:
+- English
+- Nebula
+modified_time: '2007-01-19T21:36:27.392+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-8343770274030046723
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/01/nebula3-architecture-overview.html
+---
+
+<ul><li>Nebula3 will be divided into 3 layers, where each layer builds on top of each other:</li><ul><li><span style="font-weight: bold;">Foundation Layer:</span> the lowest level layer, this provides a basic platform abstraction layer below rendering and audio. The Foundation Layer can be used as a platform abstraction for any type of application, not just real-time 3d apps.<br /></li><li><span style="font-weight: bold;">Render Layer:</span> this is the medium layer, which adds more meat to the Foundation Layer, like 3d rendering, audio, physics, and scene management.</li><li><span style="font-weight: bold;">Application Layer:</span> this is the highest layer and provides a complete game framework which lets the programmer concentrate on the game logic instead of caring about all the little details necessary for being a well-mannered game application.</li></ul><li>Nebula3 will integrate Mangalore completely, the subsystems from Mangalore will be integrated into different Nebula3 layers where they fit best.</li><li>Nebula3 will be more "C++-ish" then Nebula2, and doesn't try so much using C++ for stuff it wasn't intended for.<br /></li><li>Nebula3 implements object lifetime management through refcounting and smart pointers</li><li>Nebula3's new object model uses a base class with 4 byte instance data instead of the 70+ bytes in Nebula2.<br /></li><li>RTTI is higher performance and easier to use<br /></li><li>Nebula3 still doesn't use C++ excecptions, C++ RTTI and the STL (all of these either degrade performance and/or reduce portability).</li><li>creating objects by class name is faster and easier to use</li><li>Nebula3 will be largely clib clean, no complex clib functions (like file i/o or multithreading) are allowed, removing an additional code layer.</li><li>Nebula3 uses LUA as its standard scripting language, instead of TCL (however, it's still possible to add support for other scripting languages)</li></ul>

@@ -1,0 +1,12 @@
+---
+layout: post
+title: It's so quiet here...
+date: '2014-02-02T16:13:00.001+01:00'
+author: Andre Weissflog
+tags: 
+modified_time: '2014-02-02T16:13:13.633+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-6680697908245754323
+blogger_orig_url: http://flohofwoe.blogspot.com/2014/02/its-so-quiet-here.html
+---
+
+<p>…because I’m doing a lot of weekend coding at the moment. I basically caught the github bug over the holidays:</p> <p><a href="http://www.github.com/floooh">http://www.github.com/floooh</a></p> <p>I’ve been playing around with C++11, python, Vagrant, puppet and chef recently:</p> <p><strong>C++11:</strong></p> <ul><li>I like: move semantics, for (:), variadic template arguments, std::atomic, std::thread, std::chrono, possibly std::function and std::bind (haven’t played around with these yet)</li><li>(still) not a big fan of: auto, std containers, exceptions, rtti, shared_ptr, make_shared</li><li>thread_local vs __thread vs __declspec(thread) is still a mess across Clang/OSX, GCC and VisualStudio</li><li>the recent crazy-talk about integrating a 2D drawing API into the C++ standard gives me the shivers, what a terrible, terrible idea!</li></ul> <p><strong>Python</strong></p> <ul><li>best choice/replacement for command-line scripts and asset tools (all major 3D modelling/animation tools are python-scriptable)</li><li>performance of the standard python interpreter is disappointing, and making something complex like FBX SDK work in alternative Python compilers is difficult or impossible</li></ul> <p><strong>Vagrant plus Puppet or Chef</strong></p> <ul><li>Vagrant is extremely cool for having an isolated cross-compilation Linux VM for emscripten and PNaCl, instead of writing a readme with all the steps required to get a working build machine, you can simply check-in a Vagrantfile into the versioning system repository, and other programmers simply do a ‘vagrant up’ and have a VM which ‘just works’</li><li>the slow performance of shared directories on VirtualBox requires some silly workarounds, supposedly this is better with VMWare Fusion, but haven’t tried yet</li><li>Puppet vs Chef are like Coke vs Pepsi for such simple “stand-alone” use-cases. Chef seems to be more difficult to get into, but I think in the end it is more rewarding when trying to “scale up”</li></ul> <blockquote>  <p>Written with <a href="https://stackedit.io/">StackEdit</a>.</p></blockquote>

@@ -1,0 +1,14 @@
+---
+layout: post
+title: Nebula3's Zip file system
+date: '2007-02-18T12:44:00.000+01:00'
+author: Andre Weissflog
+tags:
+- English
+- Nebula
+modified_time: '2007-02-18T13:11:28.554+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-1927100364063564207
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/02/nebula3s-zip-file-system.html
+---
+
+Game applications often use file archives to reduce file system clutter and improve performance when many small files must be opened and read by the application. While Nebula2 used a proprietary archive format (NPK), Nebula3 uses standard Zip files. This has a number of advantages:<br /><ul><li>no self-written tools required to create the archives, just use the zipper of your choice</li><li>simple file encryption supported</li><li>smaller disc footprint</li><li>usually higher read performance because disc bandwidth is often the bottleneck, not decompression speed</li></ul>The current implementation has a few disadvantages though:<br /><ul><li>no write support (not a big deal, NPK's didn't support writing either, and game resources are usually read-only anyway)</li><li>No random access (no seeks), this is a bit more critical, and could be solved with a more advanced implementation. Currently this is circumvented by decompressing the entire contents of a in-zip-file into memory and allow seeking on this in-memory-copy. This approach basically disables all types of file-streaming scenarios (especially streaming audio).<br /></li></ul>Accessing the content of Zip archives is completely transparent to the application once a Zip archive is mounted through the IO::Server::MountZipArchive() method. The IO::Server::CreateStream() method will check whether an URI actually is a file in one of the mounted Zip archives, and return a ZipFileStream object instead of a FileStream object if needed. The application just uses the returned Stream object as usual and doesn't need to care whether it's working with a "real" file, or a compressed file in a zip archive.

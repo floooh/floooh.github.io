@@ -1,0 +1,14 @@
+---
+layout: post
+title: From Nebula2 to Nebula3
+date: '2007-01-19T15:52:00.000+01:00'
+author: Andre Weissflog
+tags:
+- English
+- Nebula
+modified_time: '2007-01-19T21:33:59.167+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-7537050344550151437
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/01/from-nebula2-to-nebula3.html
+---
+
+Here's why Nebula3 is needed:<br /><ul><li>Nebula2 was mainly a rewrite of the Nebula's higher level area. The kernel and low level code was largely unchanged from Nebula1, so some of the low-level code in Nebula1 is nearly 8 years old, and it shows.</li><li>Some Nebula2 features which were "cool" in its days have become irrelevant (at least for Radon Labs). For instance being able to switch between OpenGL and D3D rendering at runtime, the fine-grained scripting support, etc...</li><li>More real-world experience shows how to better arrange certain subsystems, moving them up or down in the Nebula layer model.</li><li>Nebula is hard to grasp for beginners, partly caused by its somewhat esoteric object model and other design decisions. Also, experience shows that application programmers work with the high level game framework interfaces (Mangalore), and hardly work with Nebula directly. Thus, Nebula becomes more of a platform abstraction layer for the high level game framework code. Nebula3 will respect this paradigm shift.<br /></li><li>Nebula2 is hard to scale upwards and downwards (modern multi-core hardware and DirectX10 on the upper end, Nintendo DS on the lower end). Now, its probably not a good idea trying to write an engine that scales unchanged from a next-gen console down to a Nintendo DS, but it should be possible to at least use a common engine core, which is slim enough for handhelds, while still being a good foundation for a next-gen engine (a small memory footprint and good performance doesn't hurt on bigger hardware either).</li><li>Better multithreading infrastructure. Nebula3 is designed with multi-core hardware in mind, and provides a programming model where the programmer doesn't have to care too much about running in a multithreaded environment.</li><li>Better networking infrastructure. Networking was bolted into Nebula2 as an afterthought. Nebula3 will offer networking support from the ground up (from direct TCP/UDP communication and direct support for HTTP and FTP on the low-end to session management and builtin multiplayer support for Nebula applications on the high end).</li><li>Nebula2 doesn't provide a proper high-level game framework, that's why we wrote Mangalore. This split approach caused much confusion, Nebula3 will be designed into 3 layers, where the highest layer provides a complete application framework, thus integrating Mangalore back into Nebula.</li></ul>

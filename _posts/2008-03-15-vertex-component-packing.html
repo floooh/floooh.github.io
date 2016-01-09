@@ -1,0 +1,13 @@
+---
+layout: post
+title: Vertex Component Packing
+date: '2008-03-15T14:47:00.005+01:00'
+author: Andre Weissflog
+tags:
+- Nebula
+modified_time: '2008-03-15T15:18:42.818+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-2269079327438611392
+blogger_orig_url: http://flohofwoe.blogspot.com/2008/03/vertex-component-packing.html
+---
+
+I finally got around to optimize vertex component sizes for Drakensang. A typical vertex (coords, normal, tangent, binormal, one uv-set) is now 28 bytes instead of 56 bytes, a light-mapped mesh vertex (2 uv-sets) is now 32 bytes instead of 64, and a skinned vertex has been reduced to 36 bytes instead of 88. With this step I have finally burned all DX7-bridges, all our projects have a 2.0 minspec now (since Radon Labs also does casual titles, we had to support Win98 and DX7 for much too long). As a result, the size of all mesh resources in Drakensang has been reduced from from a whopping 1.2 GByte down to about 650 MByte. This also means reduced loading times and better vertex-through-put when transferring vertex data to the graphics chip. Some vertex components need to be scaled to the proper range in the vertex shader, but this is at most one multiply-add operation per component.<br /><br />I also implemented support for the new vertex formats in Nebula3. N3 always had support for packed vertex components, so all I had to do was to add a few lines to the legacy NVX2 mesh loader and fix a few places in the vertex shaders for unpacking normals and texcoords.<br /><br />Here's how the vertex components are now packed by default:<br /><ul><li>Position: Float3 (just as before)</li><li>Normal, Tangent, Binormal: UByte4N (unsigned byte, normalized)<br /></li><li>TexCoord: Short2 as 4.12 fixed point</li><li>Color: UByte4N</li><li>Skin Weights: UByte4N</li><li>Skin Joint Indices: UByte4</li></ul>Normals, tangents and binormals and tex-coords need an extra unpacking instruction in the vertex shader. Skin weights need to be "re-normalized" in the vertex shader because they loose too much precision:<br /><br /> float4 weights = packedWeights / dot(packedWeights, float4(1.0, 1.0, 1.0, 1.0));<br /><br />This will make sure that the components add up to 1.0. In case you're wondering, the dot product is equivalent with s = (x + y + z + w), it's just much more efficient, because the dot product is a native vertex shader instruction (although I must confess that I didn't check yet whether fxc's optimizer is clever enough to optimize the horizontal sum into a dot product automatically).

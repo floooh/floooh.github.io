@@ -1,0 +1,12 @@
+---
+layout: post
+title: XNAMath
+date: '2009-08-16T13:06:00.001+01:00'
+author: Andre Weissflog
+tags: 
+modified_time: '2009-08-16T13:10:43.514+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-5243793827934718490
+blogger_orig_url: http://flohofwoe.blogspot.com/2009/08/xnamath.html
+---
+
+<p>With all the focus on the console platforms I didn’t notice one very cool addition to the March DirectX SDK: XNAMath. This is basically the traditional Xbox360 vector math lib, ported to the PC with SSE2 and inlining support. The N3 math classes are now running from the same code base on top of XNAMath for the PC and Xbox360 platforms. Maik has spent a few days to analyze the generated code and after some tweaking the improvements for our simple math benchmarks are absolutely dramatic, up to 4x faster on the PC side!</p>  <p>We had to change our memory allocation routines on the PC to always return 16-byte aligned memory, without this, XNAMath isn’t really useful since the aligned load/store functions can’t be used on vectors residing in heap buffers. Really strange that there isn’t a way to do this through the Win32 heap functions directly (or is there?).</p>  <p>Other then that I’m currently deep into “jobifiying” the render thread, in order to free the PS3-PPU from the mundane number-crunching tasks. Properly jobified code will also “automatically” run about 2x faster on a 2-core PC, and about 3..4x faster on the Xbox360, since even single jobs will be split and processing will be distributed to worker threads. The actual speedup may even be higher, since the data must be re-organized into small independent chunks (“slices”) of about 16..32 kByte each in order to make the best use of the SPU local memory, and this improved spatial locality is also extremely beneficial for CPU caches on the other platforms (I think I’m starting to sound like a record, but I can’t stress enough how good this data-reorganization will be for N3 on ALL platforms :)</p>  

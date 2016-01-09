@@ -1,0 +1,13 @@
+---
+layout: post
+title: Nebula3 September SDK
+date: '2007-09-27T15:05:00.001+01:00'
+author: Andre Weissflog
+tags:
+- Nebula
+modified_time: '2007-09-27T15:17:59.791+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-7582679562830411448
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/09/nebula3-september-sdk.html
+---
+
+Here's the <a href="http://www.radonlabs.de/internal/n3sdk_sep2007.exe">Nebula3 Sep 2007 SDK</a>. This is - as always - work in progress.<br /><br />Some of the new stuff:<br /><ul><li>new and improved HTTP debug pages</li><li>added some more subsystem docs<br /></li><li>new Base namespaces which contains all XxxBase classes (mainly to keep the Doxygen documentation clean)</li><li>work-in-progress Lighting subsystem with dynamic spotlights and soft shadows<br /></li><li>RenderTarget resolve-to-texture more flexible (resolve texture can have different size from the render target, and can resolve into a sub-rectangle of the resolve texture)<br /></li></ul>Compatibility info:<br /><br />The Test Viewer has been tested on nVidia 6600 and 7800 cards only. The 6xxx cards don't seem to support texture filtering on G16R16F textures, thus the shadow edges won't be properly smoothed (they still look quite ok though). I think the ATI cards are also unable to filter FP textures. The proper solution would be to implement the linear filtering in the shader. This is planned but not implemented yet.<br /><br />Enjoy!<br />-Floh.

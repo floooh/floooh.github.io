@@ -1,0 +1,14 @@
+---
+layout: post
+title: Fun with HTTP
+date: '2007-08-25T14:20:00.000+01:00'
+author: Andre Weissflog
+tags:
+- Nebula
+modified_time: '2007-08-26T08:40:26.544+01:00'
+thumbnail: http://2.bp.blogspot.com/_cWdorEDEaNg/RtAwBINnrtI/AAAAAAAAABU/7iaRbLif34s/s72-c/n3httpserver.jpg
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-7066270942940530751
+blogger_orig_url: http://flohofwoe.blogspot.com/2007/08/fun-with-http.html
+---
+
+Now that Nebula3 is getting a little more complex it's important to know what's going on inside a running application. In Nebula2, there were a couple of in-game debug windows (a texture browser, a "watcher variable" browser, and so on...). But creating new windows was a difficult and boring job (especially because of all the layout code). For Nebula3 I wanted something easier and more powerful: a simple built-in HTTP server which serves HTML pages with all types of debug information. The idea isn't new, others have done this already, but with Nebula2's IO and networking subsystems it wasn't  a trivial task to write a HTTP server.<br /><br />Turns out in Nebula3 it's just a couple of lines (I was actually surprised myself a little bit, even though I wrote the stuff), the TcpServer class already handles all the connection stuff, throw in a couple of stream readers and writers to decode and encode HTTP requests and responses and you have a simple HTTP server written in a couple of hours.<br /><br />Here's roughly how it works:<br /><ol><li>create and open a TcpServer object<br /></li><li>once per frame (or less frequently) poll the TcpServer for an array of TcpClientConnections (these are all the outstanding requests from web browsers)</li><li>for each TcpClientConnection:</li><ol><li>attach a HttpRequestReader to the receive stream</li><li>attach a HttpResponseWriter to the send stream</li><li>decide what to send back based on the request, and fill the response with the result</li><li>call TcpClientConnection::Send()</li></ol></ol>That's it. The actual HTTP protocol coding/decoding happens in the new classes HttpRequestReader and HttpResponseWriter.<br /><br />Here's the first message served from a Nebula3 application into a web browser:<br /><br /><a onblur="try {parent.deselectBloggerImageGracefully();} catch(e) {}" href="http://2.bp.blogspot.com/_cWdorEDEaNg/RtAwBINnrtI/AAAAAAAAABU/7iaRbLif34s/s1600-h/n3httpserver.jpg"><img style="margin: 0px auto 10px; display: block; text-align: center; cursor: pointer;" src="http://2.bp.blogspot.com/_cWdorEDEaNg/RtAwBINnrtI/AAAAAAAAABU/7iaRbLif34s/s400/n3httpserver.jpg" alt="" id="BLOGGER_PHOTO_ID_5102631173753384658" border="0" /></a><br /><br />What's missing now is some sort of HtmlWriter to write out simple HTML pages with the actual content, and a HttpImageWriter to send images to the web browser (to provide a gallery of all currently existing Texture objects).<br /><br />Fun stuff.

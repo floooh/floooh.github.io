@@ -1,0 +1,12 @@
+---
+layout: post
+title: OpenGL Screw-Ups
+date: '2012-08-19T13:32:00.001+01:00'
+author: Andre Weissflog
+tags: 
+modified_time: '2012-08-19T13:36:29.123+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-735125672914929843
+blogger_orig_url: http://flohofwoe.blogspot.com/2012/08/opengl-screw-ups.html
+---
+
+A list of embarrasing screw-ups I tend to waste time on (repeatedly) while writing OpenGL based rendering code. The list will surely grow as I continue working on Twiggy :P<br />This is generally stuff which doesn't show up with glGetError() of course. <br /><br /><b>Sampling a texture just returns black pixels in the fragment shader:</b><br /><br />Most likely the texture is incomplete because the texture sampler states GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER hadn't been setup yet, or the FILTER states expects mipmaps but the texture has none.<br />Also on some platforms / drivers it is more efficient to setup those states before calling glTexImage2D().<br /><br /><b>Clearing a render target doesn't work as expected (eg the color buffer is cleared, but the depth buffer isn't): </b><br /><br />glClear() is affected by the state of glColorMask(), glDepthMask(), and glStencilMask(). If glDepthMask() is set to GL_FALSE, the depth buffer won't be cleared even though glClear() is called with the GL_DEPTH_BUFFER_BIT set.<br /><br /><b>Also:</b> <a href="http://www.opengl.org/wiki/Common_Mistakes">http://www.opengl.org/wiki/Common_Mistakes</a>

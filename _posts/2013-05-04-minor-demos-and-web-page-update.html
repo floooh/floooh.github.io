@@ -1,0 +1,12 @@
+---
+layout: post
+title: Minor demos and web page update
+date: '2013-05-04T16:58:00.000+01:00'
+author: Andre Weissflog
+tags: 
+modified_time: '2013-05-04T17:01:25.375+01:00'
+blogger_id: tag:blogger.com,1999:blog-2948438400037317662.post-1535928099189526506
+blogger_orig_url: http://flohofwoe.blogspot.com/2013/05/minor-demos-and-web-page-update.html
+---
+
+Couple of minor changes at <a href="http://www.flohofwoe.net/">http://www.flohofwoe.net</a>:<br /><ul><li>I have removed the non-asm.js demos. Since the asm.js code generation in emscripten is now always faster then the "traditional" code generation, it doesn't make sense to have the non-asm.js code around. I'll keep support for the old code-generation in my build pipeline for now, to be able to run comparisons between the new and old code from time to time though.</li><li>The demos are now compiled with link-time-optimization enabled. Previously this had subtle and hard to debug code generation problems, but it looks like this is fixed now (fingers crossed). Performance or code size doesn't seem to be different that much however.</li><li>Demos have been recompiled with the latest emscripten incoming branch.</li><li>I added experimental support for uncompressed textures if the WebGL implementation doesn't support DXT textures (e.g. mobile platforms). This will decompress textures on the fly after download. For now this is just a workaround/hack and hasn't been tested that much. Also, since uncompressed textures are 4..8x bigger, this isn't really useful for complex games.</li><li>I have added a high-level source code page for people who like to read some code: <a href="http://www.flohofwoe.net/sources.html">http://www.flohofwoe.net/sources.html</a></li><li>Finally, <a href="http://n3emscripten.appspot.com/">http://n3emscripten.appspot.com</a>&nbsp;will no longer be updated, and I've put a link to the new demos there.</li></ul><div>-Floh.</div>
