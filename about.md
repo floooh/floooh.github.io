@@ -9,7 +9,7 @@ This is the blog and personal web page of **Andre Weissflog**.
 I work at Bigpoint in Berlin, mostly on the engine
 technology behind [Drakensang Online](http://www.drakensang.com/).
 
-Over the years I have helped to build and release a bit over 30 
+Over the years I have helped build and ship a bit over 30 
 [game projects](http://www.mobygames.com/developer/sheet/view/developerId,117426/)
 at Radon Labs and Terratools.
 
