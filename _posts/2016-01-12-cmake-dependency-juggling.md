@@ -41,14 +41,14 @@ module needs to find some 3rd graphics library headers, then every piece of
 code using my rendering module that *depends* on my rendering module
 needs to know the search path, but not all the other code in my engine.
 
-*Linker dependencies* don't suffer from this 'global variable' problem, but
-it is tedious to maintain a flat list of dependencies for many executable
-targets. Let's say my rendering module requires OpenGL on Linux, and
-Direct3D on Windows. All executables need to link against GL on Linux, 
-and d3d11.lib on Windows. Next the rendering module also supports Metal 
-on OSX. If I'm maintaining a flat linker dependency list in the 
-executable cmake files, I need to touch dozens of cmake files in a complex
-object to add the new linker dependencies to the executables.
+*Linker dependencies* don't suffer from this 'global variable' problem, but it
+is tedious to maintain a flat list of dependencies for many executable targets.
+Let's say my rendering module requires OpenGL on Linux, and Direct3D on
+Windows. This means all executables need to link against GL on Linux, and
+d3d11.lib on Windows. Now the rendering modul is extended to also support Metal
+on OSX. If I'm maintaining a flat linker dependency list in the executable
+cmake files, I need to touch dozens of cmake files in a complex project to add
+the new linker dependencies to all executables.
 
 ## The Solution:
 
