@@ -5,7 +5,7 @@ tags: [cmake]
 ---
 
 **TL;DR:** if your top-level CMakeLists.txt file is riddled with *add\_definitions()*,
-*include\_directories()* and *linker\_directories()*, and your
+*include\_directories()* and *link\_directories()*, and your
 executable's linker-dependency lists are getting too big, this post is for you :)
 
 ## The Problem:
@@ -20,7 +20,7 @@ and a bit of cmake knowledge to not create a tangled mess.
 Typical symptoms are:
 
 - a big and messy root CMakeLists.txt file with many *include\_directories()*,
-*linker\_directories()* and *add\_definition()* functions
+*link\_directories()* and *add\_definition()* functions
 - executable targets with huge lists of linker dependencies
 - on some linkers, unresolved linker errors because the order in which
 linker dependencies are given is important
