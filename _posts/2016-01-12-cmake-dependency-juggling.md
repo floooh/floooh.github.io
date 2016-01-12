@@ -99,7 +99,7 @@ target_link_libraries(MyGame Gfx)
 {% endhighlight %}
 
 So even though only Gfx is given as link-library to the MyGame executable,
-it will actually be link edagainst Gfx, IO, Core and the native 3D libraries.
+it will actually be linked against Gfx, IO, Core and the native 3D libraries.
 
 Doesn't look like a big advantage in this small example, but in a big project
 this sort of dependency-hygiene really pays off.
