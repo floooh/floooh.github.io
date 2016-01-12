@@ -35,11 +35,11 @@ propagate downward in the cmake file tree which is usually not useful way down i
 a leaf module, because only this one module will know about those include
 directories and definitions.
 
-Putting those statements into the root cmake file solves the problems, but is 
+Putting those statements into the root cmake file solves the problems, but is
 basically the same as defining a global variable. If a header in my rendering
-module needs to find some 3rd graphics library headers, then every piece of
-code using my rendering module that *depends* on my rendering module
-needs to know the search path, but not all the other code in my engine.
+module needs to find some 3rd party graphics library headers, then every piece
+of code that *depends* on my rendering module needs to know the search path,
+but not all the other code in my engine.
 
 *Linker dependencies* don't suffer from this 'global variable' problem, but it
 is tedious to maintain a flat list of dependencies for many executable targets.
