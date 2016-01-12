@@ -14,7 +14,7 @@ CMake suffers a bit from the "draw the rest of the fucking owl" problem:
 
 Simple projects with a few libraries and executables are easy and
 straight-forward to setup, but the docs don't say much how to organize a big project
-with hundreds of libraries and dozens of executables. It requires discipline
+with dozens of libraries and executables. It requires discipline
 and a bit of cmake knowledge to not create a tangled mess.
 
 Typical symptoms are:
