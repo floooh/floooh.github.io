@@ -20,7 +20,7 @@ and a bit of cmake knowledge to not create a tangled mess.
 Typical symptoms are:
 
 - a big and messy root CMakeLists.txt file with many *include\_directories()*,
-*link\_directories()* and *add\_definition()* functions
+*link\_directories()* and *add\_definition()* calls 
 - executable targets with huge lists of linker dependencies
 - on some linkers, unresolved linker errors because the order in which
 linker dependencies are given is important
