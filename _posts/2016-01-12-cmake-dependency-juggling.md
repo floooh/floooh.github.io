@@ -91,15 +91,18 @@ If an executable depends on the Gfx module we don't also need to 'manually'
 link against Core, IO and the platform's 3D libs, cmake will take care of this,
 and because we have defined a proper dependency-tree, cmake will resolve this
 tree depth-first, so that the resulting flat list is automatically in the right
-order.
+order:
 
 {% highlight cmake %}
 add_executable(MyGame ${SOURCES})
-target_link_libraries(Gfx)
+target_link_libraries(MyGame Gfx)
 {% endhighlight %}
 
-Doesn't look like a big advantage in this small example, but in a big project,
-this dependency-hygiene really pays off.
+So even though only Gfx is given as link-library to the MyGame executable,
+it will actually be link edagainst Gfx, IO, Core and the native 3D libraries.
+
+Doesn't look like a big advantage in this small example, but in a big project
+this sort of dependency-hygiene really pays off.
 
 ## We need to go Deeper
 
