@@ -10,7 +10,7 @@ executable's linker-dependency lists are getting too big, this post is for you :
 
 ## The Problem:
 
-CMake suffers a bit from "draw the rest of the fucking owl" problem: 
+CMake suffers a bit from the "draw the rest of the fucking owl" problem: 
 
 Simple projects with a few libraries and executables are easy and
 straight-forward to setup, but the docs don't say much how to organize a big project
