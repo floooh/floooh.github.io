@@ -82,7 +82,7 @@ if (USE_OPENGL)
     target_link_libraries(Gfx GL)
 elseif (USE_D3D11)
     target_link_libraries(Gfx d3d11)
-else (USE_METAL)
+elseif (USE_METAL)
     target_link_libraries(Gfx ${metal_framework})
 endif()
 {% endhighlight %}
