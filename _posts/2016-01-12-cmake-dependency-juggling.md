@@ -77,7 +77,7 @@ add_library(Gfx ${SOURCES})
 # Gfx needs project-internal modules Core and IO:
 target_link_libraries(Gfx Core IO)
 
-# and executables need to link aginst the platform's 3D libs:
+# and executables need to link against the platform's 3D libs:
 if (USE_OPENGL)
     target_link_libraries(Gfx GL)
 elseif (USE_D3D11)
@@ -122,7 +122,7 @@ rendering backend is used via a preprocessor define:
 # in the CMakeLists.txt file of the Gfx module:
 add_library(Gfx ${SOURCES})
 ...
-# and executables need to link aginst the platform's 3D libs:
+# and executables need to link against the platform's 3D libs:
 if (USE_OPENGL)
     target_compile_definitions(Gfx PUBLIC HAS_OPENGL_BACKEND=1)
     ...
