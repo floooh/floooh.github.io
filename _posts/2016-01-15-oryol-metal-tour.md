@@ -40,8 +40,8 @@ The main differences to the GL version on OSX are:
 
 ## Gfx Module Setup
 
-At Gfx module setup time, the (still hidden) application window is resized the
-MTKView's contentScaleFactor is configured to either render in full Retina
+At Gfx module setup time, the (still hidden) application window is resized and
+the MTKView's contentScaleFactor is configured to either render in full Retina
 resolution or upscaled from half-res (which is the default). Finally the
 application window is made visible.
 
