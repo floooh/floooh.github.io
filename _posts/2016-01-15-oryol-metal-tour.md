@@ -131,7 +131,7 @@ Metal methods:
 One minor inconvience is that the pipeline state object needs to know
 about some render target attributes (color and depth/stencil format and
 MSAA sample count), which means a specific DrawState object is only
-compatible specific render targets. This limitation is present in
+compatible with specific render targets. This limitation is present in
 all new 3D-APIs though.
 
 ### Resource Destruction
@@ -200,7 +200,7 @@ the Gfx interface simpler.
 *Gfx::ApplyRenderTarget()* for offscreen-rendertargets, and 
 *Gfx::ApplyDefaultRenderTarget()* to render to the default render target
 which is made visible at the end of a frame. Internally, both call the
-same internal mtlRenderer::applyRenderTarget() method.
+same mtlRenderer::applyRenderTarget() method.
 
 ### Gfx::ApplyDrawState()
 
@@ -210,7 +210,7 @@ the texture assignment between draw calls without also setting a new
 draw-state, this is an Oryol convention which was not dictated by Metal,
 but rather by the more recent D3D12 backend.
 
-The following Metal methods are called to apply 'draw-state':
+The following Metal methods are called:
 
 - *[MTLRenderCommandEncoder setBlendColor]*
 - *[MTLRenderCommandEncoder setCullMode]*
@@ -218,9 +218,9 @@ The following Metal methods are called to apply 'draw-state':
 - *[MTLRenderCommandEncoder setRenderPipelineState]*
 - *[MTLRenderCommandEncoder setDepthStencilState]*
 - *[MTLRenderCommandEncoder setVertexBuffer]* (this might be called multiple
-times to bind buffers with vertex and index data to the vertex shader stage)
+times to bind several buffers with vertex and index data to the vertex shader stage)
 
-Plus one or more of the following methods to assign textures and samplers to
+Followed by methods to assign textures and samplers to
 the vertex- and fragment-shader stages:
 
 - *[MTLRenderCommandEncoder setVertexTexture]*
@@ -232,7 +232,8 @@ the vertex- and fragment-shader stages:
 
 This copies a small chunk of memory with shader uniform data into the 
 next free location of the global uniform buffer, records the new
-location in the command buffer, and advances the uniform buffer offset:
+location in the command buffer, and advances the uniform buffer offset
+with an alignment of 256 bytes:
 
 - a _memcpy()_ to copy the uniform data
 - either *[MTLRenderCommandEncoder setVertexBufferOffset:atIndex:]* or
@@ -256,7 +257,7 @@ Gfx::ApplyUniformBlock().
 
 ### Gfx::UpdateVertices() and Gfx::UpdateIndices()
 
-These are straight memory copies into the next free MTLBuffer of the 'dynamic'
+These are straight memory copies into the next free MTLBuffer of a 'dynamic'
 mesh resource object ('free' means: not currently accessed by the GPU). Only
 one complete update is allowed per mesh resource and frame. On OSX, the method
 *[MTLBuffer didModifyRange]* is called.
@@ -278,8 +279,7 @@ written by shader uniform updates.
 
 Next, the render pass is finished via *[MTLRenderCommandEncoder endEncoding]*
 and the command buffer is marked as ready for presenting with 
-*[MTLCommandBuffer presentDrawable]*, using a CAMetalDrawable provided
-by the MTKView.
+*[MTLCommandBuffer presentDrawable]*.
 
 Then before the MTLCommandBuffer is committed, a completion handler block
 (basically a Objective-C lambda function) is added to signal the frame-sync
