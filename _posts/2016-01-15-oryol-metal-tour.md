@@ -282,7 +282,7 @@ and the command buffer is marked as ready for presenting with
 *[MTLCommandBuffer presentDrawable]*.
 
 Then before the MTLCommandBuffer is committed, a completion handler block
-(basically a Objective-C lambda function) is added to signal the frame-sync
+(basically an Objective-C lambda function) is added to signal the frame-sync
 semaphore 'after the device has completed the execution of the command buffer'.
 After that the frame's command buffer is committed for execution with
 *[MTLCommandBuffer commit]*.
