@@ -257,7 +257,7 @@ Gfx::ApplyUniformBlock().
 
 ### Gfx::UpdateVertices() and Gfx::UpdateIndices()
 
-These are straight memory copies into the next free MTLBuffer of a 'dynamic'
+These are straight memory copies into the next free MTLBuffer of a dynamic
 mesh resource object ('free' means: not currently accessed by the GPU). Only
 one complete update is allowed per mesh resource and frame. On OSX, the method
 *[MTLBuffer didModifyRange]* is called.
