@@ -122,7 +122,7 @@ DrawStates are created in the mtlDrawStateFactory class with the
 Metal methods:
 
 - *[[MTLDepthStencilDescriptor] alloc] init]*
-- *[[MTLStencilDescriptor] alloc] init]* (only StencilEnabled)
+- *[[MTLStencilDescriptor] alloc] init]* (only if StencilEnabled)
 - *[MTLDevice newDepthStencilStateWithDescriptor]*
 - *[MTLVertexDescriptor vertexDescriptor]*
 - *[MTLRenderPipelineDescriptor alloc] init]*
@@ -196,7 +196,7 @@ Metal's render-pass concept required to move the formerly separate *Gfx::Clear()
 method into the *Gfx::ApplyRenderTarget()* method. No big deal, in fact it makes
 the Gfx interface simpler.
 
-**NOTE:** there area actually 2 public methods to apply the next render target:
+**NOTE:** there are actually 2 public methods to apply the next render target:
 *Gfx::ApplyRenderTarget()* for offscreen-rendertargets, and 
 *Gfx::ApplyDefaultRenderTarget()* to render to the default render target
 which is made visible at the end of a frame. Internally, both call the
