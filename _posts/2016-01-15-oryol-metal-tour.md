@@ -121,8 +121,8 @@ mtlDrawState objects own one *MTLRenderPipelineState* and one
 DrawStates are created in the mtlDrawStateFactory class with the
 Metal methods:
 
-- *[[MTLDepthStencilDescriptor] alloc] init]*
-- *[[MTLStencilDescriptor] alloc] init]* (only if StencilEnabled)
+- *[[MTLDepthStencilDescriptor alloc] init]*
+- *[[MTLStencilDescriptor alloc] init]* (only if StencilEnabled)
 - *[MTLDevice newDepthStencilStateWithDescriptor]*
 - *[MTLVertexDescriptor vertexDescriptor]*
 - *[MTLRenderPipelineDescriptor alloc] init]*
