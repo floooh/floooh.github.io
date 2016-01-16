@@ -17,7 +17,7 @@ methods, all mentioned Oryol classes (those starting with 'mtl') are private to
 the Gfx module, the methods starting with Gfx:: are static methods of the
 public Gfx facade
 
-## Window Management and Render Loop
+## Window Management and Main Loop
 
 MetalKit's MTKView is used on both platforms (iOS and OSX) to present the
 rendered frame and to drive the entire Oryol application loop in its
