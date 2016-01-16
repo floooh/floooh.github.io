@@ -8,7 +8,7 @@ The Metal rendering backend has about 2.8k lines of code (with about 20%
 comments) in [~26
 files](https://github.com/floooh/oryol/tree/master/code/Modules/Gfx/mtl).  All
 source files are written in Objective-C++, and most headers are included both
-by ObjectiveC++ code and by C++ code, with some macros to hide ObjectiveC++
+by Objective-C++ and C++ code, with some macros to hide Objective-C++
 types from the C++ side.
 
 **NOTE:** all class names starting with **MTL** or **MTK** are OSX/iOS classes,
@@ -160,7 +160,7 @@ _GfxConfig::MtlMaxInflightFrames_ (default is 2, which means double-buffering).
 The size of the global uniform buffer must be defined upfront and cannot grow. 
 Slots in the uniform buffer have a minimal size of 256 bytes (this is an
 alignment requirement), thus the size of the global uniform buffer must 
-be roughly _(max number of Gfx::ApplyUniformBlock() calls per frame) * 256_
+be at least _(max number of Gfx::ApplyUniformBlock() calls per frame) * 256_
 
 ### Gfx::ApplyRenderTarget()
 
