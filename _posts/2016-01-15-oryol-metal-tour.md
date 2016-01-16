@@ -12,7 +12,7 @@ by ObjectiveC++ code and by C++ code, with some macros to hide ObjectiveC++
 types from the C++ side.
 
 **NOTE:** all class names starting with **MTL** or **MTK** are OSX/iOS classes,
-all class names starting with **mtl** or **Gfx::** are Oryol classes or
+all names starting with **mtl** or **Gfx::** are Oryol classes or
 methods, all mentioned Oryol classes (those starting with 'mtl') are private to
 the Gfx module, the methods starting with Gfx:: are static methods of the
 public Gfx facade
