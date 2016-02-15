@@ -99,7 +99,7 @@ IMHO, don't take this as ghospel / the-one-and-only-truth ;)
   function object with captured arguments I usually do this through a lambda
   now instead of using std::function/std::bind directly (that's just too ugly).
   I wouldn't use this as a 'big idea' for building an entire system around it
-  though since std::function pointers are quite fat and complex under the hood.
+  though since std::function objects are quite fat and complex under the hood.
 
 ### What I don't want to give up just yet:
 
@@ -129,3 +129,4 @@ obviously didn't work pretty fast:
   the only important part with implementation details just looks wrong.  That's also
   a gripe I have with other languages that interleave interface declaration
   with implementation, but I guess I'm in the minority there :)
+
