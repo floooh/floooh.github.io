@@ -91,7 +91,7 @@ from before uniforms and texture parameters were grouped into blocks.
 
 Previously, a uniform block might have looked like this:
 
-```
+```cpp
 @uniform_block vsParams VSParams
 @uniform mat4 mvp ModelViewProjection
 @uniform mat4 model Model
@@ -107,7 +107,7 @@ Previously, a uniform block might have looked like this:
 Since uniforms *have* to be declared inside a uniform block, the @uniform tag
 was redundant, so now it looks like this:
 
-```
+```cpp
 @uniform_block vsParams VSParams
   mat4 mvp ModelViewProjection
   mat4 model Model
