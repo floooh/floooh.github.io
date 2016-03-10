@@ -90,7 +90,7 @@ generate slot index constants for use with the texture bind slots in
 the DrawState structure.
 
 The @uniform and @texture tags have been removed, these were leftovers
-from the time when uniform and texture blocks disn't exist.
+from the time when uniform and texture blocks didn't exist.
 
 Previously, a uniform block might have looked like this:
 
