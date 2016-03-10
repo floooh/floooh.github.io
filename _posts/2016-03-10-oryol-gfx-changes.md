@@ -42,13 +42,16 @@ complex state-object caching, eliminating a couple hundred lines of code.
 
 ### More flexible input mesh combinations
 
-This is also a fix that was done while writing the voxel demo: the demo uses a
+This is also a change inspired by the voxel demo: the demo uses a
 single static buffer for indices, but hundreds of dynamically updated vertex
-buffers.
+buffers, which was a combination that was simply not possible before without
+creating many identical index buffers.
 
 It is now possible to mix dynamic and static index- and vertex-buffers in 
 the same mesh, and it is possible to create a mesh which has only an index
-buffer. In this case, another mesh object must provide the vertex data.
+buffer. In this case, another mesh object must provide the vertex data. This
+makes it possible to combine a single static index buffer with many different
+dynamic buffers.
 
 The obvious question is now: why have mesh objects at all, and not provide
 simple vertex- and index-buffers to begin with? The reason is that this is
