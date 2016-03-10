@@ -75,8 +75,8 @@ slots' before draw calls can be issued:
 - slots for 1..4 meshes providing vertex and index data, the vertex
   layout of the meshes must match the expected vertex layout of the pipeline
   object
-- slots for 1..4 textures for the vertex shader stage
-- ...and slots for 1..12 textures for the fragment shader stage
+- slots for 0..4 textures for the vertex shader stage
+- ...and slots for 0..12 textures for the fragment shader stage
 
 The max number of meshes and textures can be tweaked through code constants in
 the header Gfx/Core/GfxConfig.h, it might be a better idea to put these into
