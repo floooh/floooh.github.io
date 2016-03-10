@@ -13,8 +13,7 @@ Without further ado:
 
 The 'draw-state' resource type has been renamed to 'pipeline', since it
 maps now exactly to a D3D12 pipeline-state-object, and is a superset of similar
-bundled render-state on other APIs (at least the ones that are currently
-supported: GLES2/WebGL, Metal, D3D11).
+bundled render-state on other 3D APIs.
 
 The only publicly visible class which is affected is the old DrawStateSetup
 class, which is now called PipelineSetup.
@@ -32,7 +31,7 @@ realworld-situations. For instance, this new [voxel
 demo](http://floooh.github.io/voxel-test/) allocates a pool of several hundred
 dynamically updated vertex buffers, and previously, it was required
 to create just as many pipeline objects (but because of the internal caching, 
-only one D3D12 pipeline-state-object would have be created)
+only one D3D12 pipeline-state-object was actually created)
 
 Now, a pipeline object only needs to know the vertex-layouts and the
 primitive type of the input geometry, and it will be compatible with
@@ -43,19 +42,20 @@ complex state-object caching, eliminating a couple hundred lines of code.
 
 ### More flexible input mesh combinations
 
-This is also a fix that was done for the voxel demo, which uses a single
-static buffer for indices, but hundreds of dynamically updated vertex buffers:
+This is also a fix that was done while writing the voxel demo: the demo uses a
+single static buffer for indices, but hundreds of dynamically updated vertex
+buffers.
 
 It is now possible to mix dynamic and static index- and vertex-buffers in 
 the same mesh, and it is possible to create a mesh which has only an index
-buffer. In this case, another input mesh must provide the vertex data.
+buffer. In this case, another mesh object must provide the vertex data.
 
 The obvious question is now: why have mesh objects at all, and not provide
-separate vertex- and index-buffers from begin with? The reason is that this is
+simple vertex- and index-buffers to begin with? The reason is that this is
 currently more convenient when loading asset data. You provide an URL of a
-'mesh file', and get a single resource object back which contains all the data
-vertex and index data in one place. This is an open topic though, if a simple
-solution pops up, I'd like to move to separate vertex- and index-buffers.
+'mesh file', and get a single resource object back with all the data in the mesh
+file under a single handle. This is an open topic though, if a simple solution
+pops up, I'll likely move to separate vertex- and index-buffers.
 
 ### A new DrawState struct for passing resource ids to Gfx::ApplyDrawState()
 
@@ -63,9 +63,9 @@ The draw-state concept hasn't disappeared, just re-purposed: there is now a
 public DrawState struct, which holds the handles for all resources that need to
 be bound via Gfx::ApplyDrawState() for the following draw calls.
 
-The DrawState structure represents the resource binding model of Oryol in a
-simple and obvious way: resources must be plugged into 'resource slots' before
-draw calls can be issued:
+The DrawState structure basically represents the resource binding model of
+Oryol in a simple and obvious way: resources must be plugged into 'resource
+slots' before draw calls can be issued:
 
 - there's one slot for a pipeline object, which defines the shader, render
   states and expected vertex layout
@@ -75,19 +75,19 @@ draw calls can be issued:
 - slots for 1..4 textures for the vertex shader stage
 - ...and slots for 1..12 textures for the fragment shader stage
 
-The max number of meshes and textures can be tweaked through constants in the
-header Gfx/Core/GfxConfig.h, it might be a better idea to put these into cmake
-options so that they can be tweaked without modifying the Oryol source code.
+The max number of meshes and textures can be tweaked through code constants in
+the header Gfx/Core/GfxConfig.h, it might be a better idea to put these into
+cmake options later.
 
 ### Shader code generator changes
 
 Since textures are now plugged into the new DrawState struct, the shader code
-generator no longer generated 'texture block' structures, instead it will
-generate slot index constants for use with the texture binding slots in
+generator no longer generates 'texture block' structures, instead it will
+generate slot index constants for use with the texture bind slots in
 the DrawState structure.
 
 The @uniform and @texture tags have been removed, these were leftovers
-from before uniforms and texture parameters were grouped into blocks.
+from the time when uniform and texture blocks disn't exist.
 
 Previously, a uniform block might have looked like this:
 
