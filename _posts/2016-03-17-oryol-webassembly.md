@@ -56,7 +56,7 @@ differ between asm.js and WebAssembly build targets.
 
 And finally, I'll start from scratch with an empty directory and everything
 will happen inside this directory, at the end you can simply delete this
-directory and your machine will (nearly) be at the same state it was before,
+directory and your machine will (nearly) be in the same state it was before,
 with the exception of a few tools installed through standard package managers.
 
 Oh, and I will do everything on **OSX**, with **brew** as package manager. All
@@ -185,7 +185,7 @@ Now, instead of building the entire Firefox, we just build the JS engine:
 
 Compiling will also take a little while...
 
-When it's over there will be a 'js' executable in the dist/bin/js subdirectory.
+When it's over there will be a 'js' executable in the dist/bin/ subdirectory.
 But we'll leave that also there for later...
 
 ## 5. Modify .emscripten config file
@@ -225,7 +225,7 @@ Don't forget to replace the 'floh' in both places with your own username :)
 
 Ready for testing! Oryol has a new fips build config called 'wasm-make-release'
 (under ~/scratch/oryol/fips-configs). This build config switches a cmake option 
-on which in turn adds a few more flags to the emscripten linker steps, namely:
+on which in turn adds a few more flags to the emscripten linker step, namely:
 
 ```
 -s BINARYEN=1
@@ -242,7 +242,7 @@ should only create a wasm file that can be loaded directly by browsers,
 without any fallback-options if WebAssembly is not supported.
 
 The last 2 options deal with code-generation details which are required
-for WebAssembly, more details here: 
+for WebAssembly, more info here: 
 [https://github.com/WebAssembly/binaryen](https://github.com/WebAssembly/binaryen).
 
 Ok, so let's finally try to build some WebAssembly:
@@ -293,7 +293,7 @@ serving on http://localhost:8000 (Ctrl-C to quit)
 ```
 
 Don't be confused about that one Javascript file, this contains manually written
-glue code (not asm.js) to talk to HTML APIs. All the former asm.js code
+glue code (not asm.js) to talk to HTML5 APIs. All the former asm.js code
 has been translated into the .wasm file.
 
 And that's it :) Hopefully it won't be too long until WebAssembly support is
