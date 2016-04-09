@@ -237,7 +237,7 @@ instead it has been precompiled into static link libs. The reason is the
 terribly complex autoconf-based build system setup used by Curl at the time I
 wrote the Oryol HTTP module.
 
-There is now officual cmake support in curl which might make things easier
+There is now official cmake support in curl which might make things easier
 (especially for Android), however even if this is the case I'm still looking
 for alternatives to curl, since it does much more than what Oryol actually
 needs (which is: HTTP, and in the future probably HTTPS and HTTP2).
