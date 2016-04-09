@@ -155,7 +155,7 @@ ImGui.
 
 #### SoLoud
 
-SoLoud is medium-level cross-platform audio lib that's very well suited for
+SoLoud is a medium-level cross-platform audio lib that's very well suited for
 projects that need to keep an eye on code- and asset-sizes. It fits somewhere
 between system-level sound APIs like OpenAL and high-level artist-centric audio
 solutions like FMOD. It has a very nicely designed simple and intuitive API
@@ -304,7 +304,7 @@ only have extensive experience with ODE).
 
 ### The End
 
-And that's it. Hopefully I will earn of many other great open source libraries
+And that's it. Hopefully I will learn of many other great open source libraries
 in the future. In my experience, choosing the right middleware (and deciding
 what to tackle myself, and where to use other people's code) has a huge effect
 on 'programmer happiness'. 
