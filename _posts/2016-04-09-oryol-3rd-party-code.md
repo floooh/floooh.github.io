@@ -159,7 +159,7 @@ SoLoud is a medium-level cross-platform audio lib that's very well suited for
 projects that need to keep an eye on code- and asset-sizes. It fits somewhere
 between system-level sound APIs like OpenAL and high-level artist-centric audio
 solutions like FMOD. It has a very nicely designed simple and intuitive API
-which makes simple things simple buts complex things possible (yes, really!). Most
+which makes simple things simple but complex things possible (yes, really!). Most
 medium-level features (like playback or streaming of wav files, OGG support,
 various audio filters, SID, TED, MOD playback or speech generation) are
 optional in the sense that they don't bloat your exe size if you don't use them.
