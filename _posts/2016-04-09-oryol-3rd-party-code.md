@@ -133,7 +133,7 @@ If you're still using GLUT, definitely give GLFW a shot.
 
 ImGui is the first-ever UI framework that I used in my entire life that isn't a
 royal pain in the ass to write code for. In fact it is highly enjoyable to use.
-If you're crumpy and in a bad mood, just write a few lines of ImGui and you'll
+If you're grumpy and in a bad mood, just write a few lines of ImGui and you'll
 be smiling for the rest of the day. That's how good it is.
 
 And this includes all types of UI frameworks, not just for games.
