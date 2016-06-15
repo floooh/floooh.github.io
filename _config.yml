@@ -18,3 +18,4 @@ github_username:  floooh
 
 # Build settings
 markdown: kramdown
+highlighter: rouge
