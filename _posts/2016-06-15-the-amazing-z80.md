@@ -48,7 +48,7 @@ still ahead.
 ### The 8-bit Wars
 
 So, where was I... the **Z80**! Heir to the Intel 8080, archnemesis of the
-Mostek 6502, firestarter of the first battles in the eternal fanboy war: Z80 vs
+M6502, firestarter of the first battles in the eternal fanboy war: Z80 vs
 6502, Commodore vs Atari, Intel vs Motorola, PC vs Mac, Xbox vs Playstation! 
 
 The Z80 was one of the two 'big' 8-bitters of the late 70's and early 80's, 
