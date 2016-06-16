@@ -297,7 +297,7 @@ transistors for hundreds of completely useless instructions?
 The answer can only be that the designers made clever use of existing resources
 and those redundant instructions run on exactly the same transistors as the
 documented 'main instruction'. It seems that the only purpose of the prefix
-instruction is to 're-wire' the normally used HL register to IX or IY, and
+byte is to 're-wire' the normally used HL register to IX or IY, and
 whenever HL would be used as memory pointer, fetch and add an additional offset
 byte to IX or IY. Apart from that the indexed instructions are completely
 identical to their unextended counterparts, they just take longer because
