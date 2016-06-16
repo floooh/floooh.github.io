@@ -194,7 +194,7 @@ the **CALL nn** instruction (which calls into a subroutine) at CD even has 3
 alternatives at DD, ED and FD.
 
 On the Z80, those 4 byte values CB, DD, ED and FD are used as
-lead bytes for the extended multi-byte instructions on the Z80 (of course if
+lead bytes for the extended multi-byte instructions (of course if
 an Intel 8080 program made use of those alternative opcodes it wouldn't run
 on a Z80).
 
@@ -242,7 +242,7 @@ fully understood by emulator writers until well into the 2000s.
 
 The undocumented instructions in the extended FD and DD ranges
 are especially interesting, they explain how all those indexed instructions
-using the IX and IY instructions could be implemented with minimal
+using the IX and IY registers could be implemented with minimal
 additional chip space:
 
 Looking at the _documented_ index instruction it is clear that the
