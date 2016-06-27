@@ -93,7 +93,7 @@ don't care :)
 
 ### To the Batmobile! Let's go:
 
-Ok, back to the topic on hand. What follows is an unordered list of things I
+Ok, back to the topic at hand. What follows is an unordered list of things I
 stumbled over, found interesting, where I scratched my head or got stuck, all
 from a complete Rust noob, so take everything with a grain of salt.
 
