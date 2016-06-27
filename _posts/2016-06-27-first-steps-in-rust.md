@@ -251,7 +251,7 @@ to test the DJNZ instrucion:
     fn test_djnz() {
         let mut cpu = rz80::CPU::new();
         let prog = [
-            0x06, 0x03,     // LD BC,0x03
+            0x06, 0x03,     // LD B,0x03
             0x97,           // SUB A
             0x3C,           // loop: INC A
             0x10, 0xFD,     // DJNZ loop
@@ -277,7 +277,7 @@ from inside vim, and get the result in a fraction of a second:
 ![rust-test](/images/rust-test.png)
 
 Integration with TravisCI is also extremely simple. Just add the following
-.travis.ci file to the project root:
+.travis.yml file to the project root:
 
 ```yaml
 language: rust
