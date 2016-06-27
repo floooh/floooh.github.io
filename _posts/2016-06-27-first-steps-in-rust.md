@@ -44,7 +44,7 @@ Github project is here: [https://github.com/floooh/rz80](https://github.com/floo
 Sanity and a quiet retreat from the 'Modern C++ Circus', at least for some
 time. 
 
-For performance-sensitive game-development related-things, the 'orthodox 
+For performance-sensitive game-development-related things, the 'orthodox 
 subset' of C++ is as good as it gets, C++14 and 17 don't improve the language
 in any of the areas I'm interested in.
 
@@ -83,7 +83,7 @@ memory management.
 
 I still want to be able to glimpse the assembly code between the
 lines, in the sense that I want to be able to estimate whether a line of high
-level code translates to 1, 10 or 100 assembler instructions, and what the
+level code translates to 1, 10 or 100 assembly instructions, and what the
 memory access patterns roughly look like.
 
 It may well be that the Rust world has (or will have) Functional Zealots in the
@@ -148,7 +148,7 @@ code this looked really noisy. I worked around this for now by using a wider,
 common integer type (currently i64) everywhere in the CPU structure. This
 avoids all the typecasting, but I need to handle overflow manually by adding a
 **& 0xFF** or **& 0xFFFF** in many places (and if I forget this in one place, I
-have a potentially hard to find bug in the emulation). Speaking about overflow:
+have a potentially hard to find bug in the emulation). Speaking of overflow:
 
 **Integer Overflow is a Runtime Error**: I can understand why Rust does this
 but boy is it annoying in the context of an 8-bit CPU emulator, since this
