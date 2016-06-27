@@ -290,7 +290,7 @@ matrix:
         - rust: nightly
 ```
 
-This builds the project against 3 Rust version (stable, beta and nightly), runs
+This builds the project against 3 Rust versions (stable, beta and nightly), runs
 the tests and produces the following [output (click
 me)](https://travis-ci.org/floooh/rz80/jobs/140595512).
 
