@@ -244,7 +244,7 @@ file:
 ...and in a separate integration test module (also in a standard location)
 I have a number of higher level tests which run the entire instruction
 decoding- and execution loop, for instance this little Z80 program
-to test the DJNZ instrucion:
+to test the DJNZ instruction:
 
 ```rust
     #[test]
