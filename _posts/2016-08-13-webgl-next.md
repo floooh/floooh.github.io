@@ -88,7 +88,7 @@ are queued for execution on the GPU.
 ### WebGL has no shader byte code
 
 This is a relatively small problem compared to the others, but each browser
-vendor has to implement it's own GLSL compiler in the browser. And while
+vendor has to implement its own GLSL compiler in the browser. And while
 WebGL is very well conformance-tested, sometimes a shader compiles
 fine in one browser but not in another. 
 
@@ -198,7 +198,7 @@ and it could even be implemented on top of GLES2 if needed.
 
 The days of the 'One 3D-API To Rule Them All' are over, arguably this was never
 true since OpenGL implementations differed so much in important details that
-each GL implementation was it's own little platform with different feature sets and
+each GL implementation was its own little platform with different feature sets and
 performance behaviour. WebGL is a bit of a 'unicorn' because it did the right
 thing at the right time, and in a very pragmatic way.
 
