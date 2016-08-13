@@ -162,7 +162,7 @@ Here I would vote for ease-of-use instead of explicit control, the same way that
 D3D11 and especially Metal does it.
 
 Instead of explicitely managing all resource memory and resource state
-transitions, the application code provides an intend how it is going to use a
+transitions, the application code provides an intent how it is going to use a
 resource, and the details are handled inside the 3D API just like in D3D11 or
 (with slightly more control) in Metal.
 
