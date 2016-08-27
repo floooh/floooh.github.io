@@ -3,7 +3,7 @@ layout: post
 title: 10 simple diet tricks for asm.js
 ---
 
-**TL;DR**: reducing the size of asm.js demos, and C++ builds in general
+**TL;DR**: reducing the size of asm.js-, and C++-builds in general
 
 Apologies for the click-baity title, I couldn't resist :D
 
