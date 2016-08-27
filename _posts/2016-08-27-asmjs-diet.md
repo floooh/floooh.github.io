@@ -183,7 +183,7 @@ instead.
 
 At least in clang's stdc++ implementation, a lot of code is pulled in for
 static constructors to initialize the iostream system even if the actual user
-code doesn't use iostream stuff. I'm not sure if this can even be avoided in
+code doesn't use any of it. I'm not sure if this can even be avoided in
 native code at all, since linking against the C++ runtime library happens
 automatically as soon as C++ is enabled.  In emscripten this was a pretty big
 problem which required compiling a manually patched C++ runtime lib, but in the
