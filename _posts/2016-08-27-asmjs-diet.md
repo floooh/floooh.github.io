@@ -60,11 +60,11 @@ because then all the interesting stuff happens in the browser. For lower level
 Javascript code that does more than just calling HTML5 APIs, the size
 differences to emscripten-compiled code are surprisingly small.
 
-The main takeaway is that **compressed asm.js code can be as small as native
-code** and can even rival handwritten Javascript code in some cases. The actual
-problem is usually that it is already the native executable that's bloated, and
-such bloat is unfortunately quite easy to achieve with C++ (much harder with
-pure C).
+The main takeaway is that **compressed asm.js code can be as small as
+compressed native code** and can even rival handwritten Javascript code in some
+cases. The actual problem is usually that it is already the native executable
+that's bloated, and such bloat is unfortunately quite easy to achieve with C++
+(much harder with pure C).
 
 ### General C/C++ Tips
 
