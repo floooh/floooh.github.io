@@ -171,7 +171,7 @@ native and the asm.js executable even though my code doesn't use C++ exceptions
 or RTTI at all. So if you can, compile with '-fno-exceptions' and '-fno-rtti'.
 This is especially important for emscripten, I don't know all the
 emscripten-specific details since I never use C++ exceptions in my own code,
-and also avoid 3rd-party-libs that depends on exceptions, but exception handling
+and also avoid 3rd-party-libs that depend on exceptions, but exception handling
 in asm.js is more expensive than in native code. May be this will be fixed in
 WebAssembly, not that I would care, but I heard some C++ coders actually
 do use exceptions ;)
