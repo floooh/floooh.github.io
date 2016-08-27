@@ -16,7 +16,7 @@ But for more professional demos the simple and inconvenient truth is often that
 it is the underlying C++ code which already produces oversized native
 executables, and in this case emscripten can't magically produce a small asm.js
 file from a bloated code base, the C++ code needs to be trimmed down to
-produce a program that's acceptable as webpage component.
+produce a program that's acceptable as webpage content.
 
 This blog post is mainly about 2 things:
 
