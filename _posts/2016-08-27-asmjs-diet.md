@@ -226,7 +226,7 @@ KByte, it doesn't mean that iostream programs are generally 5x bigger, but it's
 many little things like this that contribute to overall bloat.
 
 
-#### Pick you external dependencies carefully
+#### Pick your external dependencies carefully
 
 Kinda obvious, but if you depend on external libraries that violate any of the
 above, all the effort in your own code is in vain. That's why I prefer
