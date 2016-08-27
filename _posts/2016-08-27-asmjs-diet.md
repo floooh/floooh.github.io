@@ -256,7 +256,7 @@ Here's a selection of emscripten linker-stage command line args I found useful:
 
 - **--memory-init-file**: This selects whether static data is embedded as ASCII
   in the asm.js file, or whether a separate binary '.mem' file is generated.
-  The original indention was that the binary file is the better option since
+  The original intention was that the binary file is the better option since
   the compressed end result was slightly smaller with the '.mem' file. But
   there's a gotcha that's often overlooked. Some web server configurations
   (e.g. github pages) will only compress a small selection of known file types,
