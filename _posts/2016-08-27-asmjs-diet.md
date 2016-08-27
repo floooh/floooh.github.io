@@ -73,7 +73,7 @@ that's bloated, and such bloat is unfortunately quite easy to achieve with C++
 The most important advice is to write code that makes it easy for the compiler
 to **identify and remove dead code**. A program that only uses a very
 small feature set of a game-engine should be much smaller than a program that
-needs most of the engine's feature set. Otherwise you'll end up with 
+needs most of the engine's features. Otherwise you'll end up with 
 a Tetris clone that's just as big as a full-blown 1st-person-shooter.
 
 In the old times, dead code removal was fairly crude and only happened on the
