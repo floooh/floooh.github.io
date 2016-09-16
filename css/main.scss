@@ -14,13 +14,17 @@ $base-line-height: 1.5;
 
 $spacing-unit:     30px;
 
-$text-color:            #111;
-$background-color:      #fdfdfd;
-$brand-color:           #2a7ae2;
+$text-color:            #586e75;
+$background-color:      #fdf6e3;
+$link-color:            #cb4b16;
+$site-title-color:      #dc322f;
+$post-title-color:      #268bd2;    
+$heading-color:         #268bd2;
+$brand-color:           #cb4b16;
 
 $grey-color:       #828282;
 $grey-color-light: lighten($grey-color, 40%);
-$grey-color-dark:  darken($grey-color, 25%);
+$grey-color-dark:  darken($grey-color, 5%);
 
 // Width of the content area
 $content-width:    800px;

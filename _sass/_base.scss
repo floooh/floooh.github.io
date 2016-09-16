@@ -37,7 +37,9 @@ ul, ol, dl, figure,
     margin-bottom: $spacing-unit / 2;
 }
 
-
+h1, h2, h3, h4, h5, h6 {
+    color: $heading-color;
+}
 
 /**
  * Images
@@ -91,16 +93,11 @@ h1, h2, h3, h4, h5, h6 {
  * Links
  */
 a {
-    color: $brand-color;
+    color: $link-color;
     text-decoration: none;
 
-    &:visited {
-        color: darken($brand-color, 15%);
-    }
-
     &:hover {
-        color: $text-color;
-        text-decoration: underline;
+        color: lighten($link-color, 10%);
     }
 }
 
@@ -130,8 +127,6 @@ blockquote {
 pre,
 code {
     font-size: 15px;
-    border: 1px solid $grey-color-light;
-    border-radius: 6px;
 }
 
 code {
