@@ -113,7 +113,7 @@ test with more complex uniform updates.
 ### Render Passes and Multiple Render Targets
 
 So far, offscreen rendering was quite limited in Oryol. It was only possible to
-render to a single color/depth-stencil surface pair time without MSAA-support,
+render to a single color/depth-stencil surface pair without MSAA-support,
 and reuse the color-render-target as texture later in the frame. 
 
 The WebGL2 update will make offscreen rendering much more powerful, but
