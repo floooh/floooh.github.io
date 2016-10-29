@@ -33,13 +33,13 @@ lines of C++ code.
 The sizes of the native 64-bit version, compiled with -O3 (clang, OSX):
 
 - **1173** KByte uncompressed
-- **496** KByte compressed (gzip --best)
+- **496** KByte compressed (```gzip --best```)
 
 The same code, compiled with emscripten to asm.js (also with -O3, but the more
 detailed compile settings are explained later):
 
 - **2150** KByte uncompressed
-- **435** KByte compressed (also gzip --best)
+- **435** KByte compressed (also ```gzip --best```)
 
 The emscripten version is even smaller than the native version after compression,
 impossabru! I actually didn't expect this myself (last time I did such comparisons
@@ -254,7 +254,7 @@ C++ code with heavy template use may benefit much more.
 
 Here's a selection of emscripten linker-stage command line args I found useful:
 
-- **--memory-init-file**: This selects whether static data is embedded as ASCII
+- ```--memory-init-file```: This selects whether static data is embedded as ASCII
   in the asm.js file, or whether a separate binary '.mem' file is generated.
   The original intention was that the binary file is the better option since
   the compressed end result was slightly smaller with the '.mem' file. But
@@ -266,32 +266,32 @@ Here's a selection of emscripten linker-stage command line args I found useful:
   download of a .js+.mem file is much bigger because the .mem file is not
   compressed.
 
-- **-s NO\_FILESYSTEM=1**: This removes the emulated filesystem layer in
+- ```-s NO\_FILESYSTEM=1```: This removes the emulated filesystem layer in
   emscripten even if the code contains (but doesn't call) CRT IO functions
   (like fopen/fclose).  This is useful because third party code sometimes has
   such functions even if they are never called. This saves about 70 KBytes
   uncompressed, or 20 KByte compressed (again, not much on its own, but stuff
   like this adds up). 
 
-- **-s DISABLE\_EXCEPTION\_CATCHING=1**: this is now actually enabled by default
+- ```-s DISABLE_EXCEPTION_CATCHING=1```: this is now actually enabled by default
   at -O1 and above (at least the emscripten docs say so), this will generate
   much simpler exception 'handling' code which simply terminates the program
   instead of calling an exception handler.
 
-- **--closure 1**: This invokes the Google closure compiler to optimize the
+- ```--closure 1```: This invokes the Google closure compiler to optimize the
   manually written HTML5 interface code in an asm.js executable. I'm not
   using this anymore since emscripten now has its own minifier when
   closure is not invoked, and in my case it didn't make much of
   a difference. YMMV.
 
-- **-s ELIMINATE\_DUPLICATE\_FUNCTIONS=1**: this finds and removes
+- ```-s ELIMINATE\_DUPLICATE\_FUNCTIONS=1```: this finds and removes
   duplicate function bodies on the asm.js level, which might be useful
   for heavy template use if the code for different template
   arguments ends up being identical. It doesn't make much difference
   on my own stuff (only 2 or 3 KByte in the biggest Oryol samples), but
   this may be useful in different code bases.
 
-- **--llvm-lto N**: this controls LLVM's LTO (Link-Time-Optimization) pass,
+- ```--llvm-lto N```: this controls LLVM's LTO (Link-Time-Optimization) pass,
   I have this set to 1 which seems to produce the best tradeoff
   between size and speed for my code. Bigger values seem to do more
   inlining and produce bigger code for little performance increase.
