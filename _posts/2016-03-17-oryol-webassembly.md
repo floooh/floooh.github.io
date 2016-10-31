@@ -8,6 +8,27 @@ working will very likely be outdated soon, check the emscripten
 documentation how it works in your time period (hopefully it will be
 much simpler by then)
 
+**UPDATE 31-Oct-2016** Looks like the big day has come: the complicated steps
+in this blogpost are no longer necessary, the emscripten SDK now includes
+everything to build WebAssembly executables (at least the bleeding edge
+'incoming' version). The easiest way is to build with **-s WASM=1**, this works
+out of the box but contains a pretty big Javascript polyfill for the case that
+WebAssembly is not supported by the browser. To avoid this, add the option **-s
+BINARYEN_METHOD="native-wasm"**.
+
+Details are on the new [WebAssembly webpage](http://webassembly.org/), and
+on the [emscripten Wiki](https://github.com/kripken/emscripten/wiki/WebAssembly).
+
+For [fips projects](http://floooh.github.io/fips/), for instance 
+[Oryol](https://github.com/floooh/oryol), just build with 
+
+```
+> ./fips build wasm-ninja-release'
+# or
+> ./fips build wasm-make-release'
+``` 
+
+#### Following is the original blog post, nothing to see here anymore :)
 
 Two days ago, the Mozilla, Google and Microsoft browser teams dropped the
 bomb by not only announcing experimental WebAssembly support in their browsers,
