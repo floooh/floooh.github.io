@@ -49,7 +49,7 @@ emulator.
 
 The entire emulator package is split into 3 components:
 
-- **Emulator Core**: This is he actual emulator written in a simple C++ without dependencies. 
+- **Emulator Core**: This is the actual emulator written in a simple C++ without dependencies. 
 The main design goals for the emulator core are to be small and fast, easy to extend with 
 new emulated systems, and easy to embed into other projects (for instance here's the
 emulator embedded into a simple 
