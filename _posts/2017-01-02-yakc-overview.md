@@ -352,7 +352,7 @@ this->emu.put_input(ascii, joy0_mask);
 
 #### What's Next
 
-I guess that's is enough for today :) My plan is to have a look at the Emulator Core next,
+I guess that's enough for today :) My plan is to have a look at the Emulator Core next,
 starting with the lowest-level layer (memory system, clock, and the system bus),
 and then continue with the CPU and support chip emulation and finally how to build
 a complete system by connecting chips through the system bus. After that there should
