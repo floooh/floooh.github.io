@@ -93,7 +93,7 @@ physical addresses.
 
 The YAKC memory class divides the 64 KByte address space into 64 memory pages of 1
 KByte each. The 1 KByte page size is a requirement for some of the currently
-emulated computers, I actually started with a 16 KByte page size but had to down
+emulated computers, I actually started with a 16 KByte page size but had to go down
 to 8, 4 and finally 1 KByte as I added more emulated computer systems.
 
 A memory page item in the page table is just 2 pointers, one for read-access
