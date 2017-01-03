@@ -7,7 +7,7 @@ This is the second blog post in my little YAKC Emulator internals series which
 looks at the emulator's memory system, pretty much the lowest level part of the
 emulator.
 
-Here is the emulator's [github repository](https://www.github.com/floooh/oryol),
+Here is the emulator's [github repository](https://www.github.com/floooh/yakc),
 and here is the [asm.js version](https://floooh.github.com/virtualkc)
 
 #### Memory System Requirements
