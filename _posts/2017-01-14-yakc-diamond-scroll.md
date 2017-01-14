@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "YAKC Emulator: The Diamond Scroll"
+title: "YAKC Emu: The Diamond Scroll"
 ---
 
 The KC85/3 game _**Digger**_ had a 'diamond scroll' effect which looked like this (I failed at 
