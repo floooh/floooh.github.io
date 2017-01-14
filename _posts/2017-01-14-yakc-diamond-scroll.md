@@ -143,7 +143,7 @@ happens in this case on a real KC, OMG the possibilities!).
 
 This worked quite well, but two annoying problems remained: I had to add a
 'magic constant' to the number of video scanlines to make the scrolling work in
-the right direction and the right speed , and when I moved the player character
+the right direction and the right speed, and when I moved the player character
 around, the scrolling speed was different than just standing idle, which
 was clearly not the case on real hardware!
 
