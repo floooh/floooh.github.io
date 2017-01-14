@@ -105,7 +105,7 @@ The reason the effect scrolls up is because the overall number of scanlines isn'
 an exact multiple of the stripe height. The video scanline counter goes up to 312
 (per the PAL spec) and then resets to zero, and since the color blinking flag
 toggles in 5-scanline-intervals, there's a little remainder which isn't reset at the
-start of a new video frame. This timing error causes the scrolling to 'run', similar
+start of a new video frame. This timing error causes the blinking to 'run', similar
 to a running image on old, broken TVs (hmm, not a very helpful comparison
 in the 21st century I must admit).
 
