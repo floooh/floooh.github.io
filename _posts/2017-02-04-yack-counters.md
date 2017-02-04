@@ -100,12 +100,12 @@ Eastern home computers were often designed around a handful of off-the-shelf chi
 
 _Wat_? 
 
-For the high production volumes of the popular Western models it seems to 
-have been cheaper to integrate as many functions as possible into a single
-chip, since at high volume, one chip is cheaper then 3 or 4 even if the development
-cost must be amortized and production capacity rented. Some home computers also 
-started with a bunch of standard ICs which moved gradually into the gate array
-in later hardware revisions.
+For the high production volumes of the popular Western models it seems to have
+been cheaper to integrate as many functions as possible into a single chip,
+since at high volume, building one custom chip is cheaper than buying 3 or 4
+off-the-shelf chips even if the development cost must be amortized and production
+capacity rented. Some home computers also started with a bunch of standard ICs
+which moved gradually into the gate array in later hardware revisions.
 
 In the East, the 8-bit 'home-computer-style' systems only played second fiddle
 to office computers. The home computers had to use the 'reject chips' that
