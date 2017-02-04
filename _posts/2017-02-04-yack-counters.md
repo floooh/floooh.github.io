@@ -192,7 +192,7 @@ pins** for the 3 video signals:
 
 - **bool COLOR**:    OFF to render black, ON to render white
 - **bool HSYNC**:    toggles to ON for 1 clock cycle to trigger the horizontal retrace
-- **bool VSYNC**:    toggles to OFF for 1 clock cycle to trigger the vertical retrace
+- **bool VSYNC**:    toggles to ON for 1 clock cycle to trigger the vertical retrace
 
 ...and 1 **input pin** with the 'clock tick'. The frequency of this clock tick
 is the same as the 'pixel output frequency' of our video system.
