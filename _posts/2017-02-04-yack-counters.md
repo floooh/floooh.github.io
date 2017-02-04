@@ -197,13 +197,12 @@ pins** for the 3 video signals:
 ...and 1 **input pin** with the 'clock tick'. The frequency of this clock tick
 is the same as the 'pixel output frequency' of our video system.
 
+We also need a few counters to keep track of when to trigger the HSYNC and VSYNC
+signals, and where to fetch video memory bytes from:
+
 - **int HCOUNT**:   counts from 0 to 16
 - **int VCOUNT**:   counts from 0 to 8
 - **int ADDR**:     counts up and is reset when VSYNC occurs
-
-The chip needs to be able to read a byte from memory at the address pointed to 
-by the ADDR counter, but since this is just an imaginary chip we stash this detail
-away under 'magic'.
 
 First let's take care of the COLOR output pin. This should go ON when the video 
 memory byte at the ADDR counter is greater 0, otherwise OFF (apologies for abusing
