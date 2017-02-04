@@ -134,7 +134,7 @@ started to recognize what's under the next magic onion layer:
 
 ### Oh my dog, it's full of counters!
 
-Those video- and audio-chips are essentiall just a bunch of counter cascades! A
+Those video- and audio-chips are essentially just a bunch of counter cascades! A
 counter counts to a specific value, when the value is reached it 'ticks'
 another counter forward and then starts counting at 0 again. All those
 complicated, magic ICs are more or less just medieval clockworks inside!
