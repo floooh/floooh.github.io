@@ -56,7 +56,8 @@ just to get the operating system boot up and have it accept key presses.
 After that a deeper exploration phase starts. Dig into the technical
 documentation (which thankfully had been scanned before they rotted away, and
 preserved through the 1990's Dark Age by grey-bearded monks living in
-remote mountain abbeys). 
+remote mountain abbeys). Then with this more detailed information
+improve the emulation step by step.
 
 After a while you begin to notice that home computers were built mostly
 from a small number of different chip types, especially the Eastern European 
