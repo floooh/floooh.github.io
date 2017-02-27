@@ -52,7 +52,7 @@ Xcode would be launched inside a fips project).
 
 In VSCode, one can immediately hit Ctrl-Shift-B (or rather Cmd-Shift-B on OSX) 
 to build the whole project, or press Cmd-P and start typing 'task ' to see the list
-of build tasks (**./fips gen** wrote one build tasks per cmake build target):
+of build tasks (**./fips gen** wrote one build task per cmake build target):
 
 ![vscode-1]({{ site.url }}/images/vscode-1.png)
 
@@ -128,8 +128,8 @@ The whole code is a bit sloppy/hacky at the moment, especially the whole
 cmake-server part. First, I don't know why I need to start it with --debug, 
 because otherwise I will simply get an EACCES error (also when starting manually 
 from the command line), second: cmake-server is normally intended to be used
-as a long-running process which IDEs talk to in order to control cmake's 
-project build process. I'm not using it this way, instead I'm only starting it
+as a long-running process which IDEs talk to in order to control cmake and
+query information from it. I'm not using it this way, instead I'm only starting it
 up, send the necessary commands to get the the codemodel info, and dump 
 everything that's coming back from the cmake-server (through stdout) into a 
 file.
@@ -139,8 +139,8 @@ time this blog post was written):
 
 [cmake.py](https://github.com/floooh/fips/blob/1076cf4ffe1d66f83d85b22f82586d2e6ca8fc19/mod/tools/cmake.py#L106)
 
-And here's the code which parses the cmake-server output-file, and writes
-the various VSCode config files:
+And here's the code which extracts the build targets and header search
+paths from the cmake code model and writes the 3 VSCode config files:
 
 [vscode.py](https://github.com/floooh/fips/blob/f7bd4d8e27df357ef4da40e7272c68d6da50aa37/mod/tools/vscode.py#L78)
 
@@ -148,21 +148,22 @@ The code isn't exactly pretty, but whatever ;)
 
 Oh, almost forgot one thing: it took me a bit to figure out how VSCode actually
 parses compiler warnings and errors so that they can be clicked on. The concept
-is called 'problem matcher', each build task needs its own codematcher item, and
-it's basically a regular expression to extract the relevant info pieces from
-the compiler error messages. The VSCode docs conveniently have an example
-for gcc/clang error messages. A problem matcher looks like this:
+is called 'problem matcher', each build task needs its own problem-matcher item, and
+it's basically a regular expression to identify compiler error messages
+and extract the relevant pieces. The VSCode docs conveniently have an example
+for gcc/clang error messages. Such a problem matcher looks like this:
 
 [problem_matcher](https://github.com/floooh/fips/blob/f7bd4d8e27df357ef4da40e7272c68d6da50aa37/mod/tools/vscode.py#L64)
 
 And that's it! I think I'll tinker around a bit with VSCode support in the next few
 days and also make it work on Linux and Windows. 
 
-With the speed how VSCode is currently evolving I can totally see it as my
+With the speed how VSCode is currently evolving I can already see it as my
 main IDE on all platforms in the very near future, the most critical feature
 (the debugger) is already working quite well (and that means a lot on OSX
 and Linux!), and VSCode made me even switch away from vim for emscripten 
-development (except for quickly firing up an editor in a text terminal, 
-vim is still much faster for that).
+development (I still use vim for quickly firing up an editor in a text 
+terminal though, but I really hit a wall with vim plugins for coding and
+debugging).
 
 Until next time!
