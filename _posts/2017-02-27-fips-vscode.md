@@ -130,7 +130,7 @@ because otherwise I will simply get an EACCES error (also when starting manually
 from the command line), second: cmake-server is normally intended to be used
 as a long-running process which IDEs talk to in order to control cmake and
 query information from it. I'm not using it this way, instead I'm only starting it
-up, send the necessary commands to get the the codemodel info, and dump 
+up, send the necessary commands to get to the codemodel info, and dump 
 everything that's coming back from the cmake-server (through stdout) into a 
 file.
 
