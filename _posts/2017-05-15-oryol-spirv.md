@@ -128,7 +128,7 @@ line wrapper tool](https://github.com/floooh/oryol-tools/blob/master/src/oryol-s
 The SPIRV-Cross step generates output files in the following shader
 language dialects (depending on the current build config):
 
-* GSLS 100 (for GLES2 and WebGL)
+* GLSL 100 (for GLES2 and WebGL)
 * GLSL 300 ES3 (for GLES3 and WebGL2)
 * GLSL 330 (for desktop GL)
 * HLSL5 (for D3D11)
