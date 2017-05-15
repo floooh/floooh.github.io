@@ -82,7 +82,7 @@ fips_end_app()
 ```
 
 The cmake macro ```oryol_shader()``` is a wrapper for the generic shader-code-generation
-function ```fips_generate()``` of ([for more info on fips see here](http://floooh.github.io/fips/)).
+function ```fips_generate()``` ([for more info on fips see here](http://floooh.github.io/fips/)).
 
 The shader source files are added to IDE projects (e.g. in Xcode or
 Visual Studio), along with the generated C++ header/source pair:
