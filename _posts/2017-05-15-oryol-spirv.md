@@ -13,7 +13,7 @@ shader pipeline work (not sure yet what will come next though).
 
 All the interesting stuff is actually happening in two Khronos tools/libs, I'm more-or-less just glueing those together:
 
-- [glsang](https://github.com/KhronosGroup/glslang): the contained standalone tool glslangValidator is used to compile GLSL into SPIR-V bytecode (I already used this tool before in Oryol, but only to check shader code for errors).
+- [glslang](https://github.com/KhronosGroup/glslang): the contained standalone tool glslangValidator is used to compile GLSL into SPIR-V bytecode (I already used this tool before in Oryol, but only to check shader code for errors).
 - [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross): this is used as library in an Oryol-specific wrapper tool (called oryol-shdc) to translate the SPIR-V bytecode to various shader languages and to write out reflection information
 
 There are a few minor issues remaining in SPIRV-Cross, but they can be
