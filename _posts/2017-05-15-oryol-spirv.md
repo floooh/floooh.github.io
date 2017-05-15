@@ -194,7 +194,7 @@ call-overhead than native GL implementations.
 These are the current limitations and known issues:
 
 - **Cannot use integers or booleans in uniform blocks**: This is because uniform blocks are now converted to vec4-arrays in GLSL (the actual limitation in SPIRV-Cross is that integer and float types cannot be mixed in the same uniform block, but for simplicity's sake I'm disallowing integers and booleans in uniform blocks alltogether, at least for now).
-- **Arrays in uniform blocks are limited to mat4, mat2 and vec4**: The reason is that all types in uniform block arrays are padded to 16 bytes anyway, so smaller types have a lot of waste. 
+- **Arrays in uniform blocks are limited to mat4, mat2 and vec4**: The reason is that all items in uniform block arrays are padded to 16 bytes anyway, so smaller types have a lot of waste. 
 - **mod() is currently only implemented for scalars in HLSL**: this is currently a bug in the SPIRV-Cross HLSL backend, tracked here: [SPIRV-Cross #173](https://github.com/KhronosGroup/SPIRV-Cross/issues/173)
 
 
