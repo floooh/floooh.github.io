@@ -38,7 +38,7 @@ browser sandbox.
 No, unless you consider Javascript a security risk. WebAssembly is about as
 secure as Javascript since it runs in the same sandbox. Typical WebAssembly
 implementations only add a fairly small parser module to the existing JS
-engine. For instance n [WebKit](https://github.com/WebKit/webkit), WebAssembly seems to
+engine. For instance in [WebKit](https://github.com/WebKit/webkit), WebAssembly seems to
 account for about 10k out of 432k lines of code for the whole JavaScriptCore
 engine. So only about 2% of the whole Javascript engine are a new 
 WebAssembly-specific attack surface.
@@ -96,7 +96,7 @@ terribly slow either, as demonstrated by emscripten's GL-to-WebGL wrapper).
 It's perfectly possible to create a "dom.h" C or C++ library to do typical
 "frontend programming" via WebAssembly, but this doesn't make sense if the
 motivation is performance, and C/C++ is probably not the nicest language for
-this. DOM manipulation might make more sense with other language that are
+this. DOM manipulation might make more sense with other languages that are
 meant as a Javascript replacement.
 
 #### Isn't WebAssembly useless for garbage collected languages?
@@ -139,10 +139,10 @@ In the 'native world' executable sizes of several dozen megabytes are not
 uncommon these days, but on the web this is simply not acceptable. The TL;DR
 is to use a more 'embedded-programming' philosophy when writing code for
 WebAssembly (also here's one of my older blog posts about the topic: 
-[10 simple diet tricks for asm.js](http://floooh.github.io/2016/08/27/asmjs-diet.html).
+[10 simple diet tricks for asm.js](http://floooh.github.io/2016/08/27/asmjs-diet.html)).
 
 WebAssembly programs *can* be small, but it takes effort. Hopefully now that
-'executable size' is important again, we will also see more developer focus on this. Maybe
+'executable size' is important again, we will also see more developers focus on this. Maybe
 somebody comes up with a smallest-possible C runtime (I'm sure there's still
 room for improvements if seldom-used features are removed).
 
@@ -152,10 +152,10 @@ room for improvements if seldom-used features are removed).
 ...mainly for the same reasons that asm.js is faster than 'idiomatic' Javascript:
 
 - **No garbage collection**: both asm.js and WASM do not produce 'garbage' 
-that needs to be collected, thus the garbage collector is idling all the time.
+that needs to be collected, thus the JS garbage collector is idling all the time.
 The only exception is when calling out into Javascript to talk to web APIs,
-the JS shim code usually needs to create and store JS objects to talk to the
-web APIs, and this produces garbage. New web APIs often make it a point to
+the JS shim code usually needs to create and store JS objects, and this produces 
+garbage. New web APIs often make it a point to
 offer 'garbage free' functions, which will help a lot when being called
 from asm.js or WebAssembly.
 
@@ -178,10 +178,10 @@ this fine level of control, and one of the most ingenious features of
 emscripten (even before asm.js) was that it moved this 'linear memory model'
 into the Javascript environment by putting the C heap into a single Javascript 
 TypedArray. This way the memory layout defined by the original C/C++ source code
-is preserved exactly as in native code, and the advantages of arranging
+is preserved, and the advantages of arranging
 data in a cache-friendly way carry over.
 
-That's all FAQ-worthy question I can think of for now. Until next time :)
+That's about all the FAQ-worthy questions I can think of for now. Until next time :)
 
 
 
