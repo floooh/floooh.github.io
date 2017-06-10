@@ -29,7 +29,7 @@ of adding another big VM which would have to be security-hardened. WebAssembly
 also doesn't allow to call out into native code like Java Applets did via JNI.
 
 - **ActiveX and browser plugins** were native machine code DLLs where the security was
-built on trusting a 3rd-party, but mostly positive thinking. With WebAssembly
+built on trusting a 3rd-party and wishful thinking. With WebAssembly
 the trust rests solely on the browser maker and his ability to secure the
 browser sandbox.
 
