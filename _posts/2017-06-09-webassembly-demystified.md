@@ -152,9 +152,10 @@ room for improvements if seldom-used features are removed).
 ...mainly for the same reasons that asm.js is faster than 'idiomatic' Javascript:
 
 - **No garbage collection**: both asm.js and WASM do not produce 'garbage' 
-that needs to be collected, thus the JS garbage collector is idling all the time.
+that needs to be collected, thus the JS garbage collector doesn't kick in while
+asm.js or WASM is running.
 The only exception is when calling out into Javascript to talk to web APIs,
-the JS shim code usually needs to create and store JS objects, and this produces 
+the JS shim usually needs to create temporary JS objects, and this produces 
 garbage. New web APIs often make it a point to
 offer 'garbage free' functions, which will help a lot when being called
 from asm.js or WebAssembly.
