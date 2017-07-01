@@ -89,7 +89,7 @@ through the middle of a class (there are hardly any C++ *private:* keywords
 in the code), instead entire classes of a system module either belong to the
 public interface of the module, or are considered module-private.
 
-The hint to the programmer is that public types and functions start with a
+The hint to the programmer is that public types and functions start with
 uppercase letters, private types and functions with lowercase letters.
 The compiler will not prevent the programmer from accessing private types,
 but this is 'here be dragons' territory. The private interfaces can change at
@@ -98,7 +98,7 @@ change that often.
 
 All private code of a module usually lives in a subdirectory called
 'private', this makes it easy to identify the public and private areas while
-browsing the code, and it helps mentally to cleanly separate public from
+browsing the code, and it helps mentally to separate public from
 private types when writing new code.
 
 The 'code hygiene' part is mostly about header inclusion, private or
@@ -139,14 +139,14 @@ or meshes).
 
 It is interesting that most Oryol modules
 *don't* need such object management though. For instance among the Core Oryol
-modules, only the Gfx module needs to manage objects (meshes, textures,
-etc..), all other modules don't. This is mostly a side-effect of trying to
-design interfaces that look more like C libraries, and not "OOP frameworks".
+modules, only the Gfx module needs to manage objects, all other modules
+don't. This is mostly a side-effect of trying to design interfaces that look
+more like C libraries, and not "OOP frameworks".
 
 If an Oryol module needs to create objects under control of the application
 code, it will completely handle the actual creation and destruction 
-**internally**, and it will always be the sole owner of the object.
-This means that application code will never call **new**, **make_shared**
+internally, and it will always be the sole owner of the object.
+This means that application code will never call *new*, *make_shared*
 or similar, instead it will call a creation function on the module
 interface.
 
@@ -169,7 +169,7 @@ and it must be aware that the memory location of an object might change
 if the internal state of the system changes.
 
 Here is an example of such a direct object access from the new
-oryol-animation module to query the number of bones of a skeleton:
+oryol-animation module to get the number of bones of a skeleton:
 
 ```cpp
 // skeletonId is the opaque id of a character skeleton object
@@ -198,10 +198,10 @@ What happens on such a dangling access is up to the system. It could
 'crash' with an assert, it could return a 'dummy object' in its 
 default state, or an operation involving the dangling object
 could be silently skipped or produce a warning message. What will
-not happen is a segfault, or scribbling over random memory.
+*not* happen is a segfault, or scribbling over random memory.
 
 Of course converting an Id to a pointer is more expensive than a direct
-pointer access even though it's only an array index resolve and integer
+pointer access even though it's only an array access and integer
 comparision. The point here is that the system interface should be designed
 in a way that such high-frequency accesses are not necessary in the
 first place.
@@ -226,7 +226,7 @@ problems also simply disappear:
 it may make sense to choose a slow-but-small allocator instead to reduce
 binary size (for instance on asm.js/wasm where the allocator is linked
 into the binary).
-- there's also no need for to invent eloborate C++ custom allocators to
+- there's also no need to invent C++ custom allocators to
 workaround problems with the standard allocator
 - debugging memory-related problems becomes a whole lot easier
 since there's much less 'noise' to filter out
