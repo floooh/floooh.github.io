@@ -191,7 +191,7 @@ To convert an Id into an object pointer, the index is used for an array
 access into an internal object pool, if this slot is 'unoccupied', the object
 no longer exists. But it can also happen that the slot has been re-occupied
 by a new object. This is what the 'unique tag' is used for. The new object in
-the slow will have a different tag, and thus a dangling access can be
+the slot will have a different tag, and thus a dangling access can be
 detected.
 
 What happens on such a dangling access is up to the system. It could
@@ -252,7 +252,7 @@ Recently I tried out a few interesting things about
 so may be that's the topic for the next blog post.
 
 The realization was basically that the main purpose of container
-classes is not 'iterating over its elements' but 
+classes is not 'iterating over items' but 
 'simplifying memory management'. I haven't thought too deeply about the
 implications for the Oryol container classes yet though, so the idea
 needs a bit more time to roll around in the back of my head :)
