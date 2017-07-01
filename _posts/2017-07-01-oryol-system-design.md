@@ -223,7 +223,7 @@ With memory allocation being very infrequent, a few related
 problems also simply disappear:
 
 - there's no need for a fast general allocator (like jemalloc), instead
-it may make sense to choose a slow-but-small allocator instead to reduce
+it may make sense to choose a slow-but-small allocator to reduce
 binary size (for instance on asm.js/wasm where the allocator is linked
 into the binary).
 - there's also no need to invent C++ custom allocators to
