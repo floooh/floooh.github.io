@@ -300,7 +300,7 @@ Render passes only need to know the render target image ids:
 - a subimage index (which mipmap, cubemap face or 3D/array texture slice to render to)
 
 All images must have been created as render targets, and must have the same
-dimensions and MSAA sample count. All color attachments must the same pixel
+dimensions and MSAA sample count. All color attachments must have the same pixel
 format. Some details may change here when the Metal and D3D11 backends are
 implemented (this is true for the entire public sokol_gfx API).
 
