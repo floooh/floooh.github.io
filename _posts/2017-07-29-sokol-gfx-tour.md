@@ -378,7 +378,7 @@ different frequency.
 There's only a single drawing function *sg\_draw()*, unifying indexed- vs non-indexed and instanced- vs non-instanced rendering. 
 
 *sg\_end\_pass()* finishes the current pass, if the pass was rendering
-to an MSAA render target, an MSAA resolve step will happen her.
+to an MSAA render target, an MSAA resolve step will happen here.
 
 And finally *sg\_commit()* indicates the end of the current frame.
 
