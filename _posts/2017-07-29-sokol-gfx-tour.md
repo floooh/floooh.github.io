@@ -224,6 +224,7 @@ usage is:
 - the image type: 2D, Cubemap, 3D or Array (3D and Array images are not
   supported on GLES2/WebGL)
 - width, height and optionally depth/array layers
+- number of mipmaps
 - the usage, same as buffers (immutable, dynamic or streaming)
 - the pixel format
 - texture filter mode (nearest, linear, etc...)
@@ -268,6 +269,7 @@ all about 25 states, there are no 'free' render states in sokol, except
 the scissor- and viewport-rects)
 - the 3D primitive type (points, lines, triangles, line-strips or triangle-
 strips, this is the common primitive subset supported across all 3D APIs)
+- an index data type (none, 16-bit or 32-bit)
 - a shader object
 - and finally the complete vertex layout:
     - for each vertex buffer bind slot:
