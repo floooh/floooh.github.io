@@ -199,7 +199,7 @@ sg_destroy_buffer(buf_id);
 This is a good time to mention an important rule when handing pointers
 (to data or strings) to sokol_gfx: There are *no* ownership considerations,
 sokol will never take ownership of a pointer you provide, it will only
-inspect the data and copy what it needs, it will never modify the data.
+inspect the data and copy what it needs, and it will never modify the data.
 
 Resource creation for the other resource types looks similar, so I won't
 repeat the code here, only a list of creation parameters required for each
