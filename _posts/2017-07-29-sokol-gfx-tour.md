@@ -358,7 +358,7 @@ sg_commit();
 ```
 
 There are currently 2 variations of *begin\_pass()* depending on whether
-rendering should go into an offscreen pass (requiring a pass object),
+rendering should go into render target images (requiring a pass object),
 or into the default framebuffer (*sg\_begin\_default\_pass()*).
 
 *sg\_apply\_draw\_state()* takes a pointer to an sg\_draw\_state structure,
