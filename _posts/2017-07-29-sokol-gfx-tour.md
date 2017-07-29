@@ -165,7 +165,7 @@ sg_destroy_XXX(res_id);
 ```
 
 The *sg\_init\_XXX_desc()* functions will initialize the description
-structure to a usefull default state, for instance when creating a buffer,
+structure to a useful default state, for instance when creating a buffer,
 the buffer type will be set to 'vertex buffer' and the usage to 'immutable'.
 This way application code must only provide creation parameters that differ
 from the default state which saves a lot of code (however there's the 
