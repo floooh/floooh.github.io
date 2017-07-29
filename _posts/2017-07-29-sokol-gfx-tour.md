@@ -307,7 +307,7 @@ implemented (this is true for the entire public sokol_gfx API).
 ### Resource Updates
 
 WebGL and WebGL2 don't have resource mapping functions which would allow
-direct access to GPU memory. Instead new resource data must be copied from 
+direct access to GPU memory. Instead resource updates must perform a copy from 
 existing data in memory. For this reason the resource update model in
 sokol_gfx is very simple, but also very restrictive:
 
