@@ -254,7 +254,7 @@ members, and images to allow more flexibility with different backend
   by their shader variable names
 - ...while other 3D APIs and shader languages allow to manually
   declare a bind slot
-- for some 3D APIs the content of uniform blocks is irrelevant, only
+- for some 3D APIs the internal structure of uniform blocks is irrelevant, only
   their size matters
 
 #### Pipeline Creation Parameters:
