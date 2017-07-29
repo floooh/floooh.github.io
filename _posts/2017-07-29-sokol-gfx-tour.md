@@ -363,7 +363,7 @@ or into the default framebuffer (*sg\_begin\_default\_pass()*).
 
 *sg\_apply\_draw\_state()* takes a pointer to an sg\_draw\_state structure,
 this is basically plugging resources into the resource binding slots, and
-contains all the resources (pipeline, buffers and images) for the next draw
+defines all the resources (pipeline, buffers and images) for the next draw
 call. Since *sg\_draw\_state* is just a struct, not a 'baked resource', the
 same structure can be 'reslotted' and reused for other calls to
 *sg\_apply\_draw\_state()* (the same is true for the *sg\_pass\_action*
