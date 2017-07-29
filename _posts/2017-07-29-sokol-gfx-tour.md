@@ -56,7 +56,7 @@ as a sort background noise which subtly influences every little decision ;)
   (see comment above about 'large teams'), and have designed themselves into 
   the 'AAA games on PC' niche.
 - The realization that it doesn't matter how fast new technology is adopted,
-  instead it matters how fast (or rather slowly) old technology is discarded.
+  instead it matters how fast (or rather slowly) old technology is abandoned.
   The performance and age-gap between the high-end and the low-end has been
   growing dramatically in the last 15..20 years (since GPUs became cheap, and
   3D-APIs became popular). Today's low-end devices and 3D-APIs will be
