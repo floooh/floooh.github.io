@@ -404,7 +404,7 @@ Some interesting tidbits about the current implementation:
 - there are currently 308 assert checks in the code (~10% of all code)
 - the D3D11 and Metal backends will be slightly less code than the GL backend, so I expect
   the overall line count once everything is done to be around 5..6kloc
-- sokol_gfx only allocates memory in the sg\_setup(), after that
+- sokol_gfx only allocates memory in sg\_setup(), after that
   it is completely allocation-free (of course the underlying 3D API
   will still allocate memory whenever it feels like it)
 - all resource objects are kept in pools, each pool does 2 allocations
