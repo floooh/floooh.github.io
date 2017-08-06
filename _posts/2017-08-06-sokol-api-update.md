@@ -67,7 +67,7 @@ buf_desc.data_size = sizeof(indices);
 /* ...you can now do this: */
 sg_buffer_desc buf_desc = {
     .type = SG_BUFFERTYPE_INDEXBUFFER,
-    .size = sizeof(indices);
+    .size = sizeof(indices),
     .data_ptr = indices,
     .data_size = sizeof(indices)
 };
@@ -82,7 +82,7 @@ resource creation function call:
 ```c
 sg_buffer = sg_make_buffer(&(sg_buffer_desc){
     .type = SG_BUFFERTYPE_INDEXBUFFER,
-    .size = sizeof(indices);
+    .size = sizeof(indices),
     .data_ptr = indices,
     .data_size = sizeof(indices)
 });
