@@ -142,7 +142,7 @@ and (apart from treating the zero-init state as default), isn't "encoded" into
 the sokol_gfx.h API.
 
 In C++ this is not yet possible across all compilers (a slightly more
-restrictive version of C99 designed initializers are on the roadmap for C++20),
+restrictive version of C99 designated initializers are on the roadmap for C++20),
 so I may add back a handful of helper functions for the vertex- and
 uniform-declarations (which are a bit inconvenient to setup without designated
 initializers).
