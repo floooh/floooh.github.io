@@ -12,10 +12,10 @@ true, here's what has changed:
 ## No more universal resource id type
 
 The universal resource handle **sg\_id** has changed into
-one type per resource, **sg\_buffer**, **sg\_image**, **sg\_shader**, 
+one type per resource: **sg\_buffer**, **sg\_image**, **sg\_shader**, 
 **sg\_pipeline** and **sg\_pass**. With this the compiler can now
 do proper type checking on resource ids and will complain at compile-time
-if the wrong resource type is used somewhere.
+if the wrong resource type is accidently used somewhere.
 
 ## No more dual color/depth-stencil images
 
@@ -47,13 +47,13 @@ This means:
 sg_buffer_desc buf_desc;
 sg_init_buffer_desc(&buf_desc);
 
-/* ...do this to get a default-initialized desc struct: */
+/* ...simply do this: */
 sg_buffer_desc buf_desc = { 0 };
 ```
 
 But that's not all, using zero-initialized fields as 'default' means that
-C99 designated initializers can be used, enable an 'option bag'-style initialization
-as known from Javascript or Typescript:
+C99 designated initializers can be used, enabling an 'option bag'-style initialization
+popular in more dynamic languages like Javascript or Typescript:
 
 ```c
 /* instead of this: */
@@ -77,7 +77,7 @@ Missing fields in such a designated initializer block will be set to
 0 (that's why treating the value 0 as default is so important).
 
 It's also possible to put the entire struct initialization into the
-function call to create the buffer object:
+resource creation function call:
 
 ```c
 sg_buffer = sg_make_buffer(&(sg_buffer_desc){
