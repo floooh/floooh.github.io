@@ -3,6 +3,9 @@ layout: post
 title: A Tour of sokol_gfx.h
 ---
 
+*Update:* please also read [this update](http://floooh.github.io/2017/08/06/sokol-api-update.html) 
+on what has changed since this post was written!
+
 I have started a new project to move the low-level platform-abstraction
 parts of Oryol into their own dependency-free, header-only C libraries
 called [Sokol](https://github.com/floooh/sokol).
