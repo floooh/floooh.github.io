@@ -80,7 +80,7 @@ It's also possible to put the entire struct initialization into the
 resource creation function call:
 
 ```c
-sg_buffer = sg_make_buffer(&(sg_buffer_desc){
+sg_buffer buf = sg_make_buffer(&(sg_buffer_desc){
     .type = SG_BUFFERTYPE_INDEXBUFFER,
     .size = sizeof(indices),
     .data_ptr = indices,
