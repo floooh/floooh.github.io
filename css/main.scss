@@ -3,8 +3,6 @@
 ---
 @charset "utf-8";
 
-
-
 // Our variables
 $base-font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 $base-font-size:   16px;
@@ -14,15 +12,15 @@ $base-line-height: 1.5;
 
 $spacing-unit:     30px;
 
-$text-color:            #586e75;
-$background-color:      #fdf6e3;
-$link-color:            #cb4b16;
-$site-title-color:      #dc322f;
-$post-title-color:      #268bd2;    
-$heading-color:         #268bd2;
-$brand-color:           #cb4b16;
+$text-color:            #bfc7d5;
+$background-color:      #292d3e;
+$link-color:            #ff5572;
+$site-title-color:      #ff5572;
+$post-title-color:      #eeefff;    
+$heading-color:         #eeefff;
+$brand-color:           #ff5572;
 
-$grey-color:       #828282;
+$grey-color:       #676e95;
 $grey-color-light: lighten($grey-color, 40%);
 $grey-color-dark:  darken($grey-color, 5%);
 
