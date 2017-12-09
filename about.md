@@ -14,12 +14,14 @@ Over the years I have helped build and ship a bit over 30
 at Radon Labs and Terratools.
 
 In my precious spare time I'm mostly doing multi-platform open-source stuff
-involving C/C++, Python, Rust, emscripten, PNaCl, OpenGL, D3D, 
-Metal, and hopefully soon some Vulkan stuff.
+involving C/C++, Python, Rust, emscripten, WebAssmebly, OpenGL, D3D, 
+Metal and whatever strikes my fancy.
 
 My most interesting github projects are:
 
-* [**Oryol**](https://floooh.github.io/oryol/): experimental, small '3D engine'
+* [**Oryol**](https://floooh.github.io/oryol/): a lean cross-platform 3D rendering framework
 * [**fips**](https://floooh.github.io/fips/): a high-level build system wrapper
+* [**sokol**](https://github.com/floooh/sokol/): standalone platform abstraction headers
+* [**chips**](https://github.com/floooh/chips/): standalone 8-bit chip emulator headers
 * [**YAKC**](https://floooh.github.io/virtualkc/): yet another KC85 emulator 
 * [**rz80**](https://github.com/floooh/rz80/): a Z80 emulation lib written in Rust
