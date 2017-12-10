@@ -161,12 +161,11 @@ executed substeps. On the Z80, those substeps are called 'machine cycles',
 and each machine cycle takes several clock cycles to complete. For instance:
 each instruction starts with an **opcode-fetch** machine cycle, which usually
 takes 4 clock cycles to complete, and may be followed by one or several
-**memory-read** and **memory-write** machine cycles, each taking 3 clock cycles
-*(unless stretched
-by injected wait states). A Z80 emulator may decide to 'tick' per 'clock
-cycle', or per 'machine cycle'. Ticking per clock-cycle is more straight
-forward but is expensive. Ticking per machine cycle is faster but more
-complex because machine cycles have variable length.
+**memory-read** and **memory-write** machine cycles, each taking 3 clock
+cycles (unless stretched by injected wait states). A Z80 emulator may decide
+to 'tick' per 'clock cycle', or per 'machine cycle'. Ticking per clock-cycle
+is more straight forward but is expensive. Ticking per machine cycle is
+faster but more complex because machine cycles have variable length.
 
 A 'tick' in a cycle-ticked emulator usually corresponds to calling a 'tick
 callback ' which 'ticks forward' the rest of the emulated system (most
