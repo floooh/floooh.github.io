@@ -155,7 +155,7 @@ state after the instruction is executed, and this atomic state change
 cycles is coming from, it's just looked up in a table).
 
 A **cycle-ticked** emulator splits up the atomic instruction execution into
-substeps, and those substeps are visible to the outside through the CPU pins.
+substeps, and those substeps are visible to the outside.
 The overall number of clock cycles for the instruction is derived from the
 executed substeps. On the Z80, those substeps are called 'machine cycles',
 and each machine cycle takes several clock cycles to complete. For instance:
