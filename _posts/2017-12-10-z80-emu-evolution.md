@@ -289,7 +289,7 @@ went back and forth at least 3 times between the two strategies. I usually
 start with the algorithmic decoder, hoping that the small amount of code
 would make better use of the instruction cache, but then inevitably find out
 that the brute force approach of a giant switch/case would run at least twice
-as fast, but I still wheep because of the huge amount of code required for
+as fast, but I still weep because of the huge amount of code required for
 a switch/case decoder.
 
 The specific problem with algorithmic decoding of Z80 instructions is the many
