@@ -629,6 +629,6 @@ register through a sequence of shift-, mask- and ALU-instructions to step the
 entire computer system forward at once. Most dynamic state in an 8-bit home
 computer actually consists of [counters that tick other
 counters](http://floooh.github.io/2017/02/04/yack-counters.html), only the
-CPU emulation might sink this idea.
+the more complex CPU emulation might sink this idea.
 
 But first things first, and that's a correct and fast CPC emulation :)
