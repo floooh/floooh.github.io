@@ -5,7 +5,7 @@ title: Z80 Emu Evolution
 
 ...wherein I talk about my latest Z80 emulation adventures.
 
-Before I start, here's couple of useful links:
+Before I start, here's a couple of useful links:
 
 - my [YAKC](https://github.com/floooh/yakc) home computer emulator, this contains
 the 'old' instruction-stepped Z80 emulator
