@@ -297,7 +297,7 @@ special cases, which require a lot of indirections for accessing registers and
 a lot of branching. For a 6502 emulator the algorithmic approach makes a lot
 more sense because the 6502 instruction set is much more streamlined.
 
-My most recent approach for the Z80 is thus a hybrid decoder. The opcode is
+My most recent approach for the Z80 is thus a hybrid decoder. The opcode 
 is still going through a giant switch-case, but some opcode ranges which are
 very 'uniform' use algorithmic decoding. For instance [here is the current Z80
 decoder](https://github.com/floooh/chips/blob/090828dc04b508c5dd437546989e87433ac0370a/chips/_z80_opcodes.h). The entire [0xCB prefix range is decoded dynamically](https://github.com/floooh/chips/blob/090828dc04b508c5dd437546989e87433ac0370a/chips/_z80_opcodes.h#L260). This little change reduces the amount of x86 code
