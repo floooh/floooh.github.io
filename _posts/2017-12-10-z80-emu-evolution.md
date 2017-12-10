@@ -447,12 +447,13 @@ cycle counts suddenly make a lot more sense.
 
 For instance the instruction ```ADD A,B``` doesn't read or write
 memory except for the initial opcode fetch, and a normal opcode
-fetch takes 4 clock cycles.
+fetch takes 4 clock cycles, and indeed the complete cycle count
+for the ```ADD A,r``` instruction is 4.
 
 The instruction ```ADD A,n``` on the other hand needs to read
 the immediate byte operand from memory, so it needs one 
-opcode fetch (4 clock cycles) and a memory read (3 clock cycles),
-and indeed, the instruction takes 7 clock cycles to complete.
+opcode fetch (4 clock cycles) and one memory read (3 clock cycles),
+resulting in 7 clock cycles for the whole instruction.
 
 This works well except for a few annoying special cases which require
 'filler clock cycles', [as can be gathered from this table](https://github.com/floooh/chips/blob/master/info/z80ins.txt).
