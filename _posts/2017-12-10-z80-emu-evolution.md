@@ -173,7 +173,7 @@ importantly the video and audio systems). Ticking the system forward in such
 an 'inside-out' way from the CPU emulator is cheaper than leaving and
 entering the CPU emulation for every tick, because then the CPU emulation
 would need to store its state after each tick, and restore and continue where
-it left of for the next tick. Since the CPU usually has the most complex
+it left off for the next tick. Since the CPU usually has the most complex
 internal state in a home computer system, it makes sense to make its life
 easier by helping it to carry its internal state from one tick to the next by
 'ticking' the other system components from inside the CPU emulation.
@@ -368,10 +368,11 @@ The machine cycle types relevant for home computer emulation are:
 ### Opcode Fetch 
 
 This reads the next opcode byte from memory, and decodes it. Usually this
-takes 4 clock cycles, the first 2 clock cycles for the memory read, and the
-last 2 clock cycles for internally decoding the instruction. Since the
-address bus is unoccupied during those final 2 ticks, it is used for a
-'memory refresh operation' (which I'm currently ignoring in the emulator).
+takes 4 clock cycles, the first 2 clock cycles perform a memory read to get
+the next opcode byte, and the last 2 clock cycles are used for decoding the
+opcode byte. Since the address bus is unoccupied during those final 2 ticks,
+it is used for a 'memory refresh operation' (which I'm currently ignoring in
+the emulator).
 
 The CPU pins look like this for each clock cycle (XX means 'active'):
 
