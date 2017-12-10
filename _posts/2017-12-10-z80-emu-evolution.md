@@ -14,7 +14,7 @@ chip emulators into dependency-free C-headers, and to completely overhaul the Z8
 - [z80.info](http://z80.info/) has links to all the other documents I'm mentioning below
 - [Ken Shirriff's Blog](http://www.righto.com/) this is a treasure grove of low-level
 Z80 information derived directly from die shots
-- [Matt Godbolt's Blog](https://xania.org/Emulation) (yes, [the very same](https://godbolt.org/)) this is all about the MicroBBC which had a 6502
+- [Matt Godbolt's Blog](https://xania.org/Emulation) (yes, [the very same](https://godbolt.org/)) this is all about the BBC Micro which had a 6502
 CPU, but it gave me a lot of inspiration and ideas for the cycle-ticked Z80 emulator
 - and of course [MAME](https://github.com/mamedev/mame), if I couldn't find
 any definitive information about hidden or undocumented Z80 features I often used
