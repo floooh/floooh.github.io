@@ -72,12 +72,12 @@ The Z80 was built as an Intel i8080 killer:
 - it had to be fully backward compatible to the i8080, so it had to
 implement the same basic instruction set
 - the Z80 had to be more powerful than the i8080 by means of a vastly
-expanded instruction set, but within the restrictions of the original i8080 ,
+expanded instruction set, but within the restrictions of the original i8080,
 and the transistor counts that were viable in the mid-70's (the i8080 has
 about 4500 transistors, and the Z80 8500, the 6502 has about 3500 in
 comparison)
 - while the Z80 itself was bigger and more complex than the i8080, it should
-trade this added CPU complexity for enabling simpler and cheaper computers
+trade this added CPU complexity for enabling simpler and cheaper computer
 systems by requiring less external circuitry
 
 Since the Zilog engineers had to work within the restrictions imposed by the
@@ -89,7 +89,7 @@ i8080, but with only about twice the transistor count.
 Unfortunately these clever hardware hacks make the Z80 much more complicated
 to emulate properly than for instance the (very elegantly designed) 6502:
 
-- The instruction decoding (deciding what steps a given opcode
+- The instruction decoding (deciding what actions a given opcode
 performs) is full of exceptions, the reason for this is mostly that the Zilog
 engineers filled whatever 'holes' remained in the original i8080 instruction
 set with new Z80 instructions. Any sort of 'orthogonality' mostly went
@@ -117,11 +117,11 @@ instance when talking to slow memory which would take more than one cycle to
 complete a read or write operation. Properly implementing wait states make
 the instruction cycle count unpredictable from the CPU emulator's point of
 view, which makes it harder to optimize for performance. Many home computer
-systems (most notorously my arch-nemesis, the Amstrad CPC) used wait state 
+systems (most notoriously my arch-nemesis, the Amstrad CPC) used wait state 
 injection to arbitrate memory accesses between CPU and video decoder hardware, 
 so it cannot simply be ignored.
 - The internal timing *during* instruction execution is full of exceptions as
-well. This is important when implementing a 'cycle-ticked' emulator. For
+well. This is important when implementing a cycle-ticked emulator. For
 instance an opcode fetch usually takes 4 clock cycles, but in some
 instructions it takes 5 or 6. A good overview of how
 instructions are split into sub-steps (so called 'machine cycles) and their
@@ -155,14 +155,14 @@ state after the instruction is executed, and this atomic state change
 cycles is coming from, it's just looked up in a table).
 
 A **cycle-ticked** emulator splits up the atomic instruction execution into
-substeps, and those substeps are visible to the outside. The overall
-number of clock cycles for the instruction is derived from the executed
-substeps. On the Z80, those substeps are called 'machine cycles', and each
-machine cycle takes several clock cycles to complete. For instance: each
-instruction starts with an **opcode-fetch** machine cycle, which usually
+substeps, and those substeps are visible to the outside through the CPU pins.
+The overall number of clock cycles for the instruction is derived from the
+executed substeps. On the Z80, those substeps are called 'machine cycles',
+and each machine cycle takes several clock cycles to complete. For instance:
+each instruction starts with an **opcode-fetch** machine cycle, which usually
 takes 4 clock cycles to complete, and may be followed by one or several
-**memory-read** and
-**memory-write** machine cycles, each taking 3 clock cycles (unless stretched
+**memory-read** and *memory-write** machine cycles, each taking 3 clock cycles
+*(unless stretched
 by injected wait states). A Z80 emulator may decide to 'tick' per 'clock
 cycle', or per 'machine cycle'. Ticking per clock-cycle is more straight
 forward but is expensive. Ticking per machine cycle is faster but more
