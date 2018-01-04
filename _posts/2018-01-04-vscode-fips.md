@@ -11,7 +11,7 @@ on OSX, Linux and Windows.
 ### How to use fips with VSCode
 
 Apart from the minimal fips requirements (cmake and python) you
-need Visual Studio code (obviously) and on OSX and Linux the
+need Visual Studio Code (obviously) and on OSX and Linux the
 ninja build tool in the path:
 
 ```
