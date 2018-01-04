@@ -69,9 +69,9 @@ Most importantly, fuzzy file search works for dependencies:
 Fips creates a VSCode build task for each cmake target, everything
 works as expected from there on:
 
-- press "Ctrl/Cmd+Shift+B" to build the entire project (cmake's ALL target)
-- press "Ctrl/Cmd+P" and start typing "task " (with space at the end) to fuzzy-search for build targets and build one of them
-- or use the new "Tasks -> Run Task..." menu item to select a single build task
+- press Ctrl/Cmd+Shift+B to build the entire project (cmake's ALL target)
+- press Ctrl/Cmd+P and start typing "task " (with space at the end) to fuzzy-search for build targets and build one of them
+- or use the new ```Tasks -> Run Task...``` menu item to select a single build task
 
 ### Debugging
 
