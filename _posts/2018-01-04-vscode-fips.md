@@ -70,7 +70,7 @@ Fips creates a VSCode build task for each cmake target, everything
 works as expected from there on:
 
 - press ```[Cmd|Ctrl]+Shift+B``` to build the entire project (cmake's ALL target)
-- press ```[Cmd|Ctrl]+P``` and start type ```task ``` (with space at the end) to fuzzy-search for build targets and build one of them
+- press ```[Cmd|Ctrl]+P``` and start typing ```task ``` (with space at the end) to fuzzy-search for build targets and build one of them
 - or use the new ```Tasks -> Run Task...``` menu entry to select a single build task
 
 ### Debugging
