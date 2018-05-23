@@ -1,84 +1,34 @@
 ---
 layout: post
-titles: Better memory management with handles
+titles: Handles as smart pointer alternatives
 ---
 
-TL;DR: why object handles may be the better option to both raw- and smart-pointers
-for typical memory-management- and -corruption problems in C and C++, especially
-together with a data oriented design. Probably not very interesting for
-veterans who have run into those problems before, but hopefully useful for
-beginner- and intermediate-programmers.
+A quick rundown of how I'm using handles as an alternative to raw- or smart-
+pointers. The whole thing is the result of a slow change of how I think about
+memory management (from "everything is an object on the heap" to "(nearly) everything
+is an array item").
 
-### Smart Pointers vs. Data-Oriented-Design
+I think this approach has (at least) the following advantages over raw or smart-pointers:
 
-'Modern C++ enthusiasts' often recommend std::shared_ptr and especially
-std::unique_ptr as the magical cure for the well-known memory-related
-problems of C and 'traditional' C++. However this only replaces one type of
-problem (potential memory corruption) with another type of problem
-(potentially slow performance), especially in code bases with a high number
-of active objects, and a high frequency of object creation and destruction.
+- provides roughly the same protection against memory corruption issues as C++ smart pointers (of course running the code through static analyzers and clang address sanitizer is still a good idea)
+- explicit control over memory allocation without the hassle of C++ custom allocators
+- memory leaks are caught before the process runs out of memory and are easy to debug (in the sense of "what caused the leak")
+- detection of 'dangling pointer protection' (or rather 'dangling handles')
+- simple ownership concept (no shared vs unique, no ownership transfer, etc...)
+- works equally well for C and C++
+- unlike pointers, handles can easily be serialized or shared with other processes
 
-The problem is that the memory corruption issues are fixed 'immediately', but
-the performance problems typically only show up late in a project. So the
-'smart pointer problem' can be a dangerous trap for non-trivial projects,
-once the problems rear their ugly head it's usually too late to fix them
-because smart pointers have infested the entire code base already.
+Handles only really make sense with a radical change of how heap objects are
+allocated though: instead of 'decentralized, general-purpose allocation
+(make_shared or malloc all over the place)', all heap allocations (and freeing)
+should happen in centralized systems (not in *one* centralized system, but
+several, for instance a rendering system knows best how textures and
+buffers are created, and this may be different from the ideal case how
+rigid-bodies are created in a physics system).
 
-The problem with smart pointers provided by the C++ standard library are
-rooted in their role as 'owner' of a chunk of heap memory. In the default
-situation, each object managed by smart pointers is it's own allocation
-on the heap. This causes a number of problems:
-
-1. it's not guaranteed that related objects are close to each other in memory, this causes unnessecary cache misses
-2. creating and destroying many objects in a short time can be expensive
-3. currently, all standard library smart pointers are thread-safe, this makes
-the typical single-thread scenario more expensive that it needs to be
-
-Worse, 'object spiderweb' architectures where a big number of objects
-reference each other often have a flat 'death by a thousand cuts'
-peformance profile, where the code is slow without any obvious performance
-hotspots. This can lead to the false impression that the code cannot run any
-faster and further performance optimizations are impossible. 
-
-Smart pointers are only really useful in such complicated scenarios with many
-objects in complex relationships, their downsides are amplified in exactly
-the use case where they are most useful!
-
-The above architecture and performance problems are mostly addressed by a
-data-oriented-design philosophy, but it's not obvious what role pointers
-(both raw and smart) play in a data-oriented-design code base. Is it best
-to use raw pointers, smart pointers, or something else in this case?
-
-The code idea of data-oriented-design is basically to arrange related
-'objects' (or let's call them 'data items') close to each other in memory
-to avoid cache misses as much as possible when performing 'batch operations'
-on those data items.
-
-Storing data items in simple arrays is a natural fit for the data-oriented 
-approach, since items in an array are located next to each other in memory.
-
-This means that 'creating' and 'destroying' a single item doesn't involve
-allocating and freeing memory. Instead the memory for a whole group of items
-is allocated upfront. The whole idea of a pointer as 'owner' of an object
-doesn't fit well into the data-oriented-design philosophy, since a single
-object or data item simply isn't _important enough_ to justify its own heap
-allocation (I'm conveniently ignoring the whole topic of custom allocators
-here, they solve the problem of 'one allocation per object', but don't solve
-other problems of 'pointers as owners'). As soon as objects are managed in
-big numbers, the whole idea of smart pointers to _manage ownership_ pretty
-much becomes pointless.
-
-And further following down that path, the whole ideas of raw pointers as
-'owners and identifiers' becomes rather pointless too. Once a data item lives
-in an array, it makes more sense to identify it through an array index
-since this eliminates some dangerous properties of the (more universal)
-pointers.
-
-So let's quickly recap before moving on to handles:
-
-- keeping each object in its own heap allocation is bad
-- overloading pointers with multiple roles is bad (owners, identifiers, accessors)
-- smart pointers fix the most dangerous problems of raw pointers, but are not a good fit for data-oriented-design 
-
-### Handles to the rescue
-
+Incidentally, this explicit and centralized memory management approach is a
+very good fit for a data-oriented design philosophy, where 'data items' are
+usually grouped in simple liner arrays, instead of being spread all over the
+address space (...and std smart pointers with make_shared are much less
+useful in this situation, because they want to control the heap allocation,
+...unless custom allocators yadda yadda...).
