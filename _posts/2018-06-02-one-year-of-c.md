@@ -9,7 +9,7 @@ time for a little retrospective.
 
 In the beginning it was more of an experiment: I wanted to see how much
 I would miss some of the more useful C++ features (for instance namespaces, function
-overloading, 'simple' template code for containers, ...), and if it is
+overloading, 'simple' template code for containers, ...), and whether it is
 possible to write non-trivial codebases in C without going mad.
 
 Here are all the github projects I wrote in C:
