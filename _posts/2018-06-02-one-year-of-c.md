@@ -129,7 +129,7 @@ Even internally there's very little to no dynamic memory management going on
 while the application runs (depending on the 3D API backend).
 
 In the 32 kloc of C code I've written since last August, there are only
-13 calls to malloc overall all in the sokol_gfx.h header,
+13 calls to malloc overall, all in the sokol_gfx.h header,
 and 10 of those calls happen in the sokol-gfx initialization function.
 
 The entire 8-bit emulator code (chip headers, tests and examples, about
