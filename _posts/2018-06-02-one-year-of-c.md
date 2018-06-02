@@ -162,7 +162,7 @@ addition to the language.
 
 ### Less Language Feature 'Anxiety'
 
-This is a bit strange, but I feel more calm and focused when writing C
+This is also a bit strange, but I feel more calm and focused when writing C
 code. Again this is something that I would never have noticed without
 starting to write C again. When writing C++ there's always more than one way
 to do something and many micro-decisions need to happen:
