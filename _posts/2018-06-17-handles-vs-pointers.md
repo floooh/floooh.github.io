@@ -140,7 +140,7 @@ This has a number of further advantages:
 
 - In many situations, code outside the system never even needs to directly access memory of an item, only the system does. In such an 'ideal' situation, user code never accesses memory through pointers, and can never cause memory corruption.
 - Since only the system knows the array base pointers, it's free to move or reallocate the item arrays at will without invalidating existing index handles.
-- Array indices need fewer bits than full pointers, and a smaller data type can be picked for them, which in turn allows tigher packing of data structures and better data cache usage (this has the caveat that additional handle bits can be used to increase memory safety, more about this below)
+- Array indices need fewer bits than full pointers, and a smaller data type can be picked for them, which in turn allows tighter packing of data structures and better data cache usage (this has the caveat that additional handle bits can be used to increase memory safety, more about this below)
 
 If user code needs to access the memory of an item directly it needs to obtain
 a pointer through a 'lookup function' which takes a handle as input and returns
