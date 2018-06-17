@@ -83,11 +83,12 @@ A physics system works with rigid bodies, joints and collision primitives,
 and an animation system works with animation keys and curves.
 
 It makes sense to move the memory management for such items into the systems
-themselves, because they have much more 'domain knowledge' about how their
-data items are processed and relationships between data items than a general
-memory allocator. This allows the system to optimize memory allocations, 
-perform additional validation checks when creating and destroying items, and
-arrange items in memory for making best use of the CPU's data caches.
+themselves, because a general memory allocator doesn't have the
+system-specific 'domain knowledge' about how data items are processed and the
+relationships between data items. This allows the system to optimize memory
+allocations, perform additional validation checks when creating and
+destroying items, and arrange items in memory for making best use of the
+CPU's data caches.
 
 A good example for this 'system domain knowledge' is the destruction of
 rendering resource objects with modern 3D APIs: a resource object can not
