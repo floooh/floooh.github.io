@@ -9,7 +9,7 @@ and C++ these days which basically replaces raw- and smart-pointers with
 
 In my [last blog post](/2018/06/02/one-year-of-c.html) I was mentioning
 pointer- and allocation-free programming, but was skipping over
-the details. This is basically what the following blog post is
+the details. This is what the following blog post is
 about.
 
 This is all based on the (sometimes painful) experience of wrestling for 15+
