@@ -211,7 +211,7 @@ This handle-comparison check when converting a handle to a pointer works
 quite well to detect dangling-accesses, but it isn't waterproof because the
 same combination of array index and 'unique pattern' will be created sooner or
 later.
-But it's still better to have no dangling protection at all (like raw pointers),
+But it's still better than no dangling protection at all (like raw pointers),
 or a 'fake memory leak' which would happen in similar situations with smart pointers.
 
 Finding good strategies to create unique handles that collide as rarely as
