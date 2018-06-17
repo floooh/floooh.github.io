@@ -87,7 +87,7 @@ themselves, because they have much more 'domain knowledge' about how their
 data items are processed and relationships between data items than a general
 memory allocator. This allows the system to optimize memory allocations, 
 perform additional validation checks when creating and destroying items, and
-arrange items in memory for making best use of the data cache.
+arrange items in memory for making best use of the CPU's data caches.
 
 A good example for this 'system domain knowledge' is the destruction of
 rendering resource objects with modern 3D APIs: a resource object can not
