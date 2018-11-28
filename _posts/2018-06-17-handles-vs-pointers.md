@@ -3,6 +3,11 @@ layout: post
 title: Handles are the better pointers
 ---
 
+**28-Nov-2018**: I've added a small update at the end on how to prevent
+'handle collisions' with a per-slot generation counter
+
+**Original Post**:
+
 ...wherein I talk a bit about how I'm doing dynamic memory management in C
 and C++ these days which basically replaces raw- and smart-pointers with
 'index-handles'.
@@ -266,3 +271,33 @@ The Oryol Gfx module is a similar 3D API wrapper, but written in C++:
 The Oryol Animation extension module is a character animation system which keeps all its data in arrays:
 
 **[Oryol Anim Module](https://github.com/floooh/oryol-animation/tree/master/src/Anim)**
+
+## Update 28-Nov-2018
+
+...in the post above I was sort of handwaving away the problem of creating
+the same unique-tag twice for the same slot, and a nice person on twitter
+hinted me about a very simple, elegant and embarrassingly 'obvious' solution:
+
+Each array slot gets its own **generation counter**, which is bumped when a
+handle is released (can also happen when the handle is created, but bumping
+on release means you don't need a reserved value for "free slots" to detect
+an invalid handle).
+
+To check if a handle is valid, simply compare its unique-tag with the current
+generation counter in its slot.
+
+Once the generation counter would 'overflow', **disable** that array slot, so
+that no new handles are returned for this slot.
+
+This is a perfect solution for avoiding handle collisions, but the handles
+will eventually run out since all array slots will be disabled eventually. But
+since each slot has its own counter, this only happens after *all*
+handle-bits are exhausted, not just the few unique-tag bits.
+
+So with 32-bit handles, you can always create 4 billion items, with at most
+(32 - num_counter_bits) alive at the same time. This also means the number of
+bits for the unique-tag can be reduced without compromising 'handle safety'.
+
+It may also be possible to re-activate disabled slots once it can be
+guaranteed that no more handles for that slot are out in the wild
+(maybe at special places in the code like entering or exiting a level).
