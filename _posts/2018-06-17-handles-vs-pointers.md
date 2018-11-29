@@ -295,7 +295,7 @@ since each slot has its own counter, this only happens after *all*
 handle-bits are exhausted, not just the few unique-tag bits.
 
 So with 32-bit handles, you can always create 4 billion items, with at most
-(32 - num_counter_bits) alive at the same time. This also means the number of
+2^(32 - num_counter_bits) alive at the same time. This also means the number of
 bits for the unique-tag can be reduced without compromising 'handle safety'.
 
 It may also be possible to re-activate disabled slots once it can be
