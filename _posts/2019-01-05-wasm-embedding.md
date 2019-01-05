@@ -151,7 +151,7 @@ The Amstrad CPC emulation is fairly expensive, mainly
 because of the video system emulation which must be more or less cycle-perfect,
 otherwise most of the newer graphics demos simply wouldn't work.
 
-On my mid-2014 with 2.8 GHz i5 the CPC emulation (in WASM) needs about 3..4ms per 60Hz
+On my mid-2014 13" MBP with 2.8 GHz i5 the CPC emulation (in WASM) needs about 3..4ms per 60Hz
 host system frame.
 This seems to be about the same as more recent iPhones, but on modern Android
 phones this can go up to 7..8 milliseconds. Still fast enough to run well within
