@@ -112,7 +112,7 @@ separate 'executables')
 allocator, but the slow-yet-small emmalloc replacement (this is ok, since
 the emulator only does a small number of allocations at startup)
 
-Here are some rough line-of-code numbers:
+Here are some line-of-code numbers:
 
 - chip emulators (Z80, AY-3-8910, etc...): 3916
 - the CPC system emulator (which glues the chips together): 809
