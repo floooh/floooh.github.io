@@ -157,7 +157,7 @@ This seems to be about the same as more recent iPhones, but on modern Android
 phones this can go up to 7..8 milliseconds. Still fast enough to run well within
 the 16.6ms frame-budget, but of course power consumption can become an issue.
 
-The same CPC emulation running as native x64-64 code compiled with clang and -O3
+The same CPC emulation running as native x86-64 code compiled with clang and -O3
 takes about 1.5 to 2.2 milliseconds, about twice as fast as the WebAssembly
 version. That's a bit on the higher side from my experience (the difference
 is usually 1.2 to 1.5x slower for WASM), but it's not unexpected. The inner 
