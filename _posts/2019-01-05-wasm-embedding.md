@@ -135,7 +135,7 @@ Windows, OSX, Linux and iOS), also 2D canvas would make it impossible to add
 interesting cathode-ray-tube filter effects via shaders.
 - The emulator currently contains code for loading tape- and floppy-images,
 and emulation code for the floppy controller and disc drive. If only snapshot loading is needed,
-removing this code could shave off a another KB or two...
+removing this code could shave off another KB or two...
 - I hope that most of the .js runtime file can disappear or at least be dramatically
 reduced in size one day when WASM can call more directly into JS APIs (currently
 all calls to WebGL must go through a JS shim for instance)
