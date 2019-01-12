@@ -9,16 +9,13 @@ Emulators](https://floooh.github.io/tiny8bit/).
 
 As always, don't take it as gospel, it works well for me on my hobby
 projects. It doesn't mean that the same ideas would scale to a large
-professional team (although it works quite well for very small teams of
-somewhat experienced programmers and artists).
-
-On the other hand: big teams can't efficiently build small 
-things anyway. Big teams tend to produce a lot of code and data.
+professional team (although parts of it *do* work quite well for very small
+teams of somewhat experienced programmers and artists).
 
 ## Languages and Tools
 
-Currently my default-language of choice is C, sprinkled with other
-languages as needed (C++, Objective-C, Javascript and Python):
+Currently my default-language of choice is C, sprinkled with other languages
+as needed (in the Tiny Emulators: C++, Objective-C, Javascript and Python):
 
 - **C++**: when working with libraries that have a C++ API (in the 
 Tiny Emulators, that's only for the optional debugging UI implemented
