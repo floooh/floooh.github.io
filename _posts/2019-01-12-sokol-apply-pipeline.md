@@ -3,9 +3,10 @@ layout: post
 title: A small sokol_gfx.h API update
 ---
 
-I just finished a small update for sokol_gfx.h which makes the API a bit
-less awkward to use in some situations. Existing code doesn't break,
-but some things have been deprecated.
+I just finished a small update for
+[sokol_gfx.h](https://github.com/floooh/sokol/blob/master/sokol_gfx.h) which
+makes the API a bit less awkward to use in some situations. Existing code
+doesn't break, but some things have been deprecated.
 
 The main change is that pipeline state and resource bindings for the 
 next draw call are now set in separate calls:
