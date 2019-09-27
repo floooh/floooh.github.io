@@ -13,7 +13,7 @@ a similar outdated view of the language.
 
 Also to be clear, the 'Modern C' I'm talking about here is not modern at all,
 but already two decades old. I'll focus on the subset of C99 which is
-supported by clang, gcc and MSCV (clang and gcc both fully support the latest
+supported by clang, gcc and MSVC (clang and gcc both fully support the latest
 C standards of course, while (AFAIK) Microsoft's stance unfortunately hasn't
 changed much since [this post from 2012](https://herbsutter.com/2012/05/03/reader-qa-what-about-vc-and-c99/).
 
@@ -408,7 +408,7 @@ the option-bag parameter list, the parameter order doesn't matter:
 sg_image img = sg_make_image(&(sg_image_desc){
     .width = 256,
     .height = 256,
-    .pixel_format = SG_PIXELFORMAT_SG_PIXELFORMAT_R8
+    .pixel_format = SG_PIXELFORMAT_R8
 });
 ```
 
