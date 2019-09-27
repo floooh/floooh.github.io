@@ -439,7 +439,7 @@ But as you can see, C pointers always come with their own set of caveats and
 a lot of 'explanation overhead' for each use of a pointer. Thus it's best to
 avoid them alltogether (or at least "as much as possible").
 
-Now I can literally hear the audience burst out in laughter crying
+Now I can literally hear the audience burst into laughter crying
 "C without pointers? How's that gonna work, smart-ass?!?". 
 
 I'll get straight to that in the next section:
