@@ -457,7 +457,7 @@ is mostly useful in the same situations where garbage collection is useful:
 automatic memory management - more specifically keeping track of myriads of
 tiny memory allocations and deciding when it's safe to free them.
 
-Yeah I know I knooow... theoreticall RAII is about *general resource
+Yeah I know I knooow... theoretically RAII is about *general resource
 management*, not just about memory. But at least in my experience, it's
 always about memory management.
 
