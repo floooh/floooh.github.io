@@ -308,10 +308,11 @@ will offer, such code is not portable to other compilers though)
 ## Don't be afraid to pass and return structs by value
 
 There's still a lot of outdated 'optimization advice' about passing and
-returning structs by value in C and C++ around. In C++ this advice is sometimes even
-justified because copying a non-trivial C++ object may be much more expensive
-than it looks at first glance because complex custom copying code might be
-invoked (passing std::string objects by value is the best/worst example).
+returning structs by value in C and C++ around. In C++ this advice is
+sometimes even justified because copying a non-trivial C++ object may be much
+more expensive than it looks on the surface because complex custom copying
+code might be invoked under the hood (passing std::string objects by value is
+the best/worst example).
 
 The situation in C is a whole lot simpler, copying a struct is always a
 straight copy operation without involving custom code.
