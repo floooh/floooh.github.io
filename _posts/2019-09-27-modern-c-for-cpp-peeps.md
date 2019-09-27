@@ -88,7 +88,7 @@ void my_func() {
 ```
 
 In C++ this function takes no arguments, but in C this function takes *any*
-number arguments (I can't think of a situation where that would actually be
+number of arguments (I can't think of a situation where that would actually be
 useful, since there's no way to access this "variable argument list" inside
 the function, I guess it's a leftover 'syntax pollution' from old K&R style
 function declaration syntax).
