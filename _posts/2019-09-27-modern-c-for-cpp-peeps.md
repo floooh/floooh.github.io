@@ -473,7 +473,7 @@ allocations* are managed through a GC or through RAII. The problem is the
 *many small allocations*.
 
 If you don't have such small (and often hidden) memory allocations happening
-decentralized all over the place in the first place, both GC and RAII lose
+decentralized all over the code in the first place, both GC and RAII lose
 most of their appeal. Controversial claim, I know, and I realize that it's very
 easy to make such a claim without having a million-line C code base maintained
 by a huge team under the belt to back it up (but at least I have the
