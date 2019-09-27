@@ -15,13 +15,11 @@ Also to be clear, the 'Modern C' I'm talking about here is not modern at all,
 but already two decades old. I'll focus on the subset of C99 which is
 supported by clang, gcc and MSCV (clang and gcc both fully support the latest
 C standards of course, while (AFAIK) Microsoft's stance unfortunately hasn't
-changed much since this post from 2012:
-
-https://herbsutter.com/2012/05/03/reader-qa-what-about-vc-and-c99/.
+changed much since [this post from 2012](https://herbsutter.com/2012/05/03/reader-qa-what-about-vc-and-c99/).
 
 It's not all bad in Visual Studio land though, the Microsoft C compiler
 actually supports a pretty solid subset of C99 since around VS2015. I guess
-there are some guerilla warriors at Microsoft which secretly sneak updates
+there are some guerilla warriors at Microsoft who secretly sneak updates
 into the C compiler when the C++ people are out in the field on one of their C++
 Committee trips.
 
