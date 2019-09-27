@@ -4,7 +4,7 @@ title: Modern C for C++ Peeps
 ---
 
 When discussing C with C++ programmers I often notice a somewhat outdated
-view of C, usually a familiarity of a C dialect that lies somewhere between
+view of C, usually a familiarity with a C dialect that lies somewhere between
 C89 and C99, because that's essentially the "subset of C that's supported by
 C++".
 
@@ -368,7 +368,7 @@ You can also move the initialization of the two inputs right into the function c
 
 ## Named optional arguments
 
-C99's designated intialization enables an interesting 'Easter Egg' feature:
+C99's designated initialization enables an interesting 'Easter Egg' feature:
 let's say you have a C function which requires many input parameters, most
 of them optional (in which case default values should be used). In C++
 you can have optional args with default values, but they must appear in
@@ -515,7 +515,7 @@ And you don't need a fancy high-level language for all of that.
 ## So... should I switch to C now or what?
 
 Erm no, that's not the intention behind this blog post, at most doing my tiny
-bit to update the somewhat prevalent view (in *some* circles at least) of C
+part to update the somewhat prevalent view (in *some* circles at least) of C
 as an outdated language which must be replaced at all cost (usually with
 languages that don't quite understand the essence of why people actually
 choose C).
