@@ -497,7 +497,7 @@ The smart-ass advice is of course "don't do many small memory allocations".
 A more reasonable advice is to work with what C offers, instead of trying
 to work around it.
 
-The 'C way' is to have 'dumb structs' instead of 'smart objects'. A struct is
+The 'C way' is to have 'dumb data' instead of 'smart objects'. A struct is
 just some plain data blob without a behaviour of its own. When the data is copied,
 it's always a simple copy. When the data is destroyed, it's always a no-op.
 
