@@ -315,7 +315,7 @@ code might be invoked under the hood (passing std::string objects by value is
 the best/worst example).
 
 The situation in C is a whole lot simpler, copying a struct is always a
-straight copy operation without involving custom code.
+straight data copy without involving custom code.
 
 Furthermore, the "new" 64-bit calling conventions pack small structs into
 registers (at least on Intel, don't know what's the situation on ARM). So
