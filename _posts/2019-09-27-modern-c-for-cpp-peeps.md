@@ -3,6 +3,8 @@ layout: post
 title: Modern C for C++ Peeps
 ---
 
+(update 28-Sep-2017: some fixes and error corrections)
+
 When discussing C with C++ programmers I often notice a somewhat outdated
 view of C, usually a familiarity with a C dialect that lies somewhere between
 C89 and C99, because that's essentially the "subset of C that's supported by
@@ -76,7 +78,10 @@ that the variable doesn't leak into the outer scope: ```for (int i =
 - integer types have much clearer names now: ```uint8_t, uint16_t, int32_t``` etc...
 (these are not built-in but defined in the stdint.h header)
 - there's now a standardized ```bool``` with ```true/false``` (also not
-built-in but defined in stdbool.h)
+built-in but defined in stdbool.h) (**update:** I made a small error here,
+the bool type is indeed a (private) builtin type, usually named something
+like _Bool, the stdbool.h header just redefines this to the common 'bool'
+name)
 
 By the way, a subtle yet important difference between C and C++ is a function
 declaration with an empty argument list:
@@ -185,6 +190,10 @@ and the named struct can be properly forward-declared.
 
 So if you see a strange 'redundant' typedef like this in C code the reason is that it
 enables forward declaration. 
+
+**updates**: (1) apparently the Linux coding guidelines discourage typedef'ing
+a struct, and (2) the POSIX standard reserves the '_t' postfix for its own typenames
+to prevent collisions with user types -- make of that what you will ;)
 
 ## Use struct wrappers for strong typing
 
