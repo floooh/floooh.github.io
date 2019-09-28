@@ -333,7 +333,7 @@ Here's an example how "old-fashioned C code" might look like to add two "2D vect
 struct float2 { float x, y; };
 
 void addf2(const struct float2* v0, const struct float2* v1, struct float2* out) {
-    out->x = v0->x + v1->y;
+    out->x = v0->x + v1->x;
     out->y = v0->y + v1->y;
 }
 
