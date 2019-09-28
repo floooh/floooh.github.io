@@ -3,7 +3,7 @@ layout: post
 title: Modern C for C++ Peeps
 ---
 
-(update 28-Sep-2017: some fixes and error corrections)
+(update 28-Sep-2019: some fixes and error corrections)
 
 When discussing C with C++ programmers I often notice a somewhat outdated
 view of C, usually a familiarity with a C dialect that lies somewhere between
