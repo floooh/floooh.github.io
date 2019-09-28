@@ -418,7 +418,7 @@ Etc etc... Of course it's possible to do something similar in C++ with an
 write a lot of rather boring boilerplate code to implement the builder
 pattern on the class author's side.
 
-## Be afraid of pointers
+## Be (somewhat) afraid of pointers
 
 IMHO, pointers in C should be treated like the ```unsafe``` keyword in Rust. The
 presence of pointers in C code and in structs always requires special
