@@ -402,7 +402,7 @@ C, but not in C++)
 This function call creates an image of size 256x256 with all other parameters
 using their default values.
 
-In case I also need to use a non-default pixel format I simple add that to
+In case I also need to use a non-default pixel format I simply add that to
 the option-bag parameter list, the parameter order doesn't matter:
 
 ```c
