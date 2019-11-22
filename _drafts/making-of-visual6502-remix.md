@@ -5,18 +5,28 @@ title: "Making of Visual 6502 Remix"
 
 ![Visual 6502 Remix Logo](/images/visual6502remix.png)
 
-I made a little 'accidental' project in the last few weeks. It all started
-with a new type of 8-bit emulator: the LC-80 which was the computer I learned
-programming on, and then one thing lead to another...
+I made a little 'accidental' project in the last few weeks:
 
-Since this LC-80 couldn't be connected to a TV anyway, I decided to use the
-available screen space with a visualization of the motherboard so that you
-can actually see how the computer works (turn down the volume before clicking
-on the link):
+[Visual 6502 Remix](https://floooh.github.io/visual6502remix/)
+
+I call it 'accidental' because I hadn't planned this at all until I the
+day I wrote the first line of code (usually I ponder such things for months
+or even years in the back of my head, and only few of those things pondered I
+ever start working on). 
+
+In hindsight, it all started with this LC-80 emulator (which was the
+computer I learned programming on). Better turn down the audio volume before
+clicking the link since the boot sequence starts blaring the Popcorn song
+which you won't get out of your head for *days*:
 
 [https://floooh.github.io/tiny8bit/lc80.html](https://floooh.github.io/tiny8bit/lc80.html)
 
-This project was interesting but revealed a 'weakness' in my CPU emulators.
+Since this LC-80 couldn't be connected to a TV but only had a small 6-digit
+LCD display, I decided to use the available screen space with a visualization
+of the motherboard so that it's possible to actually see how the computer
+works.
+
+This project was quite interesting but revealed a 'weakness' in my CPU emulators.
 Even though they enable a 'cycle perfect' emulation, they cannot be 'cycle
 stepped'. If you open the debugger window in the above emulator and start
 single stepping, you can only inspect the motherboard state after a full
@@ -81,8 +91,8 @@ The first step was playing around with the:
 
 # Chip Visualization
 
-When looking at the chip visualization of the visual6502 project it looks like
-a complex mess which at first glance looks difficult to render in 'realtime':
+The chip rendering of visual6502.org look quite complex at first glance which
+might be difficult to render in 'realtime':
 
 ![Visual 6502 Chip Layoyt](/images/visual6502_layout.png)
 
@@ -97,7 +107,7 @@ outlines.
 First I had to figure out how visual6502 stores and renders the chip layout data.
 Turns out it's fairly simple:
 
-The 'path outlines' are called segments, and there's a JS file called 
+The 'path outlines' are called segments, and they are defined in a JS file called 
 [segdefs.js](https://raw.githubusercontent.com/trebonian/visual6502/master/segdefs.js).
 
 Here's a snippet from that file:
@@ -115,24 +125,24 @@ var segdefs = [
 ```
 
 After a bit of pondering over that data and looking at the other
-data files the meaning of those numbers became clear:
+data files those numbers started to make sense:
 
 The first number in each segment (e.g. 0, 93 and 710) is the 'node index',
-each 'node' being a collection of physically connected segments forming a
-complete path on the chip. Each node can either currently either be switched
-on or off, and the initial state is the '+' or '-' following the node index.
+each 'node' being a collection of connected segments. Each node can either
+currently either be switched on or off, and the initial state is the '+' or
+'-' following the node index.
 
-The next number is the chip layer where that segment is located. The layer
-number is between 0 and 5, for 6 layers that are stacked on the chip.
+The next number is the chip layer where that segment is placed. The layer
+number is between 0 and 5.
 
 The remaining numbers which are between zero and 10000 are 2D integer coordinates
-of the actual segment's polygon outline in [x,y] pairs. So the first line:
+of the actual segment's closed polygon outline in [x,y] pairs. So the first line:
 
 ```javascript
     [   0,'+',1,5392,7804,5392,7757,5357,7757,5357,7804],
 ```
 
-Describes a closed 2D polygon made of 4 vertices:
+Describes a 2D polygon made of 4 vertices:
 
 ```
 [x=5392,y=7804] => [x=5392,y=7757] => [x=5357,y=7757] => [x=5357,y=7804]
@@ -142,10 +152,82 @@ The nodes formed by those segments range from very simple like this (highly zoom
 
 ![Simple 6502 Node](/images/visual6502_simple_node.png)
 
-...to nodes spanning the entire chip, like this (which is the 'cclk' node):
+...to nodes spanning the entire chip, like this (the 'cclk' node):
 
 ![6502 cclk Node](/images/visual6502_cclk.png)
 
+Now that I figured out what to render the first step was getting the data from
+Javascript into something that can be handled by C. For simple scripting
+tasks like this I usually start with a little python script, basically 
+translating the Javascript file into a C header.
 
+Then write a small Sokol + Dear ImGui program to render polygon outlines
+through ImGui's ImDrawList class (ImDrawList can only render filled *convex*
+polygons, so I settled with non-filled polygons).
 
+At this point I didn't know yet whether anything serious would come out of
+those experiment, so far it was only a little coding doodle. But the first
+results were promising:
 
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">OMG looks like it&#39;s possible to render the Visual6502 data set with Dear ImGui at a smooth frame rate! And that&#39;s just a quick adhoc experiment without any optimizations.<br><br>...I think the next steps are inevitable :D<br><br>(cc <a href="https://twitter.com/ocornut?ref_src=twsrc%5Etfw">@ocornut</a>) <a href="https://t.co/7hSIEaa2gM">pic.twitter.com/7hSIEaa2gM</a></p>&mdash; Andre Weissflog (@FlohOfWoe) <a href="https://twitter.com/FlohOfWoe/status/1189618562148847621?ref_src=twsrc%5Etfw">October 30, 2019</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
+
+Even though the rendering performance via ImDrawList was 'good enough' in a
+native application rendering through Metal even on my 5 years old laptop with
+Intel GPU, this approach is quite CPU-heavy. Each frame, 300k vertices are
+scaled and translated on the CPU, and around 1.1 million indices are written.
+This translates to about 11 MBytes of new data each frame to be uploaded
+to the GPU, and when I tried the same code running in WASM+WebGL, performance
+tanked.
+
+But even ancient low-end GPUs running WebGL don't have a problem rendering
+that amount of data as long as it's static and doesn't change each frame, so
+the next step was to leave ImDrawList behind and instead preprocess the
+segment data into static vertex buffers.
+
+So back to my offline python script which converts the original python script
+which converts the visual6502 segment data into C: instead of straight Javascript-
+to-C conversion the script would now preprocess the segment data into something
+that can be fed straight to the GPU as static vertex buffers.
+
+This was also the right time to properly triangulate the data, so that
+filled convex polygons could be rendered instead of just outlines. In the
+project's spirit of doing things quick'n'dirty I looked around for an existing
+python triangulator and found it here:
+
+[https://github.com/linuxlewis/tripy](https://github.com/linuxlewis/tripy)
+
+...it works, but this is also where python is showing its limits. While the 
+previous simple text translation was nearly instant, it now takes nearly
+half a minute to chew through all the data. It's ok though because this translation
+only happens once.
+
+As expected, this fixed WebGL's rendering performance. The whole chip
+visualization is rendered in 6 draw calls (one per layer), all data is static,
+and the amount of data the GPU needs to work through has been reduced as well
+because I could switch to a packed vertex format with 8 bytes per vertex instead
+of ImGui's 20 bytes per vertex.
+
+But I still couldn't eliminate dynamic data completely: Connected segment
+groups ('nodes') need to be dynamically highlighted to indicate on/off state. But
+the number of individual segments is much smaller than the number of vertices
+needed to render the chip layout:
+
+There's only around 1800 of such nodes which can change state, and that's
+a very manageable amount of data to update each frame:
+
+Instead of updating all vertices each frame, only a small 2 KByte texture
+needs to be updated and uploaded to the GPU now. The node index had be stored
+with each vertex during the offline-preprossing step already.
+
+So compared to my initial naive approach of uploading 11 MBytes of data each
+frame to the GPU, this new approach has reduced the amount of per-frame
+dynamic data nearly 6000x, and reduced the required CPU work each frame for
+rendering to nearly zero (we'll need that CPU perf again later for running
+the actual chip simulation).
+
+It's interesting to note that most of the 'subjective' performance increase
+compared to the original visual6502.org is (most likely) coming from this
+entirely different rendering approach and not because of the performance
+differences between Javascript versus C compiled to WASM. As far as I have
+seen looking through the code, Visual6502 renders polygons through 2D canvas,
+which is closer to my intial 'naive' attempt using ImDrawList.
