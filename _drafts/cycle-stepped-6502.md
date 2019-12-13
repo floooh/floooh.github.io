@@ -1,0 +1,633 @@
+---
+layout: post
+title: A new cycle-stepped 6502 CPU emulator
+---
+
+TL;DR: The how and why of the new 6502 emulator in the [chips project](https://github.com/floooh/chips).
+
+I wrote a new version of my 6502/6510 emulator in the last weeks which can
+be stepped forward in clock cycles instead of full instructions.
+
+The actual work didn't take a couple of weeks, more like a few evenings and
+a weekend, because the new emulator is more or less just a different output 
+of the code-generation python script which I keep mutating for each new
+emulator version.
+
+But while working on the new emulator I got a bit side-tracked by another
+project:
+
+https://floooh.github.io/visual6502remix/
+
+But this is (maybe) the topic of another blog post.
+
+Before I'm getting to the cycle-stepped 6502 emulator, a little detour
+into 8-bit CPUs and CPU emulators in general:
+
+## What CPUs actually do
+
+The general job of a CPU (no matter if old or new) is quite simple: given
+some memory filled with instructions and data, process instructions one after
+another to change some of the data in memory into some other data, and repeat
+this process forever. Everything else in a typical computer just exists to
+turn some of the data in memory into pretty pixels and sounds, or send
+the data to another computer.
+
+The processing of a single instruction can be broken down into several steps:
+
+- fetch the instruction opcode from memory (on 8-bit CPUs this is the
+first - and sometimes only - byte of an instruction)
+- 'decode' this opcode to decide what actions must be taken to
+'execute' the instruction, and then step through those actions, like:
+- load additional data from memory into the CPU
+- change the data loaded into the CPU in some way (arithmetics, bit twiddling, etc)
+- store data from the CPU back to memory
+- repeat those steps for the next instruction
+
+Apart from simple data manipulation, this basic 'core execution loop'
+is also used for more intesting control-flow actions:
+
+- **branches**: Jump to a different memory location and continue executing
+instructions from there, this is like a goto in higher level languages
+- **conditional branches**: Based on the result of a previous computation, either jump to
+a different memory location, or continue with the instruction directly following the
+branch instruction. Conditional branches are the assembly-level building blocks of higher-level
+language constructs like if(), for() and while() 
+- **subroutine calls**: Store the current execution location on the 'stack'
+(a special area in memory set aside for storing temporary values), jump to a
+different memory location (the subroutine), and at the end of that subroutine
+(indicated by a special 'return' instruction), load the stored execution
+location from the stack and continue execution right after the original
+subroutine call. This is like a function call in a high level language.
+- **interrupts**: Interrupts are like subroutine calls except they are
+initiated by an external hardware event (such as a hardware timer/counter
+reaching zero, a key being pressed, or the video signal reaching a specific
+raster line). The CPU stops whatever it is currently doing, jumps into a
+special 'interrupt service routine', and at the end of the service routine,
+continues with whatever it did before.
+
+CPUs usually have a few special registers to deal with control flow:
+
+- The current execution location (where the next instruction is loaded from)
+is stored in the *Program Counter* (PC) register.
+- The current stack location is stored in the *Stack Pointer* (S or SP) register.
+- A *Flags or Status Register* (for some mysterious reason called 'P' on the 6502)
+which stores (mostly) information about the result of previous arithmetic
+operations to be used for conditional branching. For instance: if the last
+instruction subtracted two numbers and the result is 0, the Flags Register
+will have the *Zero Flag* bit set. The conditional branch
+instructions BEQ (branch when equal) and BNE (branch when not equal) look at
+the current state of the Zero Flag to decide whether to branch or not (there
+are other Flag bits and associated branch instructions too, but you get the idea).
+
+It's interesting to note that the branch instructions of a CPU are essentially
+normal load instructions into the PC register, since that's what they do: loading
+a new location value into the PC register so that the next instruction is fetched
+from a different memory location.
+
+## The components of an 8-bit CPU
+
+8-bit CPUs like the Z80 or 6502 are fairly simple from today's point
+of few: a few thousand transistors arranged in a few logical blocks:
+
+A **Register Bank** with somewhere between a handful and a dozen 8- and 16-bit
+registers (the 6502 has about 56 bits worth of 'register storage', while the
+Z80 has over 200 bits worth of registers)
+
+An **ALU** (Arithmetic Logic Unit) which implements integer operations like
+addition, subtraction, comparison (usually done with a subtraction and
+dropping the result), bit shifting/rotation, and the bitwise logic operations
+AND, OR and XOR.
+
+The **Instruction Decoder**. This is where all the 'magic' happens. The
+instruction decoder takes an instruction opcode as input, and in the
+following cycles runs through a little instruction-specific hardwired program
+where each program step describes how the other components
+of the CPU (mainly the register bank and ALU) need to be wired together and
+configured to execute the current instruction substep. 
+
+How exactly the instruction decoder unit is implemented differs quite a lot
+between CPUs, but IMHO the general mental model that each instruction is a
+small hardwired 'micro-program' of substeps which reconfigures the data flow
+within the CPU and the current action of the ALU is (AFAIK) valid for all
+popular 8-bit CPUs, no matter how the decoding process actually happens in
+detail on a specific CPU.
+
+And finally there's the 'public API' of the CPU, the **input/output pins**
+which connect the CPU to the outside world.
+
+Most popular 8-bit CPUs look fairly similar from the outside:
+
+- 16 **address bus** output pins, for 64 KBytes of directly addressable memory
+- 8 **data bus** in/out pins, for reading or writing one data byte at a time
+- a handful of **control- and status-pins**, these differ between
+CPUs, but the most common and important pins are:
+    - one or two RW (Read/Write) output pins to indicate to the outside world
+    whether the CPU wants to read data from memory (with the data bus pins
+    acting as inputs), or write data into memory (data pins as outputs) at
+    the location indicated by the address bus pins
+    - IRQ and NMI: These are input pins to request a "maskable" (IRQ) or
+    non-maskable (NMI) interrupt.
+    - RES: an input pin used to reset the CPU, usually together with the
+    whole computer system, this puts the CPU back into a defined starting state
+
+Of course the CPU is only one part of a computer system. At least some memory
+is needed to store instructions and data. And to be any useful
+there must be a way to get data into and out of the computer (keyboard, 
+joystick, display, loud speakers, and a tape- or floppy-drive). These 
+devices are usually not controlled directly by the CPU, but by additional
+helper chips, for instance in the C64:
+
+- 2 'CIA' chips to control the keyboard, joysticks, and tape drive
+- the 'SID' chip to generate audio
+- and the 'VIC-II' chip to generate the video output
+
+The C64 is definitely on the extreme side for 8-bit computers when it comes
+to hardware complexity. Most other 8-bit home computers had a much simpler
+hardware configuration and were made of fewer and simpler chips.
+
+All these chips and the CPU are connected to the same shared address- and data-bus,
+and some additional 'address decoder logic' (and clever engineering
+in general) was needed so that all those components properly use the
+shared address and data bus when its their turn, but diving in there
+goes a bit too far for this blog post :)
+
+
+Back to emulators:
+
+## How CPU emulators work
+
+While all CPU emulators must somehow implement the tasks of real CPUs outlined
+above, there are quite a few different approaches how they reach that goal.
+
+The range basically goes from "fast but sloppy" to "accurate but slow". Where
+on this range a specific CPU emulators lives depends mainly on the computer system
+the emulator is used for, and the software that needs to run:
+
+- Complex general-purpose home computers like the C64 and Amstrad CPC with an
+active and recent demo scene need a very high level of accuracy down to the
+clock cycle, because a lot of frighteningly smart demo-sceners are exploring (and
+exploiting) every little quirk of the hardware, far beyond what the original
+hardware designers could have imagined or what's written down in the
+original system specifications and chip manuals.
+
+- The other extreme are purpose-built arcade machines which only need to run
+a single game. In this case, the emulation only needs to be 'good enough' to
+run one specific game on one specific hardware configuration, and a lot of
+shortcuts can be taken as long as the game looks and feels correct.
+
+Here's the evolution from "fast but sloppy" to "slow but accurate" CPU
+emulators that I've gone through, I'm using the words "stepped" vs "ticked"
+in a very specific way:
+
+- "stepped" means how the CPU emulator can be "stepped forward" from the outside
+by calling a function to bring the emulator from a "before state" into an "after
+state"
+- "ticked" means how the *entire emulated system* is brought from a "before state"
+into an "after state"
+
+### Instruction-Stepped and Instruction-Ticked
+
+This was the first naive implementation when I started writing emulators, a
+Z80 emulator which could only be stepped forward and inspected
+for complete instructions.
+
+The emulator had specialized callback functions for memory accesses, and
+the Z80's special IO operations, but everything else happening "inside"
+an instruction was completely opaque from the outside.
+
+This means that an emulated computer system using such a CPU emulator could only
+"catch up" with the CPU after a full instruction was executed, which on the
+Z80 can take anywhere between 4 and 23 clock cycles (or even more when an
+interrupt is handled).
+
+This worked fine for simple computer systems which didn't need cycle-accurate
+emulation, like the East German Z- and KC-computers. But 23..30 clock cycles
+at 1 MHz is almost half of a video scanline, and once I moved to more complex
+systems like the Amstrad CPC it became necessary to know when exactly within
+an instruction a memory read or write access happens. The Amstrad CPC's
+video system can be reprogrammed at any time, for instance in the middle of a
+scanline, and when such a change happens at the wrong clock cycle within a
+scanline, things start to look wrong, from subtle errors like a few missing
+pixels or wrong colors here and there to a completely garbled image.
+
+### Instruction-Stepped and Cycle-Ticked
+
+The next step was to replace the specialized IO and memory access callbacks
+with a single universal 'tick callback', and to call this from within the
+CPU emulation for each clock cycle of an emulated instruction. I moved to this
+emulation model for two reasons: (a) because I had to improve the Amstrad CPC
+video emulation, and (b) because I started with a 6502 CPU emulator where a memory
+access needs to happen in each clock cycle anyway.
+
+From the outside, it's still only possible to execute instructions as a whole.
+So calling the emulator's 'execute' function once will run through the entire
+next instruction, calling the tick callback several times in turn, once for each
+clock cycle. It's not possible to tell the CPU to only execute one tick,
+or suspend the CPU in the middle of an instruction.
+
+With this approach, the CPU takes a special, central place in an emulated
+system. The CPU is essentially the controller which ticks the system forward
+by calling the tick callback function, and the entire remaining system is
+emulated in this tick callback. This allows a perfectly cycle accurate system
+emulation, and as far as I'm aware, this approach is used in most 'serious'
+emulators, and to be honest, the reasons to use an even finer-grained
+approach are a bit esoteric:
+
+### Cycle-Stepped and Cycle-Ticked
+
+This is where I'm currently at with the 6502 emulation (but not yet with the
+Z80 emulation).
+
+Instead of an "exec" function which executes an entire instruction, there's now
+a "tick" function which only executes one tick of an instruction and returns
+to the caller. With this approach a 'tick callback' is no longer needed, and
+the CPU has lost it's special 'controller status' in an emulated system.
+
+Instead the CPU is now just one chip amongst many, ticked forward like all the
+other chips in the system. The 'system tick' function has inverted its role:
+
+Instead of the system tick function being called from inside the CPU
+emulation, the CPU emulation is now called from inside the system tick
+function. This makes the entire emulator code more straightforward and
+flexible. It's now 'natural' and trivial to tick the entire system forward in
+single clock cycles (yes, the C64 emulation now has a c64_tick() function).
+
+Being able to tick the entire system forward in clock cycles is very useful
+for debugging. So far, the step-debugger could only step one complete CPU
+instruction at a time.
+
+That's good enough for debugging CPU code, but not so great for debugging the
+other chips in the system. Each debug step would skip over several clock
+cycles depending on what CPU instruction is currently executed. But now that
+the CPU can be cycle-stepped, implementing a proper 'cycle-step-debugger' is
+fairly trivial.
+
+Another situation where a cycle-stepped CPU is useful is multi-processor
+systems, which actually weren't that unusual in the 80's: the Commodore 128
+had both a 6502 and Z80 CPU (although they couldn't run at the same time),
+some arcade machines had sound and gameplay logic running on different CPUs,
+and even attaching a floppy drive to a C64 turns this into a multiprocessor
+system, because the floppy drive was its own computer with its own 6502 CPU.
+
+With a cycle-stepped CPU, it's much more straightforward now to write
+emulators for such multi-CPU systems. If required, completely unrelated
+systems can now run cycle-synchronized without weird hacks in the tick
+callbacks or variable-length 'time slices'.
+
+## The new 6502 emulator
+
+The new emulator only has two 'interesting' functions for initializing
+a new 6502 instance and ticking it:
+
+```c
+    // initialize a 6502 instance with default parameters:
+    m6502_t cpu;
+    uint64_t pins = m6502_init(&cpu, &(m6502_desc_t){ });
+    while (true) {
+        // tick the CPU for one clock cycle
+        pins = m6502_tick(&cpu, pins);
+        // TODO: inspect and modify pins
+    }
+```
+
+Like my older emulators, a 64-bit integer is used to communicate the pin status
+in and out of the CPU. What's new is that the m6502_init() function returns
+an initial pin mask to 'ignite' the CPU startup process, which must be passed
+into the first call to m6502_tick().
+
+The first 7 calls to m6502_tick() will then run through the 7-cycle
+reset-sequence, only then will the CPU emulation start to run 'regular'
+instructions.
+
+The code example above still doesn't do anything useful yet, because we
+haven't connected the CPU to memory, it's a similar to connecting a real 6502
+to a clock signal, but leaving all the other pins floating in the air.
+
+Let's fix that:
+
+```c
+    // 64 KBytes of memory:
+    uint8_t mem[(1<<16)] = { /*...*/ };
+    m6502_t cpu;
+    uint64_t pins = m6502_init(&cpu, &(m6502_desc_t){ });
+    while (true) {
+        pins = m6502_tick(&cpu, pins);
+        // extract the 16-bit address from the address bus pins:
+        const uint16_t addr = M6502_GET_ADDR(pins);
+        // check the RW pin to decide between read or write access:
+        if (pins & M6502_RW) {
+            // RW pin is 'active', read memory byte into data bus pins:
+            M6502_SET_DATA(pins, mem[addr]);
+        }
+        else {
+            // RW pin is 'inactive', write data bus pins into memory:
+            mem[addr] = M6502_GET_DATA(pins);
+        }
+    }
+```
+
+...and that's it basically, let's try a real C program which loads a specific
+value into the A register:
+
+```c
+#define CHIPS_IMPL
+#include "m6502.h"
+#include <stdint.h>
+#include <stdio.h>
+
+int main() {
+    // 64 KB zero-initialized memory
+    uint8_t mem[(1<<16)] = { };
+
+    // put an LDA #$33 instruction at address 0
+    mem[0] = 0xA9;
+    mem[1] = 0x33;
+
+    // initialize a 6502 instance:
+    m6502_t cpu;
+    uint64_t pins = m6502_init(&cpu, &(m6502_desc_t){ });
+    
+    // run for 9 ticks (7 ticks reset sequence, plus 2 ticks for LDA #$33)
+    for (int i = 0; i < 9; i++) {
+        pins = m6502_tick(&cpu, pins);
+        const uint16_t addr = M6502_GET_ADDR(pins);
+        if (pins & M6502_RW) {
+            M6502_SET_DATA(pins, mem[addr]);
+        }
+        else {
+            mem[addr] = M6502_GET_DATA(pins);
+        }
+    }
+    // the A register should now be 0x33:
+    printf("A: %02X\n", m6502_a(&cpu));
+
+    return 0;
+}
+```
+
+Running this program should print a ```A: 33``` to the terminal.
+
+Creating a complete home computer emulator from this is now "just" a matter
+of making the part after m6502_tick() where the pin mask is inspected
+and modified more interesting. Instead of just reading and writing memory,
+the other system chip emulations are ticked, and some sort of 'address decoding'
+needs to take place so that memory accesses to specific memory regions are
+rerouted to access custom chip registers instead of memory.
+
+## Implementation Details
+
+The new emulator uses a "giant switch case", just like the old emulator. But
+instead of one case-branch per instruction, the giant-switch-case has been
+"unfolded" to handle one clock cycle of a specific instruction per case branch.
+
+What looked this this before the handle the complete ```LDA #``` instruction:
+
+```c
+case 0xa9:/*LDA #*/_A_IMM();_RD();c.A=_GD();_NZ(c.A);break;
+```
+
+...looks like this now:
+
+```c
+...
+case (0xA9<<3)|0: _SA(c->PC++);break;
+case (0xA9<<3)|1: c->A=_GD();_NZ(c->A);_FETCH();break;
+...
+```
+
+The ```LDA #``` instruction costs 2 clock cycles, so there's two case-branches.
+
+The first case:
+
+```c
+case (0xA9<<3)|0: _SA(c->PC++);break;
+```
+
+...puts the PC register
+into the address bus pins (with the macro ```_SA()```, 'set address'),
+increments the PC, and returns to the caller.
+
+The caller inspects the pins, sees that it needs to do a read access from the
+address at PC - which in case of the ```LDA #``` instruction would be the
+immediate byte value to load into the A register - puts this value from
+memory into the data bus pins, and calls ```m6502_tick()``` again with 
+the new pin mask.
+
+Inside ```m6502_tick()```, the next case branch is executed:
+
+```c
+case (0xA9<<3)|1: c->A=_GD();_NZ(c->A);_FETCH();break;
+```
+
+...this takes the data bus value (the ```_GD()``` macro, or 'get data') and puts 
+it into the A register (```c->A```). Next it checks whether the Z(ero) Flag needs to 
+be set with the ```_NZ()``` macro, and finally 'calls' the ```_FETCH()``` macro
+to initiate the next instruction fetch.
+
+### How instruction fetch works
+
+Note how we conveniently skipped the whole process of fetching the opcode byte
+for the ```LDA #``` instruction above, this is because the instruction fetching
+process is like the snake which bites its own tail. A new instruction cannot
+be fetched without finishing a previous instruction:
+
+The ```_FETCH``` macro at the end of each instruction decoder switch-case
+block doesn't actually load the next opcode byte, it only manipulates the pin
+mask to let the 'user code' do this.
+
+All that the ```_FETCH``` macro actually does it put the current PC into the
+address bus pins, and set the ```SYNC``` pin to active (and importantly: the
+```RW``` is set to signal a memory read, this happens automatically for
+each tick, unless it's a special write cycle.
+
+After the m6502_tick() function returns with the _FETCH pin mask active, the
+caller's memory access code 'sees' a normal READ access with the current PC
+as address, this loads the next instruction byte into the data bus pins.
+
+The SYNC pin isn't interesting for the caller, but it signals the start of
+a new instruction to the next call of m6502_tick(): 
+
+At the start of the m6502_tick() function, and before the giant
+instruction-decoder switch-case statement, the incoming pin mask is checked
+for specific control pins, among others the SYNC pin. An active SYNC pins
+marks the start of a new instruction, with the instruction's opcode already
+loaded into the data bus pin.
+
+When the SYNC pin is active, the current data bus value is loaded into an
+internal IR (Instruction) register, much like in a real 6502, but with a
+little twist:
+
+The actual opcode value is shifted left by 3 bits to 'make room' for a 
+3 bit cycle counter (3 bits because a 6502 instruction can be at most 7
+cycles long). This merged 'opcode plus cycle counter' is all the
+instruction decoder state needed to find the proper handler code (== case branch)
+for the current cycle of the current instruction.
+
+The instruction fetch and decoding process looks like this inside the
+m6502_tick() function:
+
+```c
+uint64_t m6502_tick(m6502_t* cpu, uint64_t pins) {
+    if (pins & M6502_SYNC) {
+        // load IR register with opcode from data bus, and make room
+        // for the 3 bit cycle counter
+        cpu->IR = GET_DATA_BUS(pins) << 3;
+        // switch off the SYNC pin
+        pins &= ~M6502_SYNC; 
+    }
+    // The instruction decoder branches to the right 'cycle handler' 
+    // for the current instruction and cycle, and increments the
+    // cycle counter in the lower 3 bits. This 3 bit cycle counter
+    // can't 'overflow' into the 4-th bit because before this can happen
+    // the next instruction will be fetched, reseting the IR register's
+    // opcode and cycle counter
+    switch (cpu->IR++) {
+        ...
+        // LDA #$xx
+        case (0xA9<<3)|0: ...; break;
+        case (0xA9<<3)|1: ...; _FETCH(); break;
+        ...
+    }
+    return pins;
+}
+```
+
+It is interesting to note that this somewhat weird 'overlapped' instruction
+fetch process, where the last processing cycle of an instruction overlaps
+with fetching the next instruction opcode is exactly like it works on 
+a real 6502 CPU. In the cycle-stepped emulator this overlapping happened
+'naturally', there's no other way to make this work while at the same
+time having correct instruction cycle counts :)
+
+
+## How interrupt handling works
+
+...also much like in a real 6502: Somewhat simplified, at the start of
+the m6502_tick() function where the SYNC pin is tested, it is also checked
+whether an interrupt needs to be handled (interrupts are handled only
+at the end of an instruction, and before the next instruction starts).
+
+If the 'interrupt condition' is true, the next regular opcode byte (which is
+already loaded into the data bus pins at this point) is discarded, and instead
+the IR register is loaded with the BRK instruction opcode, together with
+an internal flag that this isn't a regular BRK, but a special 'interrupt BRK'.
+
+From here on, the normal instruction decoding process continues. The giant-switch-case
+is called and ends up in the handling code for the BRK instruction, and this
+has some special-case handling for a 'BRK running as interrupt handler'.
+
+This is also pretty much identical to how it works in a real 6502, both
+maskable and non-maskable interrupts, and the reset sequence are actually running
+through the BRK instruction decoding process, with some 'special case tweaks'.
+
+Of course it can't ever be quite as simple as that, the 6502 has quite a 
+few interrupt-related quirks. For instance, the interrupt condition is 
+only detected up to two cycles before the end of an instruction, any later
+and the interrupt is delayed until the end of the next instruction. But even
+this isn't consistent, as there is a 'branch quirk' in conditional branches
+where this '2 cycle delay rule' isn't true but reduced to a 1-cycle delay.
+
+Another interesting 'feature' is interrupt high-jacking. If a maskable
+interrupt is detected, but in the few cycles between the detection and the
+middle of the BRK instruction which handles this interrupt a higher-priority
+non-maskable interrupt is detected, than the interrupt is 'highjacked' and
+finishes as a non-maskable interrupt.
+
+The whole thing gets more complicated because similar exceptions also
+exist in the external chips which trigger interrupts (in a C64: the two
+CIAs and the VIC-II), so getting the interrupt handling in a complete
+emulated system cycle-accurate under all conditions can be a bit challenging
+(and it's also not completely accurate in my emulators yet, although I'm
+somewhat convinced that at least the CPU side is correct).
+
+## Conclusion: Links, Demos and Test Coverage
+
+The new 6502 emulator can be seen in action in the C64 and Acorn Atom
+emulators here:
+
+- https://floooh.github.io/tiny8bit/c64-ui.html
+- https://floooh.github.io/tiny8bit/atom-ui.html
+
+Currently there's no way to actually do cycle-stepping in the debugger
+though, this will be added at a later time.
+
+The 6502 source code is here:
+
+- https://github.com/floooh/chips/blob/master/chips/m6502.h
+
+...which is code-generated from these two files:
+
+- https://github.com/floooh/chips/blob/master/codegen/m6502.template.h
+- https://github.com/floooh/chips/blob/master/codegen/m6502_gen.py
+
+The C64 system emulator source code is here:
+
+- https://github.com/floooh/chips/blob/master/systems/c64.h
+
+There's also quite a few new C64 demo-scene demos on the [Tiny Emulators main
+page](https://floooh.github.io/tiny8bit/). Those demos give a good impression
+about the overall emulation quality, since they often use the hardware in
+interesting ways and have strict timing requirements.
+
+The C64 emulation is now "pretty good but still far from perfect", while the
+CPU and CIA accuracy are much better now, the VIC-II emulation leaves a lot
+to be desired (this will be my next focus for the C64 emulation, but I'll
+most likely spend a bit of time with something else).
+
+Here are some C64 demos which still show various rendering artefacts:
+
+- [Party Horse by Booze Design](https://floooh.github.io/tiny8bit/c64.html?file=c64/party_horse.prg)
+- [Summer of 64 by Offence](https://floooh.github.io/tiny8bit/c64.html?file=c64/summerof64.prg)
+- [One-Der by Oxyron](https://floooh.github.io/tiny8bit/c64.html?file=c64/oneder_oxyron.prg)
+
+Some other demos even get stuck, which is most likely related to the VIC-II
+raster interrupt firing at the wrong time, but as I said, the VIC-II
+emulation quality will be my next focus on the C64.
+
+The CPU and CIA emulation are nearly (but not quite) perfect now, there's one
+problem related to the CIA-2 and non-maskable interrupts which I wasn't able
+to track down yet.
+
+Here's an overview of the conformance tests I'm currently using, and their
+results:
+
+All **NEStest CPU tests** are succeeding, these are fairly "forgiving" high level
+tests which only test the correct behaviour and cycle duration
+of documented instructions without the BCD mode.
+
+All **Wolfgang Lorenz tests** are succeeding, except:
+    - the *nmi* test has one failed subtest
+    - the four CIA realtime clock related tests are failing because my current
+    CIA emulation doesn't implement the realtime clock
+
+The Wolfgang Lorenz test suite covers things like:
+    - all instructions doing the "right thing" and taking the right
+      number of clock cycles, including all undocumented and unintended
+      instructions, and the BCD arithmetic mode
+    - various 'branch quirks' when branches go to the same or a different 
+      256 byte page
+    - correct timing and behaviour of interrupts, including various
+      interrupt related quirks both in the CPU and CIAs (like NMI
+      hijacking, both CIAs requesting interrupts at the same time,
+      various delays when reading and writing CIA registers etc)
+    - various behaviour tests of the 6510's IO port at address 0 and 1
+    - and some other even more obscure stuff
+
+The big area that's not covered by the Wolfgang Lorenz test suite is the
+VIC-II, for this I've started to use tests from the [VICE-emulator test
+bench](https://vice-emu.pokefinder.org/index.php/Testbench) now. But these
+tests are "red" all over the place at the moment, and it's not worth yet
+writing about them :)
+
+A new automated testing method I'm using for the cycle-stepped 6502 emulation
+is [perfect6502](https://github.com/mist64/perfect6502) this is a C port
+of the transistor-level simulation from [visual6502](http://visual6502.org/).
+
+Perfect6502 allows me to compare the state of my 6502 emulation against the
+'real thing' after each clock cycle, instead of only checking the result of
+complete instructions. The current test isn't complete, it only checks the
+documented instructions, and some specific interrupt request situations. But
+the point of this test is that it is trivial now to create automated tests
+which allow checking of specific situations against the real transistor-level
+simulation.
+
