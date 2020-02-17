@@ -152,7 +152,7 @@ no GL functions are called
 
 ### _sg_gl_reset_state_cache()
 
-The following functions GL functions are called to bring GL and sokol-gfx into a 
+The following GL functions are called to bring GL and sokol-gfx into a 
 defined "default state":
 
 - **glBindVertexArray()** (not on GLES2)
