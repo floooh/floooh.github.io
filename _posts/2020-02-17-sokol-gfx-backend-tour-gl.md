@@ -348,6 +348,11 @@ are resolved into locations here:
         - **glClearBufferfv(GL_DEPTH_STENCIL, ...)** OR
         - **glClearBufferfv(GL_DEPTH, ...)** OR
         - **glClearBufferuiv(GL_STENCIL, ...)**
+- otherwise (all depending on whether SG_ACTION_CLEAR is requested):
+    - **glClearColor()**
+    - **glClearDepth()** OR **glClearDepthf()**
+    - **glClearStencil()**
+    - **glClear()**
 
 ### _sg_gl_end_pass()
 
