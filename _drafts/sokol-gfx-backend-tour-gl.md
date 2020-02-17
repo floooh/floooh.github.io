@@ -4,13 +4,13 @@ title: "sokol_gfx.h Backend Tour: OpenGL"
 ---
 
 I recently did a bit of code cleanup in the existing sokol-gfx backends as
-preparation for the new WebGPU backend that's currently early work-in-progress.
+preparation for the new WebGPU backend (which is currently early work-in-progress).
 
-And with the GL, D3D11 and Metal backends somewhat stable for quite a while, it's
+And with the GL, D3D11 and Metal backends somewhat stable for quite a while now, it's
 a good opportunity to have a closer look on what the different backends look
 like under the hood and how they differ.
 
-First a general overview of backends:
+First a general overview:
 
 ## How sokol_gfx.h backends are implemented
 
@@ -27,25 +27,28 @@ opportunities when sokol_gfx.h is linked as a static library, and since the
 public API is entirely backend-agnostic, also allows to compile sokol-gfx into
 backend-specific DLLs which can be loaded into and used from the same executable.
 
-Backends are implemented by implementing a specific set of structs and functions.
-All structs and functions belonging to a specific backends have a special 
-prefix (this prefix isn't technically necessary but makes the code easier
+A new backend is created by implementing a specific set of structs and functions
+and then wrapping those structs and functions into backend-agnostic type-
+and function names which are then used by the higher-level parts of sokol-gfx.
+
+All structs and functions belonging to a specific backend have a specific
+name prefix (this prefix isn't technically necessary but makes the code easier
 to read and search):
 
-- OpenGL backend: *_sg_gl_...*
+- OpenGL backend structs and functions start with: *_sg_gl_...*
 - D3D11 backend: *_sg_d3d11_...*
 - Metal backend: *_sg_mtl_...*
-- WebGPU backend: *_sg_wgpu_...*
+- WebGPU backend (WIP): *_sg_wgpu_...*
 
 A backend must define the following structs (using the GL backend prefixes
 as example):
 
-- **_sg_gl_buffer_t**: a buffer object
-- **_sg_gl_image_t**: an image object
-- **_sg_gl_shader_t**: a shader object
-- **_sg_gl_pipeline_t**: a pipeline object
-- **_sg_gl_pass_t**: a render pass object
-- **_sg_gl_context_t**: a context object
+- **_sg_gl_buffer_t**: all state for a buffer object
+- **_sg_gl_image_t**: ditto for image object
+- **_sg_gl_shader_t**: ...shader object
+- **_sg_gl_pipeline_t**: ...pipeline object
+- **_sg_gl_pass_t**: ...render pass object
+- **_sg_gl_context_t**: ...context object
 - plus a special global 'backend state' struct **_sg_gl_backend_t**
 
 The 'resource structs' are typedef'ed to common names used in the
@@ -77,24 +80,22 @@ The **slot** struct is the same across all common resource-type structs and
 stores resource-pool housekeeping data. The **cmn** struct holds
 'backend-agnostic' resource-type-specific data, this is usually needed only for
 the validation layer and (currently) dead-weight when the validation layer is
-disabled. Finally the **gl** nested struct stores data that's specific to the
-GL backend.
+disabled (this will be subject to another code cleanup pass eventually).
+Finally the **gl** nested struct stores data that's specific to the GL backend.
 
-Higher up in the backend-agnostic parts, and after being typedef'ed to a
+Higher up in the backend-agnostic code parts, and after being typedef'ed to a
 backend-agnostic name like **_sg_buffer_t**, these resource-structs are
-part of a resource-pool (which is essentially just a fancy name for a flat
+used in resource-pools (which is essentially just a fancy name for a flat
 array of those structs).
 
-On to the backend-functions. The idea here is the same as for structs. There's
+On to the backend-functions: The idea here is the same as for structs. There's
 a specific set of backend-specific functions which are then wrapped in 
 common backend-agnostic function names which are called by the higher level
 code.
 
 This is the list of functions a backend must implement (again, with the
 GL prefixes as examples). Those functions should be quite familiar since they
-are directly equivalent to public API function names (but the backend-functions
-only must implement the actually backend-specific part of the public API
-functions):
+are equivalent to public API function names:
 
 - **_sg_gl_setup_backend()**
 - **_sg_gl_discard_backend()**
@@ -124,7 +125,7 @@ functions):
 
 There are two small special-case internal helper functions which are needed for 
 the backend-agnostic code to pull some data from backend-specific data structures
-(this is probably a small design-wart which should be solved better):
+(this is probably an indication of a small design-wart which should be solved better):
 
 - **_sg_gl_pass_color_image()**
 - **_sg_gl_pass_ds_image()**
@@ -137,27 +138,30 @@ sokol-gfx backend, so the following might look a bit overwhelming and boring. It
 will all make a bit more sense when being compared to the D3D11 and Metal backends
 though.
 
+## How sokol-gfx functions map to GL functions
+
 ### _sg_gl_setup_backend()
 
 - depending on the underlying GL API (GLES2/GLES3/GL3.3) available extensions are inspected
 (**glGetString(), glGetIntegerv(), glGetStringi()**)
-- GL limits are queried (glGetIntegerv(GL_MAX_TEXTURE_SIZE), etc...)
+- GL limits are queried (**glGetIntegerv(GL_MAX_TEXTURE_SIZE)**, etc...)
 
 ### _sg_gl_discard_backend()
 
-nothing
+no GL functions are called
 
 ### _sg_gl_reset_state_cache()
 
-The following functions GL functions are called to bring GL back into a 'default state':
+The following functions GL functions are called to bring GL and sokol-gfx into a 
+defined "default state":
 
 - **glBindVertexArray()** (not on GLES2)
 - 2x **glBindBuffer()** to clear the GL_ARRAY_BUFFER and GL_ELEMENT_ARRAY_BUFFER slots
-- 12x (foreach SG_MAX_SHADERSTAGE_IMAGES):
+- 12x (SG_MAX_SHADERSTAGE_IMAGES) to clear all texture bindings:
     - **glActiveTexture(GL_TEXTURE0+i)**
     - **glBindTexture(GL_TEXTURE2D, 0)**
     - **glBindTexture(GL_TEXTURE_CUBE_MAP, 0)**
-    - **not on GLES2: glBindTexture(GL_TEXTURE_3D)**
+    - not on GLES2: **glBindTexture(GL_TEXTURE_3D)**
     - not on GLES2: **glBindTexture(GL_TEXTURE_2D_ARRAY)**
 - up to 16x (for each vertex attribute slot):
     - **glDisableVertexAttribArray()**
@@ -189,8 +193,8 @@ The following functions GL functions are called to bring GL back into a 'default
 
 ### _sg_gl_create_context()
 
-- **glGetIntegerv(GL_FRAMEBUFFER_BINDING)**: this queries the default framebuffer binding,
-this this may be different from zero on some platforms
+- **glGetIntegerv(GL_FRAMEBUFFER_BINDING)**: queries the default framebuffer binding
+because this is different from zero on some platforms
 - **glGenVertexArrays(1, ..); glBindVertexArray()**: This creates and binds a global
 vertex array object, which is required on GLES3 and GL3.3 Core Profile.
 
@@ -451,7 +455,7 @@ One of:
 
 ## The End
 
-...and that's it for the GL backend. As you can see, GL can be a very verbose API. 
+...and that's it for the GL backend. As you can see, GL can be a very verbose and messy API :/
 
-The next blog posts in the series which will do the same 'under the hood' look
-for the D3D11 and Metal backends will be a lot shorter :)
+The next two blog posts in the series will do the same 'under the hood' look
+for the D3D11 and Metal backends, and those will be a lot shorter :)
