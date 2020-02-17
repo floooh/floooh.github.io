@@ -116,6 +116,7 @@ are equivalent to public API function names:
 - **_sg_gl_commit()**
 - **_sg_gl_apply_viewport()**
 - **_sg_gl_apply_scissor_rect()**
+- **_sg_gl_apply_pipeline()**
 - **_sg_gl_apply_bindings()**
 - **_sg_gl_apply_uniforms()**
 - **_sg_gl_draw()**
@@ -130,7 +131,7 @@ the backend-agnostic code to pull some data from backend-specific data structure
 - **_sg_gl_pass_color_image()**
 - **_sg_gl_pass_ds_image()**
 
-So all in all, a new sokol-gfx backend must define 7 data structures and 27 functions.
+So all in all, a new sokol-gfx backend must define 7 data structures and 28 functions.
 
 What follows now is a closer look at the GL backend, essentially, how the backend
 functions map to GL functions. The GL backend is by far the most complex
