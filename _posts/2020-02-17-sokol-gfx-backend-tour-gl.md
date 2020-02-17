@@ -28,7 +28,7 @@ public API is entirely backend-agnostic, also allows to compile sokol-gfx into
 backend-specific DLLs which can be loaded into and used from the same executable.
 
 A new backend is created by implementing a specific set of structs and functions
-and then wrapping those structs and functions into backend-agnostic type-
+and then wrapping those structs and functions into general type-
 and function names which are then used by the higher-level parts of sokol-gfx.
 
 All structs and functions belonging to a specific backend have a specific
