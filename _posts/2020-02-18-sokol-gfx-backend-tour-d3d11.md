@@ -135,8 +135,8 @@ backend, it's currently only really useful with multi-window GLFW applications)
         - if failed: ID3D10Blob_Release()
 - **ID3D11Device_CreateVertexShader()**
 - **ID3D11Device_CreatePixelShader()**
-- **SOKOL_MALLOC()** (dynamically allocate memory for the compiler vertex shader blob,
-this will be needed later in **_sg_d3d11_create_pipeline()**
+- **SOKOL_MALLOC()** (dynamically allocate memory to store the vertex shader blob in,
+this will be needed later in **_sg_d3d11_create_pipeline()**)
 - if compiled from source: 2x **ID3D10Blob_Release()**
 
 ### _sg_d3d11_destroy_shader()
