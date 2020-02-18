@@ -18,7 +18,7 @@ be more convenient when used from Objective-C, but requires quite a bit of
 'interface boilerplate' in mixed C/Obj-C code. But more on that in the next blog
 post.
 
-Even though the D3D11 is very simple and straightforward, there's one 'feature'
+Even though the D3D11 backend is very simple and straightforward, there's one 'feature'
 of the D3D11 backend which I'm not quite happy with:
 
 D3D11 requires a concrete vertex shader bytecode blob when creating an 'input
