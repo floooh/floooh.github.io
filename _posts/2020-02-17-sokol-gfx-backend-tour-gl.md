@@ -107,6 +107,8 @@ are equivalent to public API function names:
 - **_sg_gl_destroy_buffer()**
 - **_sg_gl_create_image()**
 - **_sg_gl_destroy_image()**
+- **_sg_gl_create_shader()**
+- **_sg_gl_destroy_shader()**
 - **_sg_gl_create_pipeline()**
 - **_sg_gl_destroy_pipeline()**
 - **_sg_gl_create_pass()**
@@ -131,7 +133,7 @@ the backend-agnostic code to pull some data from backend-specific data structure
 - **_sg_gl_pass_color_image()**
 - **_sg_gl_pass_ds_image()**
 
-So all in all, a new sokol-gfx backend must define 7 data structures and 28 functions.
+So all in all, a new sokol-gfx backend must define 7 data structures and 30 functions.
 
 What follows now is a closer look at the GL backend, essentially, how the backend
 functions map to GL functions. The GL backend is by far the most complex
@@ -201,7 +203,7 @@ vertex array object, which is required on GLES3 and GL3.3 Core Profile.
 
 ### _sg_gl_destroy_context()
 
-- **glDeleteVertexArrays()**: destroyes the global VAO (not on GLES2)
+- **glDeleteVertexArrays()**: destroys the global VAO (not on GLES2)
 
 ### _sg_gl_activate_context()
 
