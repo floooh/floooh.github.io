@@ -101,7 +101,7 @@ backend, it's currently only really useful with multi-window GLFW applications)
 ### _sg_d3d11_create_image()
 
 - if image is a depth-stencil surface:
-    - **ID3D11Device_CreateTexture()**
+    - **ID3D11Device_CreateTexture2D()**
 - otherwise:
     - if not a 3D texture:
         - **ID3D11Texture2D_AddRef()** (if native D3D11 texture injected) OR
