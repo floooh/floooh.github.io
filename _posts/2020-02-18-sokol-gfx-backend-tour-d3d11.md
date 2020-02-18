@@ -228,7 +228,7 @@ this will be needed later in **_sg_d3d11_create_pipeline()**)
 - **ID3D11DeviceContext_DrawIndexed()** OR
 - **ID3D11DeviceContext_DrawIndexedInstanced()** OR
 - **ID3D11DeviceContext_Draw()** OR
-- **ID3D11DeviceContext_DrawInstances()**
+- **ID3D11DeviceContext_DrawInstanced()**
 
 ### _sg_d3d11_commit()
 
