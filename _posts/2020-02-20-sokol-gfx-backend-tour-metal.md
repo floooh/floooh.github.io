@@ -106,7 +106,7 @@ generally macOS system calls):
 - the 'registry pool' for Objective-C object Ids is created and filled with null
 references:
     - **[NSMutableArray arrayWithCapacity:]**
-- a 'Grand Central Dispatch' semaphore object for syncing the CPU and GPU side:
+- a 'Grand Central Dispatch' semaphore object for syncing the CPU and GPU side is created:
     - **dispatch_semaphore_create()**
 - a Metal command submission queue is created:
     - **[MTLDevice newCommandQueue]**
@@ -236,7 +236,7 @@ Metal doesn't allow parts of the scissor rects to be 'outside'
 ### _sg_mtl_apply_pipeline()
 
 - only if the pipeline has changed:
-    - **[MTLRenderCommandEncoder setBlendColorRed:green:blue:alpha]**
+    - **[MTLRenderCommandEncoder setBlendColorRed:green:blue:alpha:]**
     - **[MTLRenderCommandEncoder setCullMode:]**
     - **[MTLRenderCommandEncoder setFrontFacingWinding:]**
     - **[MTLRenderCommandEncoder setStencilReferenceValue:]**
