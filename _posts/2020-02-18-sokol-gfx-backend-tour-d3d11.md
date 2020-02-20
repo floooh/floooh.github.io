@@ -2,6 +2,7 @@
 layout: post
 title: "sokol_gfx.h Backend Tour: D3D11"
 ---
+(update: [Part 3](https://floooh.github.io/2020/02/20/sokol-gfx-backend-tour-metal.html))
 
 This is part 2 of the mini-series which looks under the hood of the
 [sokol_gfx.h](https://github.com/floooh/sokol/blob/master/sokol_gfx.h)

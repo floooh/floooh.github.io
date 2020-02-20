@@ -3,6 +3,8 @@ layout: post
 title: "sokol_gfx.h Backend Tour: OpenGL"
 ---
 
+(update: [Part 2](https://floooh.github.io/2020/02/18/sokol-gfx-backend-tour-d3d11.html), [Part 3](https://floooh.github.io/2020/02/20/sokol-gfx-backend-tour-metal.html))
+
 I recently did a bit of code cleanup in the existing sokol-gfx backends as
 preparation for the new WebGPU backend (which is currently early work-in-progress).
 
