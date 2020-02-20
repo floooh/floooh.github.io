@@ -14,10 +14,10 @@ the D3D11 backend, and this one is about the Metal backend.
 The Metal backend is on one hand quite different from the other backends
 (mainly because it is the only backend written in a different language:
 Objective-C, instead of plain C), but it's also quite similar to the D3D11
-API (mainly because - at least if you squint a bit and ignore the differences between
-Objective-C and C - "version 1" of Metal looks a lot like a carefully modernized
-and cleaned up version of D3D11, basically what D3D12 could have been if
-Mantle wouldn't have happend).
+backend (mainly because - at least if you squint a bit and ignore the language
+differences between Objective-C and C - "version 1" of Metal looks a lot like a
+carefully modernized and cleaned up version of D3D11, basically what D3D12
+could have been if Mantle wouldn't have happend).
 
 The sokol-gfx Metal backend has a few specialities not found in the other backends
 which are worth looking at first:
@@ -40,11 +40,11 @@ pool" (a simple NSMutableArray holding object references). Whenever sokol-gfx
 creates an Objective-C object, it is stored in that array, and its array index
 is returned. This index is then stored in C structs instead of the actual
 object reference. Only when methods must be invoked on the Objective-C object,
-the object 'looked up' in the global 'reference pool' through the stored array
+the object is 'looked up' in the global 'reference pool' through the stored array
 index.
 
-This reference pool is also used to control the lifetime of the Objective-C
-object. As long as the object is registered in the pool it will be pinned into
+This reference pool is also used to control the lifetime of all Objective-C
+objects. As long as the object is registered in the pool it will be pinned into
 memory from ARC's point of view, and in addition, this also allows to use
 'unretained' Metal command buffers which avoid any reference counting overhead during
 rendering (which can be quite significant).
@@ -72,17 +72,17 @@ The Metal backend implements a very simple cache for reducing the number of
 sampler-state objects that are created. This isn't strictly necessary, because
 Metal doesn't restrict the total number of samplers, but since sampler state is
 part of the image state in sokol-gfx, and a typical application will only have
-a handful of different sampler states, it makes sense here to create redundant
+a handful of different sampler states, it makes sense here to not create redundant
 Metal sampler state objects.
 
 ## Per-frame Uniform Buffers
 
-The last speciality of the Metal backend is how it handles uniform data:
+The last speciality of the Metal backend is how it handles shader uniform data:
 
 When the Metal backend is initialized, two big uniform buffers (one per
 'tick-tock frame') are created, big enough to hold all uniform updates for one
 frame (this size is runtime-tweakable via the ```sg_desc``` struct handed to
-```sg_setup()``` and defaults to 4 MBytes per buffer).
+```sg_setup()```, but must be known upfront, the default-size if 4 MBytes per buffer).
 
 During the frame, each call to ```sg_apply_uniforms()``` copies the new
 uniform-update-data into the current 'tick-tock' uniform buffer, records the
