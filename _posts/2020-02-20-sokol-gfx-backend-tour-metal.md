@@ -139,13 +139,13 @@ references:
 ### _sg_mtl_create_image()
 
 - **[[MTLTextureDescriptor alloc] init]**
-- 1x or 2x **[MTLDevice newTextureWidthDescriptor:]**
+- 1x or 2x **[MTLDevice newTextureWithDescriptor:]**
 - if immutable image, need to copy content:
     - for each face (1 or 6):
         - for each mip surface:
             - for each 3D- or array-slice:
                 - **[MTLTexture replaceRegion:...]**
-- if MSAA render target, create an additional MSAA texture: **[MTLDevice newTextureWidthDescriptor:]**
+- if MSAA render target, create an additional MSAA texture: **[MTLDevice newTextureWithDescriptor:]**
 - if new unique sampler state:
     - **[[MTLSamplerDescriptor alloc] init]**
     - **[MTLDevice newSamplerStateWithDescriptor:]**
