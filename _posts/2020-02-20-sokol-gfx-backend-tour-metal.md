@@ -82,7 +82,7 @@ The last speciality of the Metal backend is how it handles shader uniform data:
 When the Metal backend is initialized, two big uniform buffers (one per
 'tick-tock frame') are created, big enough to hold all uniform updates for one
 frame (this size is runtime-tweakable via the ```sg_desc``` struct handed to
-```sg_setup()```, but must be known upfront, the default-size if 4 MBytes per buffer).
+```sg_setup()```, but must be known upfront, the default-size is 4 MBytes per buffer).
 
 During the frame, each call to ```sg_apply_uniforms()``` copies the new
 uniform-update-data into the current 'tick-tock' uniform buffer, records the
