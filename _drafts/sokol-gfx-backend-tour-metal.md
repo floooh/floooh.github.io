@@ -39,28 +39,237 @@ methods must be invoked on the Objective-C object, its reference is
 
 This reference pool is also used to control the lifetime of the Objective-C
 object. As long as the object is registered in the pool it will be pinned into
-memory from ARC's point of view. When the Metal backend no longer needs an
-Objective-C, it will be 'released'. This doesn't immediately destroy the object
-(since it might still be 'in flight' for rendering), instead it will be added
-to a 'deferred-release queue' which will delete the objects when its safe to do so.
+memory from ARC's point of view, and in addition, this also allows to use
+'unretained' command buffers which avoid any reference counting overhead during
+rendering (which can be quite significant).
+
+When the Metal backend no longer needs an Objective-C object, it will be 'released'.
+This doesn't immediately destroy the object (since it might still be 'in
+flight' for rendering), instead it will be added to a simple 'deferred-release queue'
+which will delete the objects a few frames later when its safe to do so.
 
 ## The "Tick Tock" frame-sync model
 
 The entire Metal backend follows a simple 'tick-tock' frame-synchronization
 model. While one set of resources is 'in flight' and used to render the current
-frame, another set of resources is updated (and rendering commands are
-recorded) for the next frame. There is a single sync-point at the end of the
-frame (in sg_commit()) where the CPU side needs to check (and worst case: wait)
-until the frame before the current 'in-flight' frame has finished. The tick-tock
-frame model also provides a simple way to decide when it is safe to delete a resource:
-3 frames into the future.
-
+frame, another set of resources is updated with new data for the next frame .
+There is a single sync-point is at the start of a new frame where the
+CPU side needs to check whether (and worst case: wait until) the frame before the
+current 'in-flight' frame has finished. The tick-tock frame model also provides
+a simple way to decide when it is safe to delete a resource: 3 frames into the
+future.
 
 ## The Sampler Cache
 
-Metal doesn't have a convenient built-in texture-sampler cache like D3D11 (which returns
-an identical sampler object for identical creation parameters), so I implemented the
-a similar sampler-cache in the Metal API. 
+The Metal backend implements a very simple cache for reducing the number
+of sampler-state objects that are created. This isn't strictly necessary,
+because Metal doesn't restrict the total number of samplers that are 
+created, but since sampler state is part of the image state in sokol-gfx,
+and a typical application will only have a handful of different sampler states,
+it makes sense here to reduce the number of sampler state objects.
 
+## Per-frame Uniform Buffers
 
-...TO BE CONTINUED
+The last speciality of the Metal backend is how it handles uniform data:
+
+When the Metal backend is initialized, two big uniform buffers (one per
+'tick-tock frame' are created, big enough to hold all uniform updates for one
+frame (this size is runtime-tweakable via the ```sg_desc``` struct handed to
+```sg_setup()``` and default to 4 MBytes).
+
+During the frame, each call to ```sg_apply_uniforms()``` copies the new uniform
+data chunk into the current 'tick-tock' uniform buffer, records the offset to
+the new data into the Metal command encoder, and advances the offset for the
+next update taking alignment restrictions into account.
+
+At the end of the frame, and only on macOS, the updated uniform data must 
+be 'flushed' by calling a 'didMofifyRange' method on the current uniform buffer
+(only required on macOS, not on iOS).
+
+The same repeats in the next frame, but with the other 'tick-tock' uniform buffer.
+
+That's it for all the noteworthy 'specialities' of the Metal backend.
+
+## Function Mapping
+
+Finally, here's how the sokol-gfx backend functions map to Metal API calls:
+
+### _sg_mtl_setup_backend()
+
+- the 'registry pool' for Objective-C object Ids is created and filled with null
+references:
+    - **[NSMutableArray arrayWithCapacity:]**
+- a 'Grand Central Dispatch' semaphore object is created for the sync point in sg_commit():
+    - **dispatch_semaphore_create()**
+- a Metal command submission queue is created:
+    - **[MTLDevice newCommandQueue]**
+- the two per-frame uniform-buffers are created:
+    - 2x **[MTLDevice newBufferWithLength:options:]**
+
+### _sg_mtl_discard_backend()
+
+- wait for outstanding frames to finish before we start destroying stuff:
+    - 2x **dispatch_semaphore_wait()**
+    - all Objective-C references are cleared, which in turn causes ARC
+      to destroy the referenced objects
+
+### _sg_mtl_reset_state_cache()
+### _sg_mtl_create_context()
+### _sg_mtl_destroy_context()
+### _sg_mtl_activate_context()
+
+- no Metal functions called
+
+### _sg_mtl_create_buffer()
+
+- **[MTLDevice newBufferWithBytes:length:options]** (if immutable buffer) OR
+- 2x **[MTLDevice newBufferWithLength:options]** (if dynamic usage)
+
+### _sg_mtl_destroy_buffer()
+
+- 1x or 2x 'defer release' on the created buffers
+
+### _sg_mtl_create_image()
+
+- **[[MTLTextureDescriptor alloc] init]**
+- 1x or 2x **[MTLDevice newTextureWidthDescriptor:]**
+- if immutable image, need to copy content:
+    - for each face (1 or 6):
+        - for each mip surface:
+            - for each 3D- or array-slice:
+                - **[MTLTexture replaceRegion:...]**
+- if MSAA render target, create an additional MSAA texture: **[MTLDevice newTextureWidthDescriptor:]**
+- if new unique sampler state:
+    - **[[MTLSamplerDescriptor alloc] init]**
+    - **[MTLDevice newSamplerStateWithDescriptor:]**
+
+### _sg_mtl_destroy_image()
+
+- up to 3x 'defer release' on the created textures
+- sampler-states are not released until shutdown
+
+### _sg_mtl_create_shader()
+
+- 2x (for vertex- and fragment-shader):
+    - if shader byte code provided:
+        - **dispatch_data_create()**
+        - **[MTLDevice newLibraryWithData:error:]**
+    - otherwise if shader source code provided:
+        - **[NSString stringWithUTF8String:]** (for source code)
+        - **[MTLDevice newLibraryWithSource:options:error:]**
+    - create function objects:
+        - **[NSString stringWithUTF8String:]** (for entry function name)
+        - **[MTLLibrary newFunctionWithName:]**
+
+### _sg_mtl_destroy_shader()
+
+- 2x 'defer release' for MTLLibrary
+- 2x 'defer release' for MTLFunction
+
+### _sg_mtl_make_pipeline()
+
+- **[MTLVertexDescriptor vertexDescriptor]**
+- **[[MTLRenderPipelineDescriptor alloc] init]**
+- **[MTLDevice newRenderPipelineStateWithDescriptor:error:]**
+- **[[MTLDepthStencilStateDescriptor alloc] init]**
+- **[MTLDevice newDepthStencilStateWithDescriptor]**
+
+### _sg_mtl_destroy_pipeline()
+
+- 'defer release' for MTLRenderPipelineState
+- 'defer release' for MTLDepthStencilState
+
+### _sg_mtl_create_pass()
+### _sg_mtl_destroy_pass()
+
+- no Metal functions called here
+
+### _sg_mtl_begin_pass()
+
+- if first pass in frame:
+    - wait until oldest frame in flight has finished: **dispatch_semaphore_wait()**
+    - **[MTLCommandQueue commandBufferWithUnretainedReferences]**
+    - **[MTLBuffer contents]** (get base pointer to this frame's uniform buffer)
+- get a new render pass descriptor:
+    - if default-pass, call user-callback which might do a:
+        - **[MTKView currentRenderPassDescriptor]**
+    - or if offscreen pass:
+        - **[MTLRenderPassDescriptor renderPassDescriptor]**
+- **[MTLCommandBuffer renderCommandEncoderWithDescriptor:]**
+- bind the per-frame uniform buffer to the shader stages (4 slots per stage):
+    - 4x **[MTLRenderCommandEncoder setVertexBuffer:offset:atIndex:]**
+    - 4x **[MTLRenderCommandEncoder setFragmentBuffer:offset:atIndex:]**
+
+### _sg_mtl_end_pass()
+
+- **[MTLRenderCommandEncoder endEncoding]**
+
+### _sg_mtl_commit()
+
+- **[MTLBuffer didModifyRange:]** (only on macOS to flush uniform buffer content)
+- call user callback to get drawable, which might do a:
+    - **[MTKView currentDrawable]**
+- **[MTLCommandBuffer presentDrawable:]**
+- **[MTLCommandBuffer addCompletedHandler:]**
+    - in the handler callback: **dispatch_semaphore_signal()**
+- **[MTLCommandBuffer commit]**
+- at this point, 'defer-release' objects which are safe to delete are 'garbage collected'
+
+### _sg_mtl_apply_viewport()
+
+- **[MTLRenderCommandEncoder setViewport:]**
+
+### _sg_mtl_apply_scissor_rect()
+
+- **[MTLRenderCommandEncoder setScissorRect:]**
+- it's notable here that the scissor rect is clipped to the frame boundaries first,
+Metal doesn't allow parts of the scissor rects to be 'outside'
+
+### _sg_mtl_apply_pipeline()
+
+- only if the pipeline has changed:
+    - **[MTLRenderCommandEncoder setBlendColorRed:green:blue:alpha]**
+    - **[MTLRenderCommandEncoder setCullMode:]**
+    - **[MTLRenderCommandEncoder setFrontFacingWinding:]**
+    - **[MTLRenderCommandEncoder setStencilReferenceValue:]**
+    - **[MTLRenderCommandEncoder setDepthBias:slopeScale:clamp:]**
+    - **[MTLRenderCommandEncoder setRenderPipelineState:]**
+    - **[MTLRenderCommandEncoder setDepthStencilState:]**
+- (some finer-grained state-filtering would probably make sense here)
+
+### _sg_mtl_apply_bindings()
+
+- for each vertex buffer in the binding:
+    - if binding changed:
+        - **[MTLRenderCommandEncoder setVertexBuffer:offset:atIndex]**
+- for each vertex stage image in the binding:
+    - if binding changed:
+        - **[MTLRenderCommandEncoder setVertexTexture:atIndex:]**
+        - **[MTLRenderCommandEncoder setVertexSamplerState:atIndex:]**
+- for each vertex stage image in the binding:
+    - if binding changed:
+        - **[MTLRenderCommandEncoder setFragmentTexture:atIndex:]**
+        - **[MTLRenderCommandEncoder setFragmentSamplerState:atIndex:]**
+
+### _sg_mtl_apply_uniforms()
+
+- just a memcpy() into the current frame's uniform buffer, and record the offset:
+    - **[MTLRenderCommandEncoder setVertexBufferOffset:atIndex:]** OR
+    - **[MTLRenderCommandEncoder setFragmentBufferOffset:atIndex:]**
+
+### _sg_mtl_draw()
+
+- **[MTLRenderCommandEncoder drawIndexPrimitives:...]** OR
+- **[MTLRenderCommandEncoder drawPrimitives:...]**
+
+### _sg_mtl_update_buffer()
+
+- just a memcpy()
+- only on macOS: **[MTLBuffer didModifyRange:]**
+
+### _sg_mtl_update_image()
+
+- for each face (1 or 6):
+    - for each mip surface:
+        - for each 3D- or array-slice:
+            - **[MTLTexture replaceRegion:...]**
