@@ -267,7 +267,7 @@ Metal doesn't allow parts of the scissor rects to be 'outside'
 
 ### _sg_mtl_draw()
 
-- **[MTLRenderCommandEncoder drawIndexPrimitives:...]** OR
+- **[MTLRenderCommandEncoder drawIndexedPrimitives:...]** OR
 - **[MTLRenderCommandEncoder drawPrimitives:...]**
 
 ### _sg_mtl_update_buffer()
