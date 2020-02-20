@@ -254,7 +254,7 @@ Metal doesn't allow parts of the scissor rects to be 'outside'
     - if binding changed:
         - **[MTLRenderCommandEncoder setVertexTexture:atIndex:]**
         - **[MTLRenderCommandEncoder setVertexSamplerState:atIndex:]**
-- for each vertex stage image in the binding:
+- for each fragment stage image in the binding:
     - if binding changed:
         - **[MTLRenderCommandEncoder setFragmentTexture:atIndex:]**
         - **[MTLRenderCommandEncoder setFragmentSamplerState:atIndex:]**
