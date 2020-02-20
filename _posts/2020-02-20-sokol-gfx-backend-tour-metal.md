@@ -53,7 +53,7 @@ When the Metal backend no longer needs an Objective-C object, it will be
 'defer-released'.  This doesn't immediately destroy the object (since it might
 still be 'in flight' for rendering), instead it will be added to a simple
 'deferred-release queue' which will delete the objects a few frames later when
-its safe to do so.
+it is safe to do so.
 
 ## The "Tick Tock" Frame-sync Model
 
