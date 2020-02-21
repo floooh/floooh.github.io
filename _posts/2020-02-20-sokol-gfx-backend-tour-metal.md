@@ -90,7 +90,7 @@ offset to the new data into the Metal command encoder, and advances the offset
 for the next update taking alignment restrictions into account.
 
 At the end of the frame, and only on macOS, the updated uniform data must 
-be 'flushed' by calling a 'didMofifyRange' method on the current uniform buffer.
+be 'flushed' by calling a 'didModifyRange' method on the current uniform buffer.
 
 The same repeats in the next frame, but with the other 'tick-tock' uniform buffer.
 
