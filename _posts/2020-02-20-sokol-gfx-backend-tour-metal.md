@@ -178,7 +178,7 @@ references:
 - **[MTLVertexDescriptor vertexDescriptor]**
 - **[[MTLRenderPipelineDescriptor alloc] init]**
 - **[MTLDevice newRenderPipelineStateWithDescriptor:error:]**
-- **[[MTLDepthStencilStateDescriptor alloc] init]**
+- **[[MTLDepthStencilDescriptor alloc] init]**
 - **[MTLDevice newDepthStencilStateWithDescriptor]**
 
 ### _sg_mtl_destroy_pipeline()
