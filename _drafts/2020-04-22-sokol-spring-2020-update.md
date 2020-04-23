@@ -90,15 +90,15 @@ that shouldn't be a big deal either though, because it's not that much code).
 
 ## The sg_sampler_type enum
 
-This is a new enumeration in the public API of sokol_gfx.h which had to be
+This is a new enumeration type in the public API of sokol_gfx.h which had to be
 added for WebGPU. The background is that texture bindings in WebGPU need
 to know whether the texture will be sampled as float, signed integer or
-unsigned integer in the shader.
+unsigned integer in the vertex- or fragment-shader.
 
 The corresponding WebGPU enum is [here](https://github.com/emscripten-core/emscripten/blob/4d4de90be481a12a69ea25b21d28d0cbc675e650/system/include/webgpu/webgpu.h#L274-L279).
 
 In sokol_gfx.h, the sampler type has been added to the ```sg_shader_image_desc```
-as ```sampler_type```:
+as ```.sampler_type```:
 
 ```c
 typedef struct sg_shader_image_desc {
@@ -110,38 +110,17 @@ typedef struct sg_shader_image_desc {
 
 > NOTE: I was considering to rename the existing ```type``` member to 
 ```image_type``` but decided against that for now for the sake of not
-introducing too many breaking changes at the same time.
-
-```sg_shader_image_desc``` is a nested struct in ```sg_shader_desc``` for
-describing texture sampling "slots" in the vertex- or fragment-shader-stage,
-for instance:
-
-```c
-sg_shader shd = sg_make_shader(&(sg_shader_desc){
-    .vs = {
-        .source = "..."
-    },
-    .fs = {
-        .images = {
-            [0] = {
-                .name = "tex",
-                .type = SG_IMAGETYPE_2D,
-                .sampler_type = SG_SAMPLERTYPE_FLOAT // NEW!
-            }
-        }
-        .source = "..."
-    }
-});
-```
+introducing too many breaking changes at the same time. Might be an
+option for later though.
 
 The simple rules-of-thumb for this new item are:
 
-- if you don't care about WebGPU, you can ignore it
+- if you don't use the WebGPU backend, you can safely ignore it
 - if you use sokol-shdc you can also ignore it because it will be automitcally
 filled into the code-generated sg_shader_desc struct from the shader's
 reflection information
-- otherwise, with GLSL as source language, the GLSL sampler type
-corresponds with the sokol_gfx.h sg_sampler_type enum values like this:
+- otherwise, with GLSL as source language as example, the GLSL sampler type
+must correspond with the sokol_gfx.h sg_sampler_type enum values like this:
     - sampler*: SG_SAMPLERTYPE_FLOAT
     - isampler*: SG_SAMPLERTYPE_INT
     - usampler*: SG_SAMPLERTYPE_UINT
@@ -149,6 +128,112 @@ corresponds with the sokol_gfx.h sg_sampler_type enum values like this:
 Unfortunately there isn't really a way to check whether the sampler types
 match the underlying shader samplers in the sokol_gfx.h validation layer,
 since this would require access to shader reflection information in all
-backends. So instead of an "early validation" in sokol_gfx.h, this sort
-of error will be caught by the underlying WebGPU validation layer.
+backends. So instead of an "early validation" in sokol_gfx.h, a mismatch
+can only be caught in the underlying WebGPU validation layer.
 
+The actual reason why this new "resource binding attribute" even exists in WebGPU
+is to do an early validation check at "setup time" instead of having to delay
+this until "draw time".
+
+## New layout for the sg_desc struct
+
+This change has the biggest impact on existing code because it is a breaking
+change. I grew a little bit more unhappy with the sg_desc struct with each new
+rendering backend added to sokol_gfx.h, and I felt that now a tipping
+point was reached where some changes were needed.
+
+Long story short, this is what the new ```sg_desc``` struct looks like
+when the initialization is "written out" in C99 designated initialization syntax:
+
+```c
+sg_desc desc = {
+    .buffer_pool_size = ...,
+    .image_pool_size = ...,
+    .shader_pool_size = ...,
+    .pipeline_pool_size = ...,
+    .pass_pool_size = ...,
+    .context_pool_size = ...,
+    .uniform_buffer_size = ...,
+    .staging_buffer_size = ...,
+    .sampler_cache_size = ...,
+
+    .context = {
+        .color_format = ...,
+        .depth_format = ...,
+        .sample_count = ...,
+        .gl = {
+            .force_gles1 = ...,
+        },
+        .metal = {
+            .device = ...,
+            .renderpass_descriptor_cb = ...,
+            .drawable_cb = ...,
+        },
+        .d3d11 = {
+            .device = ...,
+            .device_context = ...,
+            .render_target_view_cb = ...,
+            .depth_stencil_view_cb = ...,
+        },
+        .wgpu = {
+            .device = ...,
+            .render_view_cb = ...,
+            .resolve_view_cb = ...,
+            .depth_stencil_view_cb = ...,
+        }
+    }
+};
+```
+
+There's a couple of new items, and other items have been shuffled around a bit,
+and as you can see, the information needed to "bind" sokol_gfx.h to a specific
+backend 3D-API "context" is getting quite lengthy.
+
+Providing all the information needed for a cross-platform program which needs
+to render on all the supported 3D backends is starting to take up a significant
+portion of a "Hello Triangle" line count (this is where the new ```sokol_glue.h```
+header is coming in, but I'm getting ahead of myself).
+
+First let's look at the new and changes items:
+
+### sg_desc.uniform_buffer_size
+
+Formerly this was called ```mtl_global_uniform_buffer_size```, 
+was specific to the Metal backend and described the size of the "per frame uniform buffer",
+e.g. the buffer that needs to hold all uniform data updated in a single frame
+via calls to ```sg_update_uniforms()```. The new WebGPU backend has a similar uniform
+update strategy as the Metal backend, so this is a "general" setup parameter now
+(it's only used in the Metal and WebGPU backend though).
+
+### sg_desc.sampler_cache_size
+
+This was also a Metal-specific parameter before
+called ```mtl_sampler_cache_size```. It describes the *number* of unique
+entries in an internal cache for texture sampler objects. The WebGPU backend
+also has such a sampler cache, so the setup parameter has been generalized.
+But again, this parameter is only used in the Metal and WebGPU backend.
+
+### sg_desc.staging_buffer_size
+
+Currently used only in the WebGPU backend, this
+configuration parameter describes the size in bytes of a "per frame staging buffer" 
+for dynamic data uploads from CPU-visible to GPU-visible memory. The staging
+buffer size must be big enough to hold all the dynamically updated data via
+```sg_update_buffer()```, ```sg_append_buffer()``` and ```sg_update_image()```
+happening in a single frame. This part of the WebGPU API is still heavily in 
+flux though, so maybe such a user-side staging buffer won't actually be necessary
+in the future, so maybe this configuration parameter will disappear again.
+
+### sg_desc.context
+
+All the backend-specific information required to "bind" sokol_gfx.h to a 3D-API
+context (e.g. rendering device and swapchain) has been moved into a nested
+structure of the new type ```sg_context_desc```, and in there each
+backend-portion (GL, Metal, D3D11 and WebGPU) has gotten its own nested
+structure as well. 
+
+Those nested structs have a specific reason: they allow to initialize the related
+items in the nested struct with a single assignment inside a designated initialization
+block.
+
+[to be continued]
