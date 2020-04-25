@@ -222,7 +222,7 @@ buffer size must be big enough to hold all the dynamically updated data via
 ```sg_update_buffer()```, ```sg_append_buffer()``` and ```sg_update_image()```
 happening in a single frame. This part of the WebGPU API is still heavily in 
 flux though, so maybe such a user-side staging buffer won't actually be necessary
-in the future, so maybe this configuration parameter will disappear again.
+in the future and this configuration parameter might disappear again.
 
 ### sg_desc.context
 
@@ -233,7 +233,154 @@ backend-portion (GL, Metal, D3D11 and WebGPU) has gotten its own nested
 structure as well. 
 
 Those nested structs have a specific reason: they allow to initialize the related
-items in the nested struct with a single assignment inside a designated initialization
+items in the nested struct with a single assignment inside a C99 designated initialization
 block.
 
-[to be continued]
+More on this below where I'm introducing the new sokol_glue.h header.
+
+The nested context struct has 3 new members to describe the pixel formats
+and MSAA sample count of the default framebuffer (which must be created
+outside of sokol-gfx):
+
+```c
+sg_desc desc = {
+    .context = {
+        .color_format = ..., // color buffer format as sg_pixel_format
+        .depth_format = ..., // depth stencil  format as sg_pixel_format
+        .sample_count = ..., // MSAA sample count
+    }
+};
+```
+
+These new configuration values fix some hardwired assumptions in the
+sokol_gfx.h API and make it a bit more convenient to create pipeline state
+objects that are compatible with the default frame buffer, because the default
+values for the pipeline state's pixel color- and depth-format, and the
+sample count are no longer hardwired, but taken from the one-time values
+provided in sg_desc.
+
+Example:
+
+If the default framebuffer uses MSAA antialiased rendering, previously you had to provide
+the matching sample count when creating a pipeline state object, because sokol_gfx.h
+didn't actually know that the default framebuffer is multisampled:
+
+```c
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    ...
+    .rasterizer.sample_count = 4,
+    ...
+});
+```
+
+Now that the default framebuffer's sample count is provided upfront in sg_setup(),
+this is used as the default value for pipeline state object creation, and
+the sample_count can be left zero-initialized when creating an sg_pipeline
+object which used for rendering to the default frame buffer:
+
+```c
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    ...
+});
+```
+
+The other improvement is that there's now a new validation check which makes sure
+that the sample count of a pipeline state object matches the default-framebuffer's
+sample count.
+
+There's a somewhat unexpected side effect regarding this new default-sample-count
+behaviour:
+
+When creating a render target image, the pixel format and sample count
+will *also* be initialized from the default-framebuffer's color format and
+sample count, so (by default) offscreen render targets use the same
+"pixel configuration" as the default frame buffer, which doesn't
+really make sense because the two aren't related.
+
+After some back and forth I decided on this behaviour so that a
+default-initialized render target image will always be compatible with a
+default-initialized pipeline state object.
+
+Admittedly, that's almost a bit too much 'under-the-hood-magic' for my taste,
+but I think in this specific situation it's justified because the whole idea
+of having 'useful defaults' to reduce line count was a central design goal
+of sokol_gfx.h from the start.
+
+You'll just have to keep in mind that if your default-framebuffer is 
+antialiased, than all your render targets will also (by default!) be 
+antialiased, unless you explicitely create the render targets (and their
+matching pipeline state objects) with a sample_count of 1.
+
+On to the next topic:
+
+## The sokol_glue.h header
+
+As described above, the main reason for adding a nested structure to 
+sg_desc to hold all the 3D-backend specific 'context information' was
+to set all this data with a single assignment like this:
+
+```c
+    sg_setup(&(sg_desc){
+        ...
+        .context = get_context()
+    });
+```
+
+This ```get_context()``` function would simply return a completely filled
+out ```sg_context_desc``` structure by value.
+
+But where should such a function live? If the API user must write this 
+function in their own code, not much would be gained.
+
+When sokol_gfx.h and sokol_app.h are used together, such a 'glue function'
+needs to know the sg_context_desc struct from the sokol_gfx.h header,
+and the various sokol_app.h functions to query default framebuffer
+attributes. But one of the main design goals of the (core-) sokol headers
+is that the headers should be standalone and not depend on each other
+(only the "2nd-tier" utility headers may depend on other sokol headers).
+
+That's where the new sokol_glue.h header comes in, this is a special header
+providing helper 'glue functions' for combinations of sokol headers.
+
+The sokol_glue.h header should always be included *after* all other sokol headers,
+because it automtically detects what other sokol header have been included
+and before and automatically offers matching 'extension functions'.
+
+In a typical 'sokol_app.h + sokol_gfx.h' application it might look like this:
+
+```c
+#include "sokol_app.h"
+#include "sokol_gfx.h"
+#include "sokol_glue.h"
+```
+
+In the sokol_glue.h header, API functions are wrapped like this:
+
+```c
+#if defined(SOKOL_GFX_INCLUDED) && defined(SOKOL_APP_INCLUDED)
+SOKOL_API_DECL sg_context_desc sapp_sgcontext(void);
+#endif
+```
+
+So when both sokol_gfx.h and sokol_app.h have been included before sokol_glue.h,
+a new function ```sg_context_desc sapp_sgcontext(void)``` becomes available,
+which *looks* like a regular sokol_app.h function, except that it uses
+a return type from the sokol_gfx.h header.
+
+With this new glue function, the "new way" to setup sokol_gfx.h with the
+3D-backend information obtained from sokol_app.h looks like this:
+
+```c
+    sg_setup(&(sg_desc){
+        .context = sapp_sgcontext()
+    });
+```
+
+Currently, sokol_glue.h only has this one function, but more and similar
+helper functions will be added in the future for other combinations of
+sokol headers (or even combinations of sokol headers with 'foreign' APIs).
+
+And finally on to the last change:
+
+## WebGPU shader output in sokol-shdc
+
