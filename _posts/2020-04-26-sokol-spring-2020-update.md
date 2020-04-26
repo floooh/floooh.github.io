@@ -121,17 +121,18 @@ The simple rules-of-thumb for this new item are:
 - if you use sokol-shdc you can also ignore it because it will be automatically
 filled into the code-generated sg_shader_desc struct from the shader's
 reflection information
-- otherwise, with GLSL as source language as example, the GLSL sampler type
-must correspond with the sokol_gfx.h sg_sampler_type enum values like this:
+- otherwise, with GLSL as example shading language, the shader's sampler type
+corresponds with the sokol_gfx.h sg_sampler_type enum values like this:
     - sampler*: SG_SAMPLERTYPE_FLOAT
     - isampler*: SG_SAMPLERTYPE_INT
     - usampler*: SG_SAMPLERTYPE_UINT
 
-Unfortunately there isn't really a way to check whether the sampler types
-matches an underlying shader sampler in the sokol_gfx.h validation layer,
-since this would require access to shader reflection information in all
-backends. So instead of an "early validation" in sokol_gfx.h, a mismatch
-can only be caught in the underlying WebGPU validation layer.
+Unfortunately there isn't really a way to check whether the sg_sampler_type
+provided when creating a sokol-gfx shader object matches the underlying shader's
+sampler in the sokol_gfx.h validation layer, since this would require access to
+shader reflection information in all backends. So instead of an "early
+validation" in sokol_gfx.h, a mismatch can only be caught in the underlying
+WebGPU validation layer.
 
 ## New layout for the sg_desc struct
 
