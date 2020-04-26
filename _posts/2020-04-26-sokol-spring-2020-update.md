@@ -35,7 +35,7 @@ this pull request:
 - ...and related to this, a more convenient default-value behaviour for pixel
   formats and sample counts when creating pipeline state objects and images
 
-Only the last point is an actual breaking change which requires some
+Only the last two points are actual breaking changes which requires some
 updates to the sokol-gfx initialization call ```sg_setup()```.
 
 ## Changes in sokol_app.h:
