@@ -72,8 +72,9 @@ the WebGPU C-API available both for [Google native implementation](https://dawn.
 and the [webgpu.h header plus JS shim](https://github.com/emscripten-core/emscripten/blob/master/system/include/webgpu/webgpu.h), and SPIRV binary blobs for shaders.
 
 Just as with WebGL vs GL, the WebGPU backend in sokol_gfx.h doesn't care about
-whether it's running in a native environment through a native WebGPU
-implementation (e.g. Google Dawn), or in a web environment through emscripten.
+whether it's running in a native environment via a native WebGPU
+implementation library (e.g. Google Dawn), or in a web environment via a
+JS shim provided by the emscripten SDK.
 
 The same isn't the true yet for sokol_app.h though: currently only the emscripten code
 path has the required code for setting up the WebGPU device and swapchain. But
@@ -384,3 +385,69 @@ And finally on to the last change:
 
 ## WebGPU shader output in sokol-shdc
 
+The sokol-shdc shader-cross-compiler/code-generation tool now has a new
+output option for WebGPU which (currently) outputs SPIRV bytecode
+(later this will be changed to the new WGSL shading language):
+
+```sh
+> sokol_shdc --input shader.glsl --output shader.h --slang wgpu
+```
+
+This creates a C header with embedded SPIRV byte code and code-generated
+structs and functions for integrating the shader with sokol-gfx.
+
+The only other noteworthy feature is that the new ```sg_sampler_type``` enum
+I already talked about above is extracted from the shader's texture sampler
+slots using the SPIRVCross reflection API.
+
+Existing 'annotated GLSL shader code' doesn't require any changes. This 'no
+changes' requirement was actually a bit of a challenge, but WebGPU basically
+"expects" that uniform-block- and texture-bindings have explicitely defined
+'binding sets', in GLSL it looks like this for instance:
+
+```
+layout(set = 0, binding = 0) uniform vs_params { ... };
+layout(set = 2, binding = 0) uniform sampler2D tex;
+```
+
+But such binding sets are not exposed in the sokol-gfx API, instead each
+backend defines a hardwired internal mapping of the resource bind-slot model 
+of sokol-gfx maps to the resource binding mechanism of a specific backend API.
+
+The sokol-shdc shader tool also needs to be aware of those backend-specific
+mapping, just in the opposite direction, it needs to know how the 3D-APIs
+resource binding model maps back to the sokol-gfx binding model. To accomplish
+this, it needs to add annotations (or rather in SPIRV-lingo: decorations)
+to shader resources like uniform blocks and texture samplers.
+
+This 'decoration step' happens through the SPIRVCross API after the
+GLSL input source code has been compiled to SPIRV and before this SPIRV
+byte code is translated into the various shading languages needed by
+the sokol-gfx backends.
+
+But there's a chicken-egg problem. Current WebGPU implementations expect
+SPIRV as shader byte code, so the entire SPIRVCross translation step would
+be skipped. But (from what I've seen, and I didn't look for all too long) 
+only SPIRVCross has a convenient API to completely modify the resource binding
+decorations (the GLSL-to-SPIRV compiler only has very broad rules to automatically
+assign binding decorations, but those rules were not detailed enough for
+my situation).
+
+So in a sudden stroke of (perverted) genius I'm now compiling the
+shader code **twice** from GLSL to SPIRV:
+
+- compile the 'undecorated' GLSL source to SPIRV
+- feed the result into SPIRVCross and "manually" set decoration
+- have SPIRVCross translate this decorated SPIRV bytecode back to GLSL
+- the resulting output GLSL source (with decoration) is again compiled to SPIRV
+
+...not exactly elegant, but it works nicely and isn't that much slower (still
+faster than - for instance - creating Metal bytecode via sokol-shdc, because
+this needs to invoke the Metal compiler as external tool).
+
+And that's all I think. Some time in the next few days I will slap a tag
+on the current sokol-gfx master branch (as well as sokol-tools and sokol-samples),
+and then merge the changes described here into master.
+
+A much more detailed blog post about the new sokol-gfx WebGPU backend will
+also follow soon-ish.
