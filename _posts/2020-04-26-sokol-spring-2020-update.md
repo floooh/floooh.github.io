@@ -247,7 +247,7 @@ sg_desc desc = {
 ```
 
 These new configuration values replace some hardwired assumptions in the
-sokol_gfx.h API and make it a bit more convenient to create pipeline state
+sokol_gfx.h implementation and make it a bit more convenient to create pipeline state
 objects that are compatible with the default frame buffer, because the default
 values for the pipeline object's ```color_format```, ```depth_format``` and ```sample_count``` state are no longer hardwired, but taken from the new
 context configuration values provided in sg_desc.
