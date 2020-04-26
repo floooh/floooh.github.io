@@ -18,7 +18,7 @@ will then be described in detail.
 If you're interested in the nitty-gritty details you can review
 this pull request:
 
-https://github.com/floooh/sokol/pull/259
+[https://github.com/floooh/sokol/pull/259](https://github.com/floooh/sokol/pull/259)
 
 ## Changes in sokol_gfx.h:
 
@@ -163,7 +163,7 @@ sg_desc desc = {
         .depth_format = ...,
         .sample_count = ...,
         .gl = {
-            .force_gles1 = ...,
+            .force_gles2 = ...,
         },
         .metal = {
             .device = ...,
@@ -187,15 +187,15 @@ sg_desc desc = {
 ```
 
 There's a couple of new items, and other items have been shuffled around a bit,
-and as you can see, the information needed to "bind" sokol_gfx.h to a specific
-backend 3D-API "context" is getting quite lengthy.
+and as you can see, the information needed to bind sokol_gfx.h to a specific
+backend 3D-API context is getting quite lengthy.
 
-Providing all the information needed for a cross-platform program which needs
-to render on all the supported 3D backends is starting to take up a significant
-portion of a "Hello Triangle" line count (this is where the new ```sokol_glue.h```
-header is coming in, but I'm getting ahead of myself).
+Providing all the information needed for a cross-platform sokol-gfx application
+which needs to render on all the supported 3D backends is starting to take up a
+significant portion of a "Hello Triangle" demo line count (this is where the new
+```sokol_glue.h``` header is coming in, but more on that further down this post).
 
-First let's look at the new and changes items:
+First let's look at the new and changed items in ```sg_desc```:
 
 ### sg_desc.uniform_buffer_size
 
@@ -316,8 +316,8 @@ On to the next topic:
 
 ## The sokol_glue.h header
 
-As described above, the main reason for adding a nested structure to 
-sg_desc to hold all the 3D-backend specific 'context information' was
+As described above, the main reason for adding nested structures to 
+```sg_desc``` to hold all the 3D-backend specific 'context information' was
 to set all this data with a single assignment like this:
 
 ```c
@@ -327,7 +327,7 @@ to set all this data with a single assignment like this:
     });
 ```
 
-This ```get_context()``` function would simply return a completely filled
+Such a ```get_context()``` function would simply return a completely filled
 out ```sg_context_desc``` structure by value.
 
 But where should such a function live? If the API user must write this 
