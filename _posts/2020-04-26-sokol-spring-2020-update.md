@@ -355,7 +355,7 @@ like it's part of the sokol_app.h API but has actually been defined in
 the sokol_glue.h header.
 
 With this new glue function, the "new way" to setup sokol_gfx.h with the
-3D-backend information obtained from sokol_app.h looks like this:
+backend context information obtained from sokol_app.h looks like this:
 
 ```c
     sg_setup(&(sg_desc){
