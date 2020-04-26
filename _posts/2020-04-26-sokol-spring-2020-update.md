@@ -400,7 +400,7 @@ But such binding sets are not exposed in the sokol-gfx API, instead each
 backend defines a hardwired internal mapping of sokol-gfx's resource bind slots 
 to the resource binding model of a specific backend API.
 
-The sokol-shdc shader tool also needs to be aware of those backend-specific
+The sokol-shdc shader tool also needs to be aware of this backend-specific
 mapping, but in the opposite direction, it needs to know how the 3D-APIs
 resource binding model maps back to the sokol-gfx binding model. To accomplish
 this, it needs to add annotations (or rather in SPIRV-lingo: decorations)
