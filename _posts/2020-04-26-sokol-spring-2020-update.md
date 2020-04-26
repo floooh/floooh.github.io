@@ -383,8 +383,8 @@ This creates a C header with embedded SPIRV byte code and code-generated
 structs and functions for integrating the shader with sokol-gfx.
 
 The only other noteworthy feature is that the new ```sg_sampler_type``` enum
-I already talked about above is extracted from the shader's texture sampler
-slots using the SPIRVCross reflection API.
+I already talked about above is extracted from the shader's texture samplers
+using the SPIRVCross reflection API.
 
 Existing 'annotated GLSL shader code' doesn't require any changes. This 'no
 changes' requirement was actually a bit of a challenge, because WebGPU basically
