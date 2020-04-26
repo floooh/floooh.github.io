@@ -228,7 +228,7 @@ structure of the new type ```sg_context_desc```, and in there each
 backend has gotten its own nested structure as well. 
 
 Those nested structs have a specific reason: they allow initialization 
-wth a single assignment inside a C99 designated initialization block.
+with a single assignment inside a C99 designated initialization block.
 
 More on this below where I'm introducing the new sokol_glue.h header.
 
