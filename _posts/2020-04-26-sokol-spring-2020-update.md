@@ -423,7 +423,7 @@ shader code **twice** from GLSL to SPIRV:
 - first, compile the 'undecorated' GLSL source to SPIRV
 - feed the result into SPIRVCross and "manually" set decorations
 - have SPIRVCross translate this decorated SPIRV bytecode back to GLSL
-- and finally, compile the generated GLSL source (with decoration) again to SPIRV
+- and finally, compile the generated GLSL source (this time *with* decorations) again to SPIRV
 
 ...not exactly elegant, but it does the job :D
 
