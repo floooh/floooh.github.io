@@ -322,14 +322,14 @@ Such a ```get_context()``` function would simply return a completely filled
 out ```sg_context_desc``` structure by value, which can then be assigned
 to the nested struct ```sg_desc.context```.
 
-But such a helper function can neither be part of the sokol_app.h, 
+But such a helper function can neither be part of the sokol_app.h API, 
 nor part of the sokol_gfx.h API, because the core sokol headers
 must remain properly decoupled from each other.
 
 And that's where the new sokol_glue.h header comes in, this is a special header
 providing helper 'glue functions' for combinations of sokol headers.
 
-The sokol_glue.h is meant to be included *after* all other sokol header 
+The sokol_glue.h header is meant to be included *after* all other sokol header 
 because it automatically detects specific header combinations and
 offers matching 'extension functions'.
 
