@@ -441,9 +441,7 @@ shader code **twice** from GLSL to SPIRV:
 - have SPIRVCross translate this decorated SPIRV bytecode back to GLSL
 - the resulting output GLSL source (with decoration) is again compiled to SPIRV
 
-...not exactly elegant, but it works nicely and isn't that much slower (still
-faster than - for instance - creating Metal bytecode via sokol-shdc, because
-this needs to invoke the Metal compiler as external tool).
+...not exactly elegant, but it works :D
 
 And that's all I think. Some time in the next few days I will slap a tag
 on the current sokol-gfx master branch (as well as sokol-tools and sokol-samples),
