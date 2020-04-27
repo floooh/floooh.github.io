@@ -197,7 +197,7 @@ First let's look at the new and changed items in ```sg_desc```:
 Formerly this was called ```mtl_global_uniform_buffer_size```, 
 was specific to the Metal backend and described the size of the "per frame uniform buffer",
 e.g. the buffer that needs to hold all uniform data updated in a single frame
-via calls to ```sg_update_uniforms()```. The new WebGPU backend has a similar uniform
+via calls to ```sg_apply_uniforms()```. The new WebGPU backend has a similar uniform
 update strategy as the Metal backend, so this is a general setup parameter now
 (it's only used in the Metal and WebGPU backend though).
 
