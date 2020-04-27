@@ -211,14 +211,14 @@ But again, this parameter is only used in the Metal and WebGPU backend.
 
 ### sg_desc.staging_buffer_size
 
-Currently used only in the WebGPU backend, this
-configuration parameter describes the size in bytes of a "per frame staging buffer" 
-for dynamic data uploads from CPU-visible to GPU-visible memory. The staging
-buffer size must be big enough to hold all the dynamically updated data via
+Currently used only in the WebGPU backend, this configuration parameter
+describes the size in bytes of a "per frame staging buffer" for dynamic data
+uploads from CPU-visible to GPU-visible memory. The staging buffer size must be
+big enough to hold all the dynamically updated data via
 ```sg_update_buffer()```, ```sg_append_buffer()``` and ```sg_update_image()```
-happening in a single frame. This part of the WebGPU API is still heavily in 
-flux though, so maybe such a user-side staging buffer won't actually be necessary
-in the future and this configuration parameter might disappear again.
+in a single frame. This part of the WebGPU API is still heavily in flux though,
+so maybe such a user-side staging buffer won't actually be necessary in the
+future and this configuration parameter might disappear again.
 
 ### sg_desc.context
 
