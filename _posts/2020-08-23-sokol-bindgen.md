@@ -294,7 +294,7 @@ to use from C.
 ## Why generate separate bindings for Zig?
 
 One of Zig's greatest features is that it can directly import C headers, so
-why go through all the hassle and do a separate semi-automatic language
+why go through all the hassle and do a separate semi-automatic bindings
 generation via clang's ast-dump?
 
 The answer is that a semi-automatic approach with a per-target-language
