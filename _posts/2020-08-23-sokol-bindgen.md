@@ -60,7 +60,7 @@ For language bindings, data structures can be problematic. The involved
 languages must agree on how the content of the data structure is layed out
 in memory, with all the alignment and padding rules that come with it. And
 every change to the source structure, like changing the type or order of
-struct field must be tracked precisely in the language binding, otherwise
+struct fields must be tracked precisely in the language binding, otherwise
 hard to debug errors will result.
 
 ## Manually maintained language bindings are problematic
