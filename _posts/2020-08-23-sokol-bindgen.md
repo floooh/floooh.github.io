@@ -133,7 +133,7 @@ import C headers and provide compile-time type reflection which allows to
 walk over the type information that has been imported from the C header. My
 experiments in Zig only failed because of some obscure open TODO error
 messages in the current Zig compiler. But generally this idea should work and
-might be a better long-term solution then the method I used in the end.
+might be a better long-term solution than the method I'm currently using.
 
 All in all the best solution is to take the original C API declarations as
 'ground truth' (instead of a separately maintained API description) and
