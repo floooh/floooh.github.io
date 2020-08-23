@@ -251,8 +251,8 @@ implemented in a few simple python scripts which runs on every git push (or
 when creating a version tag) and which spits out a number of language bindings
 which are guaranteed to match the latest changes to the Sokol APIs.
 
-The whole idea already works quite well, e.g. this is what the bindings
-for Zig look like (at the time this blog post was written):
+The whole idea already works quite well, for instance this is what the Zig bindings
+for sokol_gfx.h look like (at the time this blog post was written):
 
 [github.com/floooh/sokol-zig/src/sokol/gfx.zig](https://github.com/floooh/sokol-zig/blob/72003b89f91e034450336efd3f9c8cc944c6a40c/src/sokol/gfx.zig)
 
