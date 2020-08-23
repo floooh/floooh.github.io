@@ -121,7 +121,7 @@ written to extract the public API information which doesn't need to be a
 full blown C parser. The downside of this approach is that it makes the 
 original source file messy to read with all those annotations.
 
-- Hacking an existing C compiler or using libllvm to extract the required
+- Hacking an existing C compiler or using libclang to extract the required
 type information. This falls into the category 'big software
 project on its own', definitely more work than I want to invest into a
 solution.
