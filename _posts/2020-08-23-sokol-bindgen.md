@@ -152,17 +152,15 @@ but for the very small subset required for creating API bindings I think
 this is an acceptable risk)
 
 The result looked promising. The AST dump is a bit spammy, but all the
-required information is there. E.g. this is what the ```sg_buffer``` struct
-looks like in C:
+required information is there. E.g. this is C struct:
 
 ```c
-typedef struct sg_buffer {
+struct sg_buffer {
     uint32_t id;
-} sg_buffer;
+};
 ```
 
-The AST dump (generated with ```> clang -Xclang -ast-dump=json sokol_gfx.h```)
-looks like this (just the struct declaration and ignoring the typedef):
+...looks like this in the AST dump (generated with ```> clang -Xclang -ast-dump=json sokol_gfx.h```):
 
 ```json
     {
