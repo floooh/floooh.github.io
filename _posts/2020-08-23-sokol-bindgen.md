@@ -147,7 +147,7 @@ not expecting much (because I thought that dumping the AST is more useful
 for debugging clang's code generation than anything else, I always had associated
 Abstract Syntax Trees more with implementation code, less with API declarations).
 
-(Disclaimer: the output for of ```clang -ast-dump``` isn't guaranteed to be stable,
+(Disclaimer: the output of ```clang -ast-dump``` isn't guaranteed to be stable,
 but for the very small subset required for creating API bindings I think
 this is an acceptable risk)
 
