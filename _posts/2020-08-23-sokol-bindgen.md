@@ -35,7 +35,7 @@ there.
 
 An example:
 
-I had been working with OpenGL for decades before I discovered an interesting
+I had been working with OpenGL for decades before I noticed an interesting
 property of the OpenGL API:
 
 OpenGL has no data structures. None at all.
