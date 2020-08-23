@@ -52,9 +52,9 @@ API can either have many functions with few arguments, or few functions
 with many arguments.
 
 Other 3D-APIs like D3D11 or Metal group related data items into data structures,
-which reduces API complexity via encapsulation... I'm conveniently ignoring Vulkan
+which reduces API complexity via encapsulation (I'm conveniently ignoring Vulkan
 and D3D12 as they don't really support my argument that a data-structure-API
-is inherently simple ;)
+is inherently simple ;) )
 
 For language bindings, data structures can be problematic. The involved
 languages must agree on how the content of the data structure is layed out
