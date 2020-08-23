@@ -240,7 +240,7 @@ needed for generating language bindings:
 ...and the next step is to convert this simplified generic API description into
 a language-specific version, for instance a Zig struct:
 
-```zig
+```c
 pub const Buffer = extern struct {
     id: u32 = 0,
 };
@@ -320,7 +320,7 @@ void frame(void) {
 
 ...looks like this in Zig:
 
-```zig
+```c
 export fn frame() void {
     sg.beginDefaultPass(.{}, sapp.width(), sapp.height());
     sg.applyPipeline(state.pip);
@@ -343,7 +343,7 @@ to the C-API. Creating a vertex buffer from a float-array in C looks like this:
 
 ...currently the same looks like this in Zig:
 
-```zig
+```c
     const vbuf = sg.makeBuffer(.{
         .content = &vertices,
         .size = @sizeOf(@TypeOf(vertices))
@@ -359,7 +359,7 @@ with a Zig slice type). This will require changing the C API to have a combined
 pointer/size-pair type (or a lot of special-case hacks in the binding-generator
 scripts, this would be an option too, but one I'd like to avoid):
 
-```zig
+```c
     const vbuf = sg.makeBuffer(.{
         .content = vertices
     });
