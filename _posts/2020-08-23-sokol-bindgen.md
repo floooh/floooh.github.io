@@ -152,7 +152,7 @@ but for the very small subset required for creating API bindings I think
 this is an acceptable risk)
 
 The result looked promising. The AST dump is a bit spammy, but all the
-required information is there. E.g. this C struct:
+required information is there. For instance this C struct:
 
 ```c
 struct sg_buffer {
