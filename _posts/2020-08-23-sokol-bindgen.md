@@ -370,7 +370,7 @@ through the per-language binding-generator scripts. For instance I'm also
 thinking about special C++ bindings even though the Sokol headers are usable
 from C++ just fine right now. But they are not as convenient to use from C++
 as from C99, because it turned out that the limited designated initialization
-in C++20 isn't all that useful for initializing non-trivial data structured
+in C++20 isn't all that useful for initializing non-trivial data structures
 with dozens of members and nested structs and arrays. So it probably makes
 sense to create C++ bindings which implement the builder pattern instead of
 relying on designated initialization. Another option might be to convert the
