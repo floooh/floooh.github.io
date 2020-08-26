@@ -3,6 +3,9 @@ layout: post
 title: Modern C for C++ Peeps
 ---
 
+(update 26-Aug-2020: the MSVC team has recently added [C11
+language support to their roadmap](https://developercommunity.visualstudio.com/content/idea/387315/add-c11-support.html), hooray!)
+
 (update 28-Sep-2019: some fixes and error corrections)
 
 When discussing C with C++ programmers I often notice a somewhat outdated
