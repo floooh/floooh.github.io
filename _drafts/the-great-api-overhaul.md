@@ -117,11 +117,92 @@ describing how to change your existing code.
 
 # Change Recipes
 
+## sg_apply_uniforms()
+
+Instead of separate pointer- and size-parameters, **sg_apply_uniforms** now takes a single
+**sg_range** pointer:
+
+```c
+vs_params_t vs_params = /* ... */;
+
+// OLD:
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
+
+// NEW (C, with and without SG_RANGE):
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &SG_RANGE(vs_params));
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &(sg_range){ vs_params, sizeof(vs_params)});
+
+// NEW (C++, with and without SG_RANGE):
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, SG_RANGE(vs_params));
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, { vs_params, sizeof(vs_params) });
+```
+
+For code which must compile both in C and C++, you can use the special SG_RANGE_REF() macro:
+
+```c
+// this compiles both in C and C++:
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, SG_RANGE_REF(vs_params));
+```
+
+[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/cube-sapp.c)
+
+## sg_update_buffer(), sg_append_buffer()
+
+Same as with *sg_apply_uniforms()*, the separate pointer- and size-parameters are now 
+a single **sg_range** pointer:
+
+```c
+// OLD:
+sg_update_buffer(buf, data_ptr, data_size);
+sg_append_buffer(buf, data_ptr, data_size);
+
+// NEW (C, with and without SG_RANGE):
+sg_update_buffer(buf, &SG_RANGE(data));
+sg_append_buffer(buf, &SG_RANGE(data));
+sg_update_buffer(buf, &(sg_range){ data_ptr, data_size});
+sg_append_buffer(buf, &(sg_range){ data_ptr, data_size});
+
+// NEW (C++):
+sg_update_buffer(buf, SG_RANGE(data));
+sg_append_buffer(buf, SG_RANGE(data));
+sg_update_buffer(buf, { data_ptr, data_size});
+sg_append_buffer(buf, { data_ptr, data_size});
+```
+
+## sg_update_image()
+
+The image-data type has been renamed from **sg_image_content** to **sg_image_data**, and
+is now composed of a 2D array of **sg_range** structs (which means you can use the
+SG_RANGE macro if the subimage pixel data is in a C array):
+
+```c
+uint32_t pixels[] = { /*...*/ };
+
+// OLD:
+sg_update_image(img, &(sg_image_content){
+    .subimage[0][0] = {
+        .ptr = pixels,
+        .size = sizeof(pixels)
+    }
+});
+
+// NEW
+sg_update_image(img, &(sg_image_content){
+    .subimage[0][0] = SG_RANGE(pixels)
+});
+```
+
 ## Initializing sg_pass_action structs
 
 Change **.val** to **.value**:
 
 ```c
+// OLD:
+sg_pass_action pass_action = {
+    .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.0f, 0.0f, 0.0f, 1.0f } }
+};
+
+// NEW:
 sg_pass_action pass_action = {
     .colors[0] = { .action = SG_ACTION_CLEAR, .value = { 0.0f, 0.0f, 0.0f, 1.0f } }
 };
@@ -142,62 +223,36 @@ The common case of creating a buffer from an array of vertices or indices
 now looks like this (using the SG_RANGE helper macro):
 
 ```c
-// create a vertex buffer from a C array
 float vertices[] = { /*...*/ };
+
+// OLD:
+sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
+    .size = sizeof(vertices),
+    .content = vertices
+});
+
+// NEW:
 sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
     .data = SG_RANGE(vertices)
 });
 
-// ...or create an index buffer from a C array
-uint16_t indices[] = { /*...*/ };
-sg_buffer ibuf = sg_make_buffer(&(sg_buffer_desc){
-    .type = SG_BUFFERTYPE_INDEXBUFFER,
-    .data = SG_RANGE(indices)
-});
-```
-
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/quad-sapp.c)
-
-...or if you prefer to not use the SG_RANGE() macro:
-```c
-// create a vertex buffer from a C array
-float vertices[] = { /*...*/ };
+// ...or without the SG_RANGE() macro:
 sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
     .data = {
         .ptr = vertices,
         .size = sizeof(vertices)
     }
 });
-
-// ...or create an index buffer from a C array
-uint16_t indices[] = { /*...*/ };
-sg_buffer ibuf = sg_make_buffer(&(sg_buffer_desc){
-    .type = SG_BUFFERTYPE_INDEXBUFFER,
-    .data = {
-        .ptr = indices,
-        .size = sizeof(indices)
-    }
-});
 ```
+[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/quad-sapp.c)
 
-...the SG_RANGE() macro is also useless if you have a pointer and size of the
-data:
-```c
-sg_buffer create_vertex_buffer(const void* data_ptr, size_t data_size) {
-    return sg_make_buffer(&(sg_buffer_desc){
-        .data = {
-            .ptr = data_ptr,
-            .size = data_size
-        }
-    });
-}
-```
 
 ## Creating dynamic buffers (without initial data)
 
 This looks exactly as before:
 
 ```c
+// OLD+NEW:
 sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
     .size = buffer_size,
     .usage = SG_USAGE_STREAM
@@ -213,6 +268,7 @@ You need to pass the sokol-gfx backend into the generated functions which return
 ```c
 // OLD:
 sg_shader shd = sg_make_shader(triangle_shader_desc());
+
 // NEW:
 sg_shader shd = sg_make_shader(triangle_shader_desc(sg_query_backend()));
 ```
@@ -223,37 +279,90 @@ sg_shader shd = sg_make_shader(triangle_shader_desc(sg_query_backend()));
 
 If the shader uses textures, change **.type** to **.image_type**:
 ```c
+// OLD:
+sg_shader shd = sg_make_shader(&(sg_shader_desc){
+    /* ... */
+    .fs.images[0].type = SG_IMAGETYPE_2D,
+    /* ... */
+});
+
+// NEW:
 sg_shader shd = sg_make_shader(&(sg_shader_desc){
     /* ... */
     .fs.images[0].image_type = SG_IMAGETYPE_2D,
     /* ... */
 });
 ```
-
 [Sample Code](https://github.com/floooh/sokol-samples/blob/master/d3d11/texcube-d3d11.c)
 
 If the shader is precompiled (D3D11 or Metal), pass the bytecode as an **sg_range** struct:
 
 ```c
+// OLD:
 sg_shader shd = sg_make_shader(&(sg_shader_desc){
     /* ... */
-    .vs.bytecode = { .ptr = bytecode_ptr, .size = bytecode_size }
+    .vs = {
+        .byte_code = vs_bytecode_ptr
+        .byte_code_size = vs_bytecode_size
+    },
     /* ... */
 });
-```
 
-...or if the bytecode is in C array, you can also use the SG_RANGE helper macro:
-
-```c
+// NEW, if bytecode is in a C array:
 const uint8_t vs_bytecode[] = { /*...*/ }
 sg_shader shd = sg_make_shader(&(sg_shader_desc){
     /* ... */
-    .vs.bytecode = SG_RANGE(vs_bytecode)
+    .vs.bytecode = SG_RANGE(vs_bytecode),
+    /* ... */
+});
+
+// ...with separate pointer and size:
+sg_shader shd = sg_make_shader(&(sg_shader_desc){
+    /* ... */
+    .vs.bytecode = {
+        .ptr = vs_bytecode_ptr,
+        .size = vs_bytecode_size
+    }
     /* ... */
 });
 ```
-
 [Sample Code](https://github.com/floooh/sokol-samples/blob/master/d3d11/binshader-d3d11.c)
+
+## Image Creation
+
+The nested image content struct has been renamed from **.content** to **.data**, and
+the type changed from **sg_image_content** to **sg_image_data**:
+
+```c
+uint32_t pixels[8][8] = { /*...*/ };
+
+// OLD:
+sg_image img = sg_make_image(&(sg_image_desc){
+    .width = 8,
+    .height = 8,
+    .content.subimage[0][0] = {
+        .ptr = pixels,
+        .size = sizeof(pixels)
+    }
+});
+
+// NEW:
+sg_image img = sg_make_image(&(sg_image_desc){
+    .width = 8,
+    .height = 8,
+    .data.subimage[0][0] = SG_RANGE(pixels)
+});
+
+// ...or without SG_RANGE:
+sg_image img = sg_make_image(&(sg_image_desc){
+    .width = 8,
+    .height = 8,
+    .data.subimage[0][0] = {
+        .ptr = pixels,
+        .size = sizeof(pixels)
+    }
+});
+```
 
 ## Pipeline Creation
 
@@ -296,12 +405,192 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
 ```
 [Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/cube-sapp.c)
 
-- FIXME: pipeline with alpha-blending
-- FIXME: MRT pipeline with default attachment params
-- FIXME: MRT pipeline with differing pixel formats
-- FIXME: MRT with differing color write mask and blend state
+### Creating a pipeline for alpha-blended rendering:
 
+```c
+// OLD:
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    .layout = { /* ... */ },
+    .shader = shd,
+    .index_type = SG_INDEXTYPE_UINT16,
+    .blend = {
+        .enabled = true,
+        .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+        .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        .color_write_mask = SG_COLORMASK_RGB,
+    }
+});
 
+// NEW:
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    .layout = { /* ... */ },
+    .shader = shd,
+    .index_type = SG_INDEXTYPE_UINT16,
+    .colors[0] = {
+        .write_mask = SG_COLORMASK_RGB,
+        .blend = {
+            .enabled = true,
+            .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+            .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+        }
+    }
+});
+```
+[Sample Code](https://github.com/floooh/sokol-samples/blob/master/html5/imgui-emsc.cc)
+
+### Offscreen rendering with non-default pixel format and multi-sampling:
+
+```c
+// OLD
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    .layout = /* ... */
+    .shader = shd,
+    .index_type = SG_INDEXTYPE_UINT16,
+    .depth_stencil = {
+        .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
+        .depth_write_enabled = true,
+    },
+    .blend = {
+        .color_format = SG_PIXELFORMAT_RGBA32F,
+        .depth_format = SG_PIXELFORMAT_DEPTH,
+    },
+    .rasterizer = {
+        .cull_mode = SG_CULLMODE_BACK,
+        .sample_count = 4,
+    }
+});
+
+// NEW:
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc))
+    .layout = /* ... */
+    .shader = shd,
+    .index_type = SG_INDEXTYPE_UINT16,
+    .cull_mode = SG_CULLMODE_BACK,
+    .sample_count = 4,
+    .depth = {
+        .compare = SG_COMPAREFUNC_LESS_EQUAL,
+        .write_enabled = true,
+        .pixel_format = SG_PIXELFORMAT_DEPTH,
+    },
+    .colors[0].pixel_format = SG_PIXELFORMAT_RGBA32F
+});
+```
+
+### Multiple-Render-Target rendering with default color pixel formats:
+
+```c
+// OLD:
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    .layout = /* ... */
+    .shader = shd,
+    .index_type - SG_INDEXTYPE_UINT16,
+    .depth_stencil = {
+        .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
+        .depth_write_enabled = true
+    },
+    .blend = {
+        .color_attachment_count = 3,
+        .depth_format = SG_PIXELFORMAT_DEPTH
+    },
+    .rasterizer = {
+        .cull_mode = SG_CULLMODE_BACK,
+        .sample_count = 4,
+    },
+});
+
+// NEW:
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    .layout = /* ... */
+    .shader = shd,
+    .index_type - SG_INDEXTYPE_UINT16,
+    .cull_mode = SG_CULLMODE_BACK,
+    .sample_count = 4,
+    .depth = {
+        .pixel_format = SG_PIXELFORMAT_DEPTH,
+        .compare = SG_COMPAREFUNC_LESS_EQUAL,
+        .write_enabled = true,
+    },
+    .color_count = 3,
+});
+```
+
+The old **.blend.color_attachment_count** has been renamed to **.color_count**
+and now also indicates the number of valid items in the **.colors** array
+of *sg_color_state* items which describes color-attachment attributes. But since
+all those attributes are initialized from their default values, only the number
+of color-attachments needs to be provided.
+
+[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/mrt-sapp.c)
+
+### Multiple-Render-Target rendering with differing pixel formats
+
+On ackends which support MRT rendering (which is *all* except GLES2/WebGL1),
+the render targets can now have different pixel formats:
+
+```c
+// OLD: this was not supported before
+
+// NEW:
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    .layout = /* ... */
+    .shader = shd, 
+    .index_type = SG_INDEXTYPE_UINT16,
+    .cull_mode = SG_CULLMODE_BACK,
+    .depth = {
+        .pixel_format = SG_PIXELFORMAT_DEPTH,
+        .write_enabled = true,
+        .compare = SG_COMPAREFUNC_LESS_EQUAL
+    },
+    .color_count = 3,
+    .colors = {
+        [0].pixel_format = SG_PIXELFORMAT_RGBA16F,
+        [1].pixel_format = SG_PIXELFORMAT_R32F,
+        [2].pixel_format = SG_PIXELFORMAT_RGBA8
+    }
+});
+```
+
+>NOTE that you need to provide a count in this case which seems redundant, because
+the count could also be "inferred" from the initialized array items. This is 
+because "missing" items will be initialized with their default values, yet
+sokol-gfx needs to know how many color attachments the pipeline will be configured
+with.
+
+You can also setup an MRT pipeline object which per-color-attachment blend
+functions, but this is currently only supported in the D3D11 and Metal backends
+(check **sg_query_features().mrt_independent_blend_state** for support):
+
+```c
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+    /* ... */
+    .color_count = 3,
+    .colors = {
+        [0] = {
+            .pixel_format = SG_PIXELFORMAT_RGBA16F,
+            .blend = {
+                .enabled = true,
+                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+            },
+        },
+        [1] = {
+            .pixel_format = SG_PIXELFORMAT_RGBA32F,
+            .blend = {
+                .enabled = true,
+                .src_factor_rgb = /* ... */,
+                .dst_factor_rgb = /* ... */,
+            },
+        },
+        [2] = {
+            .pixel_format = SG_PIXELFORMAT_RGBA8,
+            .blend = {
+                .enabled = true,
+                /* ... */
+            },
+        }
+    }
+});
+```
 
 # General non-breaking changes
 
