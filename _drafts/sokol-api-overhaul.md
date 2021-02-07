@@ -1,10 +1,10 @@
 ---
 layout: post
-title: Sokol Header API Overhaul (Feb 2021)
+title: Upcoming API changes in the Sokol headers (Feb 2021)
 ---
 
 In a few days I will merge the next API-breaking update for the sokol
-headers. In general I try to keep such breaking changes to a minimum (at most
+headers. In general I try to keep such breaking updates to a minimum (at most
 two or three a year), that's also why the changes in this merge will be a bit
 bigger than usual. Since I was going to break compatibility anyway, I added a
 few more changes that I had been collecting in the back of my head over the
@@ -26,13 +26,13 @@ and blend-state (the latter is currently only supported on the D3D11
 and Metal backends though).
 
 3. Some general cleanup in public structs, renaming some items, reorganising
-some nested structs for more convenience and "clarity".
+some nested structs for more convenience and clarity.
 
 I tried to make all required changes actual compile errors (which explains
-some "random" renames from "content" to "data"). When compiling in C mode
-(instead of C++), you should also check for any warnings though. I'll try to
-provide simple "recipes" how to replace old code with new code in this blog
-post though.
+some renames that might seem random at first). When compiling in C mode
+(instead of C++), you should also check for any warnings. Further down,
+this blog post contains simple "change recipes" for how to replace old
+code with new code.
 
 The changes are tracked in the following pull-requests:
 
@@ -42,9 +42,9 @@ The changes are tracked in the following pull-requests:
 
 # The Change List
 
-Here's a raw list of the public API changes. Don't worry if this looks a bit overwhelming, below
-that will follow some general explanation what motivated those changes, and concrete "change recipes"
-describing how to change your existing code.
+Here's a raw list of the public API changes. Don't worry if this looks a bit overwhelming,
+below that will be the concrete change recipes, and below that a small "Q&A" about
+the reasons behind the changes.
 
 - sokol_gfx.h:
     - misc changes:
@@ -613,7 +613,7 @@ pair can be initialized and passed around as a single item.
 
 ## Why the sg_color struct?
 
-Because you can't assign an array to another array of the same size in C and C++:
+Because one can't assign an array to another array of the same size in C and C++:
 
 ```c
 // this doesn't work:
@@ -646,32 +646,34 @@ solution. Think of the top-level .size items as the buffer size, and the
 creation. Currently there's a restriction that the data size must match the
 buffer size, but this might be relaxed in later API versions, allowing the initially
 copied data to be smaller than the buffer size (current plan is that this will
-be part of a "dynamic resources overhaul" which makes the whole area of copying
-data into buffers and images more flexible).
+be part of a "dynamic resource update overhaul" which makes the whole area of copying
+data into and between buffers and images more flexible).
 
-Until then you should only initialize one of the .size items:
+Until then you should only initialize one of the size items:
 
-- for immutable buffers with initial data, initialize the **.data.size** and **.data.ptr** items, and keep **.size** zero-initialized
-- for dynamic buffers (without initial data), initialize only the **.size** item,
-and keep the whole **.data** nested struct zero-initialized.
+- for immutable buffers with initial data, initialize the **.data.size** and
+**.data.ptr** items, and keep **.size** zero-initialized
+- for dynamic buffers (without initial data), initialize only the **.size**
+item, and keep the whole **.data** nested struct zero-initialized.
 
 The "default-value fixup" that's happening inside sokol-gfx will then take care
-of the rest (e.g. it will set **.size** to **.data.size** for the 'immutable buffer case')
+of the rest (e.g. it will copy **.data.size** into **.size** for the 'immutable buffer case')
 
 ## Why doesn't the GL backend support per-attachment blend-functions?
+
+This will be fixed at a later time.
 
 Currently in the GL backends, all color attachments must use the same blend function
 (or precisely, the blend function from the first color attachment will be used
 for all other color attachments of a rendering pass).
 
-Fixing this will require to upgrade the desktop GL backend code to GL 4.0, because
-the required function [glBlendFuncSeparatei()](https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glBlendFuncSeparate.xhtml) is only available since GL 4.0.
+Fixing this will require to upgrade the desktop GL backend code to use GL
+4.0, because the required function
+[glBlendFuncSeparatei()](https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glBlendFuncSeparate.xhtml)
+is only available since GL 4.0. Such a switch also offers other opportunities to
+modernize the GL backend, so it makes more sense to do this in a separate update.
 
-Since macOS supports GL versions up to 4.1 since OSX 10.9, it makes sense
-to bump the GL backend to at least 4.0, but this will happen in a separate 
-update.
-
-The GLES code paths will most likely not get this feature because the main purpose
+The GLES code paths will most likely not get this feature though because the main purpose
 of the GLES path is WebGL support, and WebGL2 is "stuck" at GLES 3.0, while
 glBlendFuncSeparatei() was only added in GLES 3.2.
 
@@ -691,57 +693,58 @@ back of my head for a while.
 From today's point-of-view it makes little sense to structure the pipeline
 creation descriptor structs like "traditional" 3D APIs. For instance in
 D3D11, the vertex-layout, depth-stencil-state, rasterizer-state and
-blend-state can all be set independently from each other. Metal went a huge step
-forward to integrate those states, but still treats the depth-stencil-state
-separately.
+blend-state can all be set independently. Metal went a huge step forward to
+integrate those states, but still treats the depth-stencil-state separately.
 
-D3D12, Vulkan and WebGPU integrated *all* this state into a single immutable
-pipeline object, but the creation-information is still structured like in the
-"legacy" APIs. There are nested depth-stencil-, rasterizer- and blend-state
-struct, even though technically this doesn't make much sense because those
-states can't be changed independently anymore.
+D3D12, Vulkan and WebGPU integrated *all* those separate state objects into a
+single immutable pipeline-state object, but the creation-information is still
+structured like in the "legacy" APIs. There are nested depth-stencil-,
+rasterizer- and blend-state struct, even though technically this doesn't make
+much sense because those states can't be changed independently anymore.
 
-Instead in sokol_gfx.h I decided to change things around in sg_pipeline_desc
-so that it looks "neater" when used with C99 designated initializion. All the
+Instead in sokol_gfx.h I decided now to change things around in sg_pipeline_desc
+so that it looks "nicer" when used with C99 designated initializion. All the
 redundant prefixes (like "depth_*" or "stencil_*") are gone and instead the
 state names with common prefixes are now grouped into their own nested structs.
 
-Since it doesn't make any technical sense to structure the interior of
-sg_pipeline_desc in the "traditional" way, it might just as well be more
-convenient by requiring less typing.
+Since it doesn't make any technical sense to structure the interior of the
+sg_pipeline_desc struct in the "traditional" way, it might just as well be
+more convenient by requiring less typing.
 
 ## Why no bigger signed- vs unsigned-integer API changes
 
 There are a lot of signed integers in the Sokol APIs that "should" be
 unsigned because negative values make no sense for then. Originally I was
 planning to do a big signed-vs-unsigned cleanup, but reconsidered after an
-enlightening Twitter thread:
+enlightening Twitter discussion thread:
 
 https://twitter.com/FlohOfWoe/status/1355839062880477187
 
-The gist is that in a language without robust under/overflow checking it is better
-to prefer signed integers even for values that "can't" be negative, because
-it's too easy to produce accidental underflows when subtracting two unsigned
-integers, but hard to check whether an unsigned underflow actually happend (because
-you don't get a negative number, but a very big positive number out of it).
+The gist is that in a language without robust under/overflow checking it is
+better to prefer signed integers even for values that not supposed to be
+negative, because it's too easy to produce accidental underflows when
+subtracting two unsigned integers, but hard to check whether an unsigned
+underflow actually happend (because you don't get a negative number, but a
+very big positive number out of it, which might be indistuingishable from 
+large valid numbers).
 
-Unsigned integers should only for special cases, like bit-wise operations, or modulo arithmetics (where overflow is an actual "feature").
+Unsigned integers should only for special cases, like bit-wise operations, or
+modulo arithmetics (where overflow is an actual "feature").
 
 I allowed one other exception, when an item is usually assigned from a
-**sizeof()** statement. In that case I opted for using the **size_t** type
+**sizeof()** statement: In that case I opted for using the **size_t** type
 for that item.
 
 Unfortunately this rule of "almost always signed" isn't a good match for more
 strongly typed languages like Zig and Rust, because (for instance) both of
 those languages use unsigned integers for common things like array indices.
-*But* those languages also have robust overflow checking, so using unsigned
-integers makes more sense in such languages. This presents a conflict in the
+*But* those languages also have robust over/underflow checking, so using unsigned
+integers makes more sense in there. This presents a conflict in the
 whole idea to make the Sokol C-APIs more binding-friendly.
 
-Long story short, I'll come up with a separate solution which will resolve
-this conflict without plastering the C-API with unsigned integers, but this
-won't happen yet with the upcoming C-API changes. One idea is to introduce
-specific typedefs in the C-APIs such as
+Long story short: I'll come up with a separate solution which will resolve
+this conflict without plastering the C-API with unsigned integers. One idea
+is to introduce specific typedefs in the C-APIs such as
 **sg_count**, **sg_index** etc... which then can remain signed on the C-API
 side, but the auto-generated bindings may change those to unsigned type.
 Currently I'm not a big fan of that idea though because it makes the C-API
@@ -749,3 +752,4 @@ more "obscure" (strong-typing fans might disagree). Another solution which I
 currently prefer is to use a manually maintained type-override-map to change
 the type of specific API items.
 
+Over and out :)
