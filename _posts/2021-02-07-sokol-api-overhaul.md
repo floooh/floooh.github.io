@@ -703,7 +703,7 @@ integrate those states, but still treats the depth-stencil-state separately.
 D3D12, Vulkan and WebGPU integrated *all* those separate state objects into a
 single immutable pipeline-state object, but the creation-information is still
 structured like in the "legacy" APIs. There are nested depth-stencil-,
-rasterizer- and blend-state struct, even though technically this doesn't make
+rasterizer- and blend-state structs, even though technically this doesn't make
 much sense because those states can't be changed independently anymore.
 
 Instead in sokol_gfx.h I decided now to change things around in sg_pipeline_desc
