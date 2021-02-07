@@ -722,7 +722,7 @@ unsigned because negative values make no sense for them. Originally I was
 planning to do a big signed-vs-unsigned cleanup, but reconsidered after an
 enlightening Twitter discussion thread:
 
-https://twitter.com/FlohOfWoe/status/1355839062880477187
+[https://twitter.com/FlohOfWoe/status/1355839062880477187](https://twitter.com/FlohOfWoe/status/1355839062880477187)
 
 The gist is that in a language without robust under/overflow checking it is
 better to prefer signed integers even for values that not supposed to be
