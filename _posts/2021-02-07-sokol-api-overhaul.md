@@ -36,9 +36,9 @@ code with new code.
 
 The changes are tracked in the following pull-requests:
 
-- for the sokol headers: https://github.com/floooh/sokol/pull/458
-- for the sokol samples: https://github.com/floooh/sokol-samples/pull/80
-- for the sokol-shdc tool: https://github.com/floooh/sokol-tools/pull/47
+- for the sokol headers: [https://github.com/floooh/sokol/pull/458](https://github.com/floooh/sokol/pull/458)
+- for the sokol samples: [https://github.com/floooh/sokol-samples/pull/80](https://github.com/floooh/sokol-samples/pull/80)
+- for the sokol-shdc tool: [https://github.com/floooh/sokol-tools/pull/47](https://github.com/floooh/sokol-tools/pull/47)
 
 ## The Change List
 
