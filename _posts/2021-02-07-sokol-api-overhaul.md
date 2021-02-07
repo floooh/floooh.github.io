@@ -732,7 +732,7 @@ underflow actually happend (because you don't get a negative number, but a
 very big positive number out of it, which might be indistuingishable from 
 large valid numbers).
 
-Unsigned integers should only for special cases, like bit-wise operations, or
+Unsigned integers should only be used for special cases, like bit-wise operations, or
 modulo arithmetics (where overflow is an actual "feature").
 
 I allowed one other exception, when an item is usually assigned from a
@@ -743,14 +743,14 @@ Unfortunately this rule of "almost always signed" isn't a good match for more
 strongly typed languages like Zig and Rust, because (for instance) both of
 those languages use unsigned integers for common things like array indices.
 *But* those languages also have robust over/underflow checking, so using unsigned
-integers makes more sense in there. This presents a conflict in the
+integers makes more sense there. This presents a conflict in the
 whole idea to make the Sokol C-APIs more binding-friendly.
 
 Long story short: I'll come up with a separate solution which will resolve
 this conflict without plastering the C-API with unsigned integers. One idea
 is to introduce specific typedefs in the C-APIs such as
 **sg_count**, **sg_index** etc... which then can remain signed on the C-API
-side, but the auto-generated bindings may change those to unsigned type.
+side, but the auto-generated bindings may change those to unsigned types.
 Currently I'm not a big fan of that idea though because it makes the C-API
 more "obscure" (strong-typing fans might disagree). Another solution which I
 currently prefer is to use a manually maintained type-override-map to change
