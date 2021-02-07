@@ -13,12 +13,9 @@ last 6 months or so.
 The changes cover 3 major areas:
 
 1. Making the C APIs more 'language binding friendly', I've written about
-this in [my last blog
-post](https://floooh.github.io/2020/08/23/sokol-bindgen.html). In parallel to
-the API changes I've brought the [automatically generated Zig bindings]
-(https://github.com/floooh/sokol-zig/) into a state where they're actually
-useful (also see my little [Pacman.zig toy
-project](https://github.com/floooh/pacman.zig)).
+this in [my last blog post](https://floooh.github.io/2020/08/23/sokol-bindgen.html). In parallel to
+the API changes I've brought the [automatically generated Zig bindings](https://github.com/floooh/sokol-zig/) into a state where they're actually
+useful (also see my little [Pacman.zig toy project](https://github.com/floooh/pacman.zig)).
 
 2. Add a long-missing feature to allow multiple-rendertarget-rendering with
 differing pixel formats, and while at it, per-attachment color-write-masks
