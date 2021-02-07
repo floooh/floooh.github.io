@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Upcoming API changes in the Sokol headers (Feb 2021)
+title: "Upcoming Sokol header API changes (Feb 2021)"
 ---
 
 In a few days I will merge the next API-breaking update for the sokol
@@ -40,7 +40,7 @@ The changes are tracked in the following pull-requests:
 - for the sokol samples: https://github.com/floooh/sokol-samples/pull/80
 - for the sokol-shdc tool: https://github.com/floooh/sokol-tools/pull/47
 
-# The Change List
+## The Change List
 
 Here's a raw list of the public API changes. Don't worry if this looks a bit overwhelming,
 below that will be the concrete change recipes, and below that a small "Q&A" about
@@ -123,9 +123,9 @@ the reasons behind the changes.
     - various fixes in the generated code required for the sokol_gfx.h public struct changes
     - sokol-shdc can now generate code for the [sokol-zig bindings](https://github.com/floooh/sokol-zig/)
 
-# Change Recipes
+## Change Recipes
 
-## sg_apply_uniforms()
+### sg_apply_uniforms()
 
 Instead of separate pointer- and size-parameters, **sg_apply_uniforms** now takes a single
 **sg_range** pointer:
@@ -152,9 +152,9 @@ For code which must compile both in C and C++, you can use the special *SG_RANGE
 sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, SG_RANGE_REF(vs_params));
 ```
 
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/cube-sapp.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/cube-sapp.c)
 
-## sg_update_buffer(), sg_append_buffer()
+### sg_update_buffer(), sg_append_buffer()
 
 Same as with *sg_apply_uniforms()*, the separate pointer- and size-parameters are now 
 a single **sg_range** pointer:
@@ -177,7 +177,9 @@ sg_update_buffer(buf, { data_ptr, data_size});
 sg_append_buffer(buf, { data_ptr, data_size});
 ```
 
-## sg_update_image()
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/instancing-sapp.c)
+
+### sg_update_image()
 
 The image-data type has been renamed from **sg_image_content** to **sg_image_data**, and
 is now composed of a 2D array of **sg_range** structs (which means you can use the
@@ -200,7 +202,9 @@ sg_update_image(img, &(sg_image_content){
 });
 ```
 
-## Initializing sg_pass_action structs
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/dyntex-sapp.c)
+
+### Initializing sg_pass_action structs
 
 Change **.val** to **.value**:
 
@@ -223,9 +227,9 @@ sg_color clear_color = { .r=1.0f, .g=0.5f, .b=0.25f, .a=1.0f };
 pass_action.colors[0].value = clear_color;
 ```
 
-[Sample code](https://github.com/floooh/sokol-samples/blob/master/sapp/clear-sapp.c)
+[Sample code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/clear-sapp.c)
 
-## Creating immutable buffers (with initial data)
+### Creating immutable buffers (with initial data)
 
 The common case of creating a buffer from an array of vertices or indices
 now looks like this (using the SG_RANGE helper macro):
@@ -252,10 +256,9 @@ sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
     }
 });
 ```
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/quad-sapp.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/quad-sapp.c)
 
-
-## Creating dynamic buffers (without initial data)
+### Creating dynamic buffers (without initial data)
 
 This looks exactly as before:
 
@@ -266,9 +269,9 @@ sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
     .usage = SG_USAGE_STREAM
 });
 ```
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-sapp.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/instancing-sapp.c)
 
-## Creating shaders via sokol-shdc
+### Creating shaders via sokol-shdc
 
 The generated functions which return an initialized **sg_shader_desc** struct
 now no longer call directly into sokol-gfx to query the rendering backend,
@@ -282,9 +285,9 @@ sg_shader shd = sg_make_shader(triangle_shader_desc());
 sg_shader shd = sg_make_shader(triangle_shader_desc(sg_query_backend()));
 ```
 
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/triangle-sapp.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/triangle-sapp.c)
 
-## Creating shaders without sokol-shdc
+### Creating shaders without sokol-shdc
 
 If the shader uses textures, change **.type** to **.image_type**:
 ```c
@@ -302,7 +305,7 @@ sg_shader shd = sg_make_shader(&(sg_shader_desc){
     /* ... */
 });
 ```
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/d3d11/texcube-d3d11.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/d3d11/texcube-d3d11.c)
 
 If the shader is precompiled (D3D11 or Metal), pass the bytecode as an **sg_range** struct:
 
@@ -335,9 +338,9 @@ sg_shader shd = sg_make_shader(&(sg_shader_desc){
     /* ... */
 });
 ```
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/d3d11/binshader-d3d11.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/d3d11/binshader-d3d11.c)
 
-## Image Creation
+### Image Creation
 
 The nested image content struct has been renamed from **.content** to **.data**, and
 the type changed from **sg_image_content** to **sg_image_data**:
@@ -373,7 +376,9 @@ sg_image img = sg_make_image(&(sg_image_desc){
 });
 ```
 
-## Pipeline Creation
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/texcube-sapp.c)
+
+### Pipeline Creation
 
 In general:
 
@@ -383,7 +388,7 @@ been moved to the top-level struct and nested structs
 - the nested **.depth_stencil** struct has been split into **.depth** and **.stencil**
 - the nested **.blend_state** struct item has been replaced with a nested array of **.color** struct items, which define per-color-attachment attributes
 
-### Creating a minimal pipeline for 3D rendering:
+#### Creating a minimal pipeline for 3D rendering:
 
 ```c
 // OLD:
@@ -412,9 +417,9 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
     } 
 });
 ```
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/cube-sapp.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/cube-sapp.c)
 
-### Creating a pipeline for alpha-blended rendering:
+#### Creating a pipeline for alpha-blended rendering:
 
 ```c
 // OLD:
@@ -445,9 +450,9 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
     }
 });
 ```
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/html5/imgui-emsc.cc)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/html5/imgui-emsc.cc)
 
-### Offscreen rendering with non-default pixel format and multi-sampling:
+#### Offscreen rendering with non-default pixel format and multi-sampling:
 
 ```c
 // OLD
@@ -485,7 +490,7 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc))
 });
 ```
 
-### Multiple-Render-Target rendering with default color pixel formats:
+#### Multiple-Render-Target rendering with default color pixel formats:
 
 ```c
 // OLD:
@@ -531,9 +536,9 @@ from their default values, only the number of color-attachments needs to be
 provided as long as the pass color-attachment images also have been created
 with default attributes
 
-[Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/mrt-sapp.c)
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/mrt-sapp.c)
 
-### Multiple-Render-Target rendering with differing pixel formats
+#### Multiple-Render-Target rendering with differing pixel formats
 
 On backends which support MRT rendering (which is "all" except GLES2/WebGL1),
 the render targets can now have different pixel formats:
@@ -566,6 +571,8 @@ the count could also be "inferred" from the initialized array items. This is
 because "missing" items will be initialized with their default values, yet
 sokol-gfx needs to know how many color attachments the pipeline will be configured
 with.
+
+[Sample Code](https://github.com/floooh/sokol-samples/blob/bindgen-friendly/sapp/mrt-pixelformats-sapp.c)
 
 You can also setup an MRT pipeline object which per-color-attachment blend
 functions, but this is currently only supported in the D3D11 and Metal backends
@@ -603,15 +610,15 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
 });
 ```
 
-# Q & A
+## Q & A
 
-## Why the "range" structs?
+### Why the "range" structs?
 
 Mainly to enable better language bindings to languages which have "proper" array-
 and slice-types. But it also makes a lot of sense for C and C++ when a pointer/size
 pair can be initialized and passed around as a single item.
 
-## Why the sg_color struct?
+### Why the sg_color struct?
 
 Because one can't assign an array to another array of the same size in C and C++:
 
@@ -625,7 +632,7 @@ const sg_color a = { 1.0f, 2.0f, 3.0f, 4.0f };
 const sg_color b = a;
 ```
 
-## Why are there two sizes in sg_buffer_desc?
+### Why are there two sizes in sg_buffer_desc?
 
 The *sg_buffer_desc* struct now has two size items, one in the top-level struct,
 and one in the nested sg_range struct:
@@ -659,7 +666,7 @@ item, and keep the whole **.data** nested struct zero-initialized.
 The "default-value fixup" that's happening inside sokol-gfx will then take care
 of the rest (e.g. it will copy **.data.size** into **.size** for the 'immutable buffer case')
 
-## Why doesn't the GL backend support per-attachment blend-functions?
+### Why doesn't the GL backend support per-attachment blend-functions?
 
 This will be fixed at a later time.
 
@@ -677,13 +684,13 @@ The GLES code paths will most likely not get this feature though because the mai
 of the GLES path is WebGL support, and WebGL2 is "stuck" at GLES 3.0, while
 glBlendFuncSeparatei() was only added in GLES 3.2.
 
-## Why don't the GLES/WebGL backends support different color write masks?
+### Why don't the GLES/WebGL backends support different color write masks?
 
 Same reason as above, the required function [glColorMaski](https://www.khronos.org/registry/OpenGL-Refpages/es3/html/glColorMask.xhtml) is only available since GLES 3.2.
 
 (but note that the desktop GL backend supports independent color masks).
 
-## Why has the sg_pipeline_desc struct changed that much
+### Why has the sg_pipeline_desc struct changed that much
 
 The initial reason why sg_pipeline_desc has changed at all was the addition
 of per-color-attachment pixel formats. And since the "dam was
@@ -711,7 +718,7 @@ Since it doesn't make any technical sense to structure the interior of the
 sg_pipeline_desc struct in the "traditional" way, it might just as well be
 more convenient by requiring less typing.
 
-## Why no bigger signed- vs unsigned-integer API changes
+### Why no bigger signed- vs unsigned-integer API changes
 
 There are a lot of signed integers in the Sokol APIs that "should" be
 unsigned because negative values make no sense for then. Originally I was
