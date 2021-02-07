@@ -718,7 +718,7 @@ more convenient by requiring less typing.
 ### Why no bigger signed- vs unsigned-integer API changes
 
 There are a lot of signed integers in the Sokol APIs that "should" be
-unsigned because negative values make no sense for then. Originally I was
+unsigned because negative values make no sense for them. Originally I was
 planning to do a big signed-vs-unsigned cleanup, but reconsidered after an
 enlightening Twitter discussion thread:
 
