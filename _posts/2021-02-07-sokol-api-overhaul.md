@@ -759,4 +759,18 @@ more "obscure" (strong-typing fans might disagree). Another solution which I
 currently prefer is to use a manually maintained type-override-map to change
 the type of specific API items.
 
+### Why does the sokol-shdc generated code no longer call sokol_gfx.h functions directly?
+
+This was a feature request to make the shader-compiler usable with
+hot-code-reloading where the sokol-libraries are in hot-reloaded
+DLLs. This requires calling the sokol functions through jump tables which
+are patched on DLL reload. It also makes the generated code a bit more
+flexible, for instance the change makes it possible to get the generated
+sg_shader_desc struct for *any* sokol-gfx backend, not just the active
+one.
+
+
+
+
+
 Over and out :)
