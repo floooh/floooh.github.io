@@ -47,7 +47,7 @@ the reasons behind the changes.
     - misc changes:
         - **sg_range**: a new struct to hold a pointer/size pair, and helper macros **SG_RANGE** and **SG_RANGE_REF**
         - **sg_color**: a new struct to hold an RGBA color value
-        - **sg_features.mrt_independent_blend_states**: a new feature flag to indicate support for per-color-attachment blend states
+        - **sg_features.mrt_independent_blend_state**: a new feature flag to indicate support for per-color-attachment blend states
         - **sg_features.mrt_independent_write_mask**: ditto to indicate if per-color-attachment write-masks are supported
         - in **sg_color_mask** all possible bit-flag combinations now have an
         explicit enumeration value (for instance **SG_COLORMASK_RGA**), this allows to treat sg_color_mask
