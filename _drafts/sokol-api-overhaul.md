@@ -1,15 +1,16 @@
 ---
 layout: post
-title: The Great API Overhaul (Feb 2021)
+title: Sokol Header API Overhaul (Feb 2021)
 ---
 
-In a few days I will do the next API breaking merge for the sokol headers. In general
-I try to keep such breaking changes to a minimum (at most two or three a year),
-that's also why the changes in this merge will be a bit bigger than usual. Since
-I was going to break compatibility anyway, I added a few more changes that I
-had been collecting in the back of my head over the last 6 months or so.
+In a few days I will merge the next API-breaking update for the sokol
+headers. In general I try to keep such breaking changes to a minimum (at most
+two or three a year), that's also why the changes in this merge will be a bit
+bigger than usual. Since I was going to break compatibility anyway, I added a
+few more changes that I had been collecting in the back of my head over the
+last 6 months or so.
 
-The changes cover 3 areas:
+The changes cover 3 major areas:
 
 1. Making the C APIs more 'language binding friendly', I've written about
 this in [my last blog
@@ -19,17 +20,25 @@ the API changes I've brought the [automatically generated Zig bindings]
 useful (also see my little [Pacman.zig toy
 project](https://github.com/floooh/pacman.zig)).
 
-2. Add a long-missing feature to allow pass-color-attachments with different
-pixel formats, and while at it, per-attachment color-write-masks and blend-state
-(although the latter is currently only supported on the D3D11 and Metal backends).
+2. Add a long-missing feature to allow multiple-rendertarget-rendering with
+differing pixel formats, and while at it, per-attachment color-write-masks
+and blend-state (the latter is currently only supported on the D3D11
+and Metal backends though).
 
 3. Some general cleanup in public structs, renaming some items, reorganising
-some nested structs for more convenience and "clarity", and so on...
+some nested structs for more convenience and "clarity".
 
-I tried to make all required changes actual compile errors (which might explain
-some "non-sensical" renames). But at least when compiling in C mode (instead of C++),
-you also need to check for warnings. I'll try to provide simple "recipes" how
-to replace old code with new code in this blog post though.
+I tried to make all required changes actual compile errors (which explains
+some "random" renames from "content" to "data"). When compiling in C mode
+(instead of C++), you should also check for any warnings though. I'll try to
+provide simple "recipes" how to replace old code with new code in this blog
+post though.
+
+The changes are tracked in the following pull-requests:
+
+- for the sokol headers: https://github.com/floooh/sokol/pull/458
+- for the sokol samples: https://github.com/floooh/sokol-samples/pull/80
+- for the sokol-shdc tool: https://github.com/floooh/sokol-tools/pull/47
 
 # The Change List
 
@@ -43,8 +52,10 @@ describing how to change your existing code.
         - **sg_color**: a new struct to hold an RGBA color value
         - **sg_features.mrt_independent_blend_states**: a new feature flag to indicate support for per-color-attachment blend states
         - **sg_features.mrt_independent_write_mask**: ditto to indicate if per-color-attachment write-masks are supported
-        - in **sg_color_mask** all possible bit-flag combinations now have an explicit
-        enumeration value (for instance **SG_COLORMASK_RGA**)
+        - in **sg_color_mask** all possible bit-flag combinations now have an
+        explicit enumeration value (for instance **SG_COLORMASK_RGA**), this allows to treat sg_color_mask
+        as a "proper enum" instead of a "flag-bits enum"
+        - clean up sign conversions warnings (-Wsign-conversion on gcc and clang)
     - **sg_pass_action**:
         - **sg_color_attachment_action.val** has been renamed to **.value** and its type changed from **float[4]** to **sg_color**
         - **sg_depth_attachment_action.val** has been renamed to **.value**
@@ -67,8 +78,8 @@ describing how to change your existing code.
         - the struct **sg_depth_stencil_state** has been split into the structs **sg_depth_state** and **sg_stencil_state**
         - member names in the new structs **sg_depth_state** and **sg_stencil_state** have been shortened (remove the now redundant **depth_** and **stencil_** prefixes)
         - the struct **sg_rasterizer_state** has been eliminated
-        - the following **sg_rasterizer_state** members have moved directly into **sg_pipeline_desc*: alpha_to_coverage_enabled, cull_mode, face_winding, sample_count
-        - ...and the following **sg_rasterizer_state** members have moved into **sg_depth_state**: depth_bias, depth_bias_slope_scale, depth_bias_clamp (the depth_ prefix has been removed)
+        - the following **sg_rasterizer_state** members have moved directly into **sg_pipeline_desc**: alpha_to_coverage_enabled, cull_mode, face_winding, sample_count
+        - ...and the following **sg_rasterizer_state** members have moved into **sg_depth_state**: depth_bias, depth_bias_slope_scale, depth_bias_clamp (and the *depth_* prefix has been removed)
         - a new nested struct **sg_color_state** to describe per-color-attachment pixel format,
         color write mask and blend state
         - **sg_blend_state.color_write_mask** has moved to **sg_color_state.write_mask**
@@ -77,15 +88,12 @@ describing how to change your existing code.
         - **sg_blend_state.blend_color** has moved to **sg_pipeline_desc.blend_color**, and its type changes from **float[4]** to **sg_color**
         - **sg_blend_state.color_attachment_count** has become **sg_pipeline_desc.color_count**
         - **sg_pipeline_desc.depth_stencil** has been split into **.depth** and **.stencil**
-        - **sg_pipeline_desc.blend** has been replaced with a nested array of sg_color_state called **.colors[]**
+        - **sg_pipeline_desc.blend** has been replaced with an array of **sg_color_state** called **.colors[]**
     - **sg_pass_desc**:
         - the struct **sg_attachment_desc** has been renamed to **sg_pass_attachment_desc**
     - updated function signatures:
-        - **sg_update_buffer()** and **sg_append_buffer()**: the *data_ptr* and *data_size* arguments have been replaced with an **sg_range** pointer:
+        - **sg_update_buffer()** and **sg_append_buffer()**: the *data_ptr* and *data_size* arguments have been replaced with an **sg_range** pointer
         - **sg_update_image()**: the **sg_image_content** type has been renamed to **sg_image_data**
-        - new function **sg_begin_default_passf()** which takes the *width* and *height* arguments as float
-        - new function **sg_apply_viewportf()** which takes float arguments
-        - new function **sg_apply_scissor_rectf()** which takes float arguments
         - **sg_apply_uniforms()**: the *data* and *num_bytes* arguments have been replaced with an **sg_range** pointer
     - new alternative functions which take float- instead of int-arguments (note the 'f' postfix):
         - **sg_begin_passf()**: width and height as floats
@@ -101,7 +109,7 @@ describing how to change your existing code.
     - **sgl_scissor_rectf()**: scissor rect position and size as floats
 
 - sokol_debugtext.h:
-    - a new struct **sdtx_range** and helper macro **SDTC_RANGE()**
+    - a new struct **sdtx_range** and helper macro **SDTX_RANGE()**
     - **sdtx_font_desc_t.ptr** and **.size** has been merged into a nested **sdtx_range** struct with the name **.data**
 
 - sokol_shape.h:
@@ -112,7 +120,7 @@ describing how to change your existing code.
 
 - sokol-shdc (shader cross-compiler):
     - the code generated by sokol-shdc no longer directly calls sokol_gfx.h functions to get the runtime backend, instead the caller now needs to pass the correct backend into the generated code (see below in 'Change Recipes' section for examples)
-    - fixes in the generated code required for the sokol_gfx.h public struct changes
+    - various fixes in the generated code required for the sokol_gfx.h public struct changes
     - sokol-shdc can now generate code for the [sokol-zig bindings](https://github.com/floooh/sokol-zig/)
 
 # Change Recipes
@@ -137,7 +145,7 @@ sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, SG_RANGE(vs_params));
 sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, { vs_params, sizeof(vs_params) });
 ```
 
-For code which must compile both in C and C++, you can use the special SG_RANGE_REF() macro:
+For code which must compile both in C and C++, you can use the special *SG_RANGE_REF()* macro:
 
 ```c
 // this compiles both in C and C++:
@@ -262,8 +270,9 @@ sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
 
 ## Creating shaders via sokol-shdc
 
-You need to pass the sokol-gfx backend into the generated functions which return
-**sg_shader_desc** structs (note the call to *sg_query_backend()*:
+The generated functions which return an initialized **sg_shader_desc** struct
+now no longer call directly into sokol-gfx to query the rendering backend,
+instead the backend type must now be passed as argument from the outside:
 
 ```c
 // OLD:
@@ -369,9 +378,9 @@ sg_image img = sg_make_image(&(sg_image_desc){
 In general:
 
 - no changes in the vertex layout definition (the nested **.layout** struct)
-- the nested **.rasterizer** struct has been disolved, and its render states have
-been distributed to the top-level or other nested structs
-- the nested **.depth_stencil** strust has been split into **.depth** and **.stencil**
+- the nested **.rasterizer** struct has been "dissolved", and its render states have
+been moved to the top-level struct and nested structs
+- the nested **.depth_stencil** struct has been split into **.depth** and **.stencil**
 - the nested **.blend_state** struct item has been replaced with a nested array of **.color** struct items, which define per-color-attachment attributes
 
 ### Creating a minimal pipeline for 3D rendering:
@@ -514,17 +523,19 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
 });
 ```
 
-The old **.blend.color_attachment_count** has been renamed to **.color_count**
-and now also indicates the number of valid items in the **.colors** array
-of *sg_color_state* items which describes color-attachment attributes. But since
-all those attributes are initialized from their default values, only the number
-of color-attachments needs to be provided.
+The old **.blend.color_attachment_count** has been renamed to
+**.color_count** and now also indicates the number of valid items in the
+**.colors** array of **sg_color_state** items which describes
+color-attachment attributes. But since all those attributes are initialized
+from their default values, only the number of color-attachments needs to be
+provided as long as the pass color-attachment images also have been created
+with default attributes
 
 [Sample Code](https://github.com/floooh/sokol-samples/blob/master/sapp/mrt-sapp.c)
 
 ### Multiple-Render-Target rendering with differing pixel formats
 
-On ackends which support MRT rendering (which is *all* except GLES2/WebGL1),
+On backends which support MRT rendering (which is "all" except GLES2/WebGL1),
 the render targets can now have different pixel formats:
 
 ```c
@@ -592,161 +603,112 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
 });
 ```
 
-# General non-breaking changes
+# Q & A
 
-sokol_gfx.h, sokol_app.h and sokol_gl.h gained a couple new functions which 
-take float parameters instead of integers. This may reduce noisy casting between
-floats and integers in languages which don't implicitly convert between the two
-(and may also get rid of some casts needed to supress compiler-specific warnings
-in C and C++).
+## Why the "range" structs?
 
-Those new functions which take float parameters are named the same as their
-integer counterparts but with an 'f' postfix. They accept the same value-ranges
-as their integer counterparts. Other then that the float-functions behave the
-same as the integer-functions. Float values will be clamped to integer, there
-is no "subpixel-functionality". 
+Mainly to enable better language bindings to languages which have "proper" array-
+and slice-types. But it also makes a lot of sense for C and C++ when a pointer/size
+pair can be initialized and passed around as a single item.
 
-The new functions are:
+## Why the sg_color struct?
 
-In **sokol_gfx.h**:
-```c
-void sg_begin_default_passf(const sg_pass_action* pass_action, float width, float height);
-
-void sg_apply_viewportf(float x, float y, float width, float height, bool origin_top_left);
-
-void sg_apply_scissor_rectf(float x, float y, float width, float height, bool origin_top_left);
-```
-
-In **sokol_app.h**:
-```c
-float sapp_widthf(void);
-
-float sapp_heightf(void);
-```
-
-In **sokol_gl.h**:
-```c
-sgl_viewportf(float x, float y, float w, float h, bool origin_top_left);
-
-sgl_scissor_rectf(float x, float y, float w, float h, bool origin_top_left);
-```
-
-# Introducing range structs (pointer/size pairs)
-
-So far, binary data has been passed into the APIs as a pointer and a separate
-size in bytes (e.g. two separate struct members, or two separate function
-parameters). This separation has now been removed and pointer/size pairs are now
-bundled in "range-structs". This has advantages both for working in C, and in
-languages which have "proper" array and slice types.
-
-The advantage for working in C is that pointers to data and the associated
-data size is now initialized and passed around as one item. This makes it
-harder for the size to get mixed up with something else or get lost completely.
-
-Many new languages have "proper" array slices which bundle a base pointer and
-length. Having a corresponding type in the C API makes it easier for language
-bindings to connect to those language-native types.
-
-Range structs have been added to the following headers so far:
-
-- sokol_gfx.h: **sg_range**
-- sokol_debugtext.h: **sdtx_range**
-- sokol_shape.h: **sshape_range**
-
-A range struct looks like this (with the sokol_gfx.h sg_range struct as example,
-for other headers, use the respective prefix):
+Because you can't assign an array to another array of the same size in C and C++:
 
 ```c
-typedef struct sg_range {
-    const void* ptr;
-    size_t size;
-} sg_range;
+// this doesn't work:
+const float a[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
+const float b[4] = a;
+
+// but this works:
+const sg_color a = { 1.0f, 2.0f, 3.0f, 4.0f };
+const sg_color b = a;
 ```
 
-If you have a pointer and "dynamic" size, you'd usually create the range struct
-like this:
+## Why are there two sizes in sg_buffer_desc?
+
+The *sg_buffer_desc* struct now has two size items, one in the top-level struct,
+and one in the nested sg_range struct:
 
 ```c
-const sg_range range = { .ptr = my_pointer, .size = my_size };
+const sg_buffer_desc desc = {
+    .size = ...,
+    .data.size = ...,
+};
 ```
 
-...or this is fine too:
+This might seem a bit confusing, because there are two different items to 
+describe the buffer size...
 
-```c
-const sg_range range = { my_pointer, my_size };
-```
+I actually went back and forth on this a few time until I settled for the current
+solution. Think of the top-level .size items as the buffer size, and the
+.data.size item as the size of the data that's copied into the buffer on 
+creation. Currently there's a restriction that the data size must match the
+buffer size, but this might be relaxed in later API versions, allowing the initially
+copied data to be smaller than the buffer size (current plan is that this will
+be part of a "dynamic resources overhaul" which makes the whole area of copying
+data into buffers and images more flexible).
 
-For the common situation where you have a fixed size array, like an array of
-vertices or indices, you can use the **SG_RANGE()** helper macro:
+Until then you should only initialize one of the .size items:
 
-```c
-const float vertices[] = { 0.0f,0.0f, 1.0f,0.0f, 1.0f,1.0f, 0.0f,1.0f };
-const sg_range range = SG_RANGE(vertices);
-```
+- for immutable buffers with initial data, initialize the **.data.size** and **.data.ptr** items, and keep **.size** zero-initialized
+- for dynamic buffers (without initial data), initialize only the **.size** item,
+and keep the whole **.data** nested struct zero-initialized.
 
-**SG_RANGE** simply expands to:
-```c
-#define SG_RANGE(x) (sg_range){ &x, sizeof(x) }
-```
-...when compiled as C, and:
-```cpp
-#define SG_RANGE(x) sg_range{ &x, sizeof(x) }
-```
-...when compiled as C++.
+The "default-value fixup" that's happening inside sokol-gfx will then take care
+of the rest (e.g. it will set **.size** to **.data.size** for the 'immutable buffer case')
 
+## Why doesn't the GL backend support per-attachment blend-functions?
 
-# Change-recipes for range structs
+Currently in the GL backends, all color attachments must use the same blend function
+(or precisely, the blend function from the first color attachment will be used
+for all other color attachments of a rendering pass).
 
-## sokol_gfx.h
+Fixing this will require to upgrade the desktop GL backend code to GL 4.0, because
+the required function [glBlendFuncSeparatei()](https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glBlendFuncSeparate.xhtml) is only available since GL 4.0.
 
-Creating a vertex buffer with immutable data:
+Since macOS supports GL versions up to 4.1 since OSX 10.9, it makes sense
+to bump the GL backend to at least 4.0, but this will happen in a separate 
+update.
 
-***OLD***
-```c
-float vertices[] = { /*...*/ };
+The GLES code paths will most likely not get this feature because the main purpose
+of the GLES path is WebGL support, and WebGL2 is "stuck" at GLES 3.0, while
+glBlendFuncSeparatei() was only added in GLES 3.2.
 
-sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
-    .size = sizeof(vertices),
-    .content = vertices
-});
-```
-***NEW***
-```c
-float vertices[] = { /*...*/ };
+## Why don't the GLES/WebGL backends support different color write masks?
 
-sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
-    .data = SG_RANGE(vertices)
-});
-```
-...or alternatively:
-```c
-float vertices[] = { /*...*/ };
+Same reason as above, the required function [glColorMaski](https://www.khronos.org/registry/OpenGL-Refpages/es3/html/glColorMask.xhtml) is only available since GLES 3.2.
 
-sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
-    .data = {
-        .ptr = vertices,
-        .size = sizeof(vertices)
-    }
-});
-```
+(but note that the desktop GL backend supports independent color masks).
 
-Note that creating dynamic buffers without initial data *hasn't* changed:
-```c
-sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
-    .usage = SG_USAGE_STREAM,
-    .size = buffer_size
-});
-```
-For the obvious question why there are two members describing sizes in sg_buffer_desc, please
-check out the Q&A section at the end of this blog post :)
+## Why has the sg_pipeline_desc struct changed that much
 
-# TODO
-- sg_color
-- sg_features.mrt_independent_blend_state
-- sg_features.mrt_independent_write_masks
+The initial reason why sg_pipeline_desc has changed at all was the addition
+of per-color-attachment pixel formats. And since the "dam was
+broken" anyway, I added a few more changes that had been rolling around in the
+back of my head for a while.
+
+From today's point-of-view it makes little sense to structure the pipeline
+creation descriptor structs like "traditional" 3D APIs. For instance in
+D3D11, the vertex-layout, depth-stencil-state, rasterizer-state and
+blend-state can all be set independently from each other. Metal went a huge step
+forward to integrate those states, but still treats the depth-stencil-state
+separately.
+
+D3D12, Vulkan and WebGPU integrated *all* this state into a single immutable
+pipeline object, but the creation-information is still structured like in the
+"legacy" APIs. There are nested depth-stencil-, rasterizer- and blend-state
+struct, even though technically this doesn't make much sense because those
+states can't be changed independently anymore.
+
+Instead in sokol_gfx.h I decided to change things around in sg_pipeline_desc
+so that it looks "neater" when used with C99 designated initializion. All the
+redundant prefixes (like "depth_*" or "stencil_*") are gone and instead the
+state names with common prefixes are now grouped into their own nested structs.
+
+Since it doesn't make any technical sense to structure the interior of
+sg_pipeline_desc in the "traditional" way, it might just as well be more
+convenient by requiring less typing.
 
 
-
-# FIXME: Q & A section
-
-- why are there two size members in sg_buffer_desc
+- why no signed- vs unsigned-integer changes
