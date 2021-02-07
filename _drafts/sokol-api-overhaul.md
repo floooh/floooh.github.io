@@ -710,5 +710,42 @@ Since it doesn't make any technical sense to structure the interior of
 sg_pipeline_desc in the "traditional" way, it might just as well be more
 convenient by requiring less typing.
 
+## Why no bigger signed- vs unsigned-integer API changes
 
-- why no signed- vs unsigned-integer changes
+There are a lot of signed integers in the Sokol APIs that "should" be
+unsigned because negative values make no sense for then. Originally I was
+planning to do a big signed-vs-unsigned cleanup, but reconsidered after an
+enlightening Twitter thread:
+
+https://twitter.com/FlohOfWoe/status/1355839062880477187
+
+The gist is that in a language without robust under/overflow checking it is better
+to prefer signed integers even for values that "can't" be negative, because
+it's too easy to produce accidental underflows when subtracting two unsigned
+integers, but hard to check whether an unsigned underflow actually happend (because
+you don't get a negative number, but a very big positive number out of it).
+
+Unsigned integers should only for special cases, like bit-wise operations, or modulo arithmetics (where overflow is an actual "feature").
+
+I allowed one other exception, when an item is usually assigned from a
+**sizeof()** statement. In that case I opted for using the **size_t** type
+for that item.
+
+Unfortunately this rule of "almost always signed" isn't a good match for more
+strongly typed languages like Zig and Rust, because (for instance) both of
+those languages use unsigned integers for common things like array indices.
+*But* those languages also have robust overflow checking, so using unsigned
+integers makes more sense in such languages. This presents a conflict in the
+whole idea to make the Sokol C-APIs more binding-friendly.
+
+Long story short, I'll come up with a separate solution which will resolve
+this conflict without plastering the C-API with unsigned integers, but this
+won't happen yet with the upcoming C-API changes. One idea is to introduce
+specific typedefs in the C-APIs such as
+**sg_count**, **sg_index** etc... which then can remain signed on the C-API
+side, but the auto-generated bindings may change those to unsigned type.
+Currently I'm not a big fan of that idea though because it makes the C-API
+more "obscure" (strong-typing fans might disagree). Another solution which I
+currently prefer is to use a manually maintained type-override-map to change
+the type of specific API items.
+
