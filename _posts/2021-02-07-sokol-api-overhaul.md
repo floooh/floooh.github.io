@@ -725,7 +725,7 @@ enlightening Twitter discussion thread:
 [https://twitter.com/FlohOfWoe/status/1355839062880477187](https://twitter.com/FlohOfWoe/status/1355839062880477187)
 
 The gist is that in a language without robust under/overflow checking it is
-better to prefer signed integers even for values that not supposed to be
+better to prefer signed integers even for values that are not supposed to be
 negative, because it's too easy to produce accidental underflows when
 subtracting two unsigned integers, but hard to check whether an unsigned
 underflow actually happend (because you don't get a negative number, but a
