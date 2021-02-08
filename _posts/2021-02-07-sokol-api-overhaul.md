@@ -112,7 +112,7 @@ the reasons behind the changes.
 - sokol_shape.h:
     - a new struct **sshape_range** and helper macro **SSHAPE_RANGE()**
     - **sshape_buffer_item_t**:
-        - the struct members **.buffer_ptr** and **.buffer_size** have been into a nested **sshape_range** struct named **.buffer**
+        - the struct members **.buffer_ptr** and **.buffer_size** have been moved into a nested **sshape_range** struct named **.buffer**
         - the types of **.data_size** and **.shape_offset** have been changed from uint32_t to size_t
 
 - sokol-shdc (shader cross-compiler):
