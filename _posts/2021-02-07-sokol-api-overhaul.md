@@ -766,8 +766,11 @@ flexible, for instance the change makes it possible to get the generated
 sg_shader_desc struct for *any* sokol-gfx backend, not just the active
 one.
 
+### What's the point of those additional '*f()' functions?
 
-
-
+To eliminate casting from integer to float and back to integer if framebuffer
+coordinate computations must be done in floating point. In C and C++ this
+isn't a big deal, but it becomes a bit of a hassle in strongly typed languages
+which require explicit casting between integer and float.
 
 Over and out :)
