@@ -645,7 +645,7 @@ This might seem a bit confusing, because there are two different items to
 describe the buffer size...
 
 I actually went back and forth on this a few time until I settled for the current
-solution. Think of the top-level .size items as the buffer size, and the
+solution. Think of the top-level .size item as the buffer size, and the
 .data.size item as the size of the data that's copied into the buffer on 
 creation. Currently there's a restriction that the data size must match the
 buffer size, but this might be relaxed in later API versions, allowing the initially
