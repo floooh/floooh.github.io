@@ -707,7 +707,7 @@ rasterizer- and blend-state structs, even though technically this doesn't make
 much sense because those states can't be changed independently anymore.
 
 Instead in sokol_gfx.h I decided now to change things around in sg_pipeline_desc
-so that it looks "nicer" when used with C99 designated initializion. All the
+so that it looks "nicer" when used with C99 designated initialization. All the
 redundant prefixes (like "depth_*" or "stencil_*") are gone and instead the
 state names with common prefixes are now grouped into their own nested structs.
 
