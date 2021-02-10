@@ -135,11 +135,11 @@ sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
 
 // NEW (C, with and without SG_RANGE):
 sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &SG_RANGE(vs_params));
-sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &(sg_range){ vs_params, sizeof(vs_params)});
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &(sg_range){ &vs_params, sizeof(vs_params)});
 
 // NEW (C++, with and without SG_RANGE):
 sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, SG_RANGE(vs_params));
-sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, { vs_params, sizeof(vs_params) });
+sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, { &vs_params, sizeof(vs_params) });
 ```
 
 For code which must compile both in C and C++, you can use the special *SG_RANGE_REF()* macro:
