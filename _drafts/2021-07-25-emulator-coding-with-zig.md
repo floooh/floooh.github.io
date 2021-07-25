@@ -7,7 +7,7 @@ I wrote a KC85 home computer emulator in Zig during the last 3 weeks to get a bi
 familiar with Zig for mid-sized projects. This is my 4th or 5th iteration
 of a KC emulator, which makes it a useful "toy project" for trying out
 new languages, because I have the "inner workings" already figured out and
-can focus on how the emulation maps to the language features.
+can focus on how the emulation maps to language features.
 
 The github project is here:
 
@@ -21,14 +21,14 @@ system and how the emulator works.
 
 The KC85 (more specifically, the KC85/2, /3 and /4) was a series of East German
 8-bit computers built between 1984 and 1989. The hardware was built around the
-U880 CPU clocked at 1.75 MHz (the U880 was the East German "unlicensed clone"
-of the Z80), one U855 (== Z80 PIO), and one U857 (== Z80 CTC). The video
-hardware was completely hardwired and produced a PAL image with 320x256 pixels.
+a Z80-compatible CPU clocked at 1.75 MHz, one Z80 PIO, one U857 (== Z80 CTC).
+and 32+8 KBytes to 128+20 KBytes of RAM and ROM. The video hardware was completely
+hardwired and produced a PAL image with 320x256 pixels.
 
 The address decoding for chip-selection, chip-IO and memory banking was
 implemented with simple and standard logic chips on the KC85/2 and /3 and
 partly with a PROM on the KC85/4 (so unlike most Western home computers, there
-was no custom chip at all in this system).
+were *no* custom chip at all in this system).
 
 The KC85/2 and /3 had 16 KByte of system RAM, 16 KByte hardwired video RAM and
 the operating system in an 8 KByte ROM at the end of the address space.
@@ -37,29 +37,34 @@ The KC85/3 came with a builtin BASIC interpreter in ROM.
 
 The KC85/4 was a true memory monster with 64 KByte general RAM, and 64 KByte 
 video RAM (using bank switching to map 16 KByte at a time into the CPU
-address space).
+address space - somewhat simplified, because only 10 of the 16 KByte were actually
+available to the CPU, the remaing 6 KByte were always mapped to the first 
+video memory bank).
 
 Hardware-wise, the KC series was clearly inspired by the ZX Spectrum, especially
 the video decoding. Like the ZX Spectrum, the KC85 series used separate 
-color attributes to reduce the video hardware's bandwidth and memory
-usage. The KC had some improvements over the Speccy though:
+color attribute bytes to reduce the video hardware's bandwidth and memory
+requirements. The KC had some improvements over the Speccy though:
 
 1. The display resolution was higher, 320x256 instead of 256x192.
 2. One color attribute byte covered 8x4 pixels on the KC85, versus 8x8 pixels on the Speccy.
     On the KC85/4, the color attribute resolution was increased to 8x1 pixels.
-3. The color palette was more "interesting" than on the Speccy: 15 foreground colors,
-    and a separate set of darker 8 background colors, plus one bit for blinking
-    (which was quite useless but could be used for an interesting [viusal effect](https://floooh.github.io/2017/01/14/yakc-diamond-scroll.html).
+3. The color palette was more interesting and aesthetically pleasing than on
+   the Speccy: 15 foreground colors, and a separate set of darker 8 background
+   colors, plus one bit for blinking (which was quite useless but could be used
+   for an interesting [viusal effect](https://floooh.github.io/2017/01/14/yakc-diamond-scroll.html).
 
 On The KC85/2 and KC85/3 pixel and color addressing was cursed though. The
-320x256 display was split into two areas, a left area with 256x256 pixels, and
-a right area with 64x256 pixels. Additionally (similar, but still different
-from the Speccy), horizontal pixel lines weren't vertically stacked. Long story
-short, this made graphics rendering a nightmare, and this showed in the slow
-display update routines. The official operating system routine to clear the
-screen takes several seconds!
+320x256 display was split into two areas, a left area with 256x256 pixels
+(arranged at 32 byte-columns and 256 rows), and a right area with 64x256 pixels
+(8 columns x 256 rows). Additionally (similar, yet different from the Speccy),
+horizontal pixel lines weren't linearly arranged. Long story short, the video
+memory layout made graphics rendering a nightmare, and this showed in the slow
+display update routines in the operating system. For instance clearing the screen
+with the OS functions took several seconds and when scrolling one could literally
+watch the CPU working.
 
-The pixel addressing issue was greatly simplified on the KC85/4 with a genius
+The pixel addressing issue was entirely fixed on the KC85/4 with a genius
 design solution I haven't seen anywhere else so far: The video memory was
 simply "rotated" by 90 degrees! Incrementally writing bytes to video memory
 would fill vertical columns on screen. This totally makes sense because the
@@ -133,4 +138,6 @@ TODO:
 switch-expressions to conditionally initialize data "right in place"
 - Arbitrary width integers for hardware registers, carry bits, exhaustive switches etc
 - Host bindings, Zig standard lib, sokol headers, errors vs optionals
+- namespaced constants vs enums vs (hypothetical 'bit-twiddling bitfields')
+- nice to have: proper freestanding functions?
 - ???
