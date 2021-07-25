@@ -140,4 +140,5 @@ switch-expressions to conditionally initialize data "right in place"
 - Host bindings, Zig standard lib, sokol headers, errors vs optionals
 - namespaced constants vs enums vs (hypothetical 'bit-twiddling bitfields')
 - nice to have: proper freestanding functions?
+- Zig tests versus test programs
 - ???
