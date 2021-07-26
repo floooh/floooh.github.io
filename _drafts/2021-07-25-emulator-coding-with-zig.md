@@ -74,8 +74,8 @@ different systems, this is definitely an idea that worked out very well).
 
 ## Testing with Zig
 
-Like many modern languages, Zig has builtin testing capabilities which is very
-easy to use. One can just write tests in regular implementation files, and run
+Like many modern languages, Zig has a built-in testing feature which is very
+easy to use. One can just write tests in regular source files, and run
 them with "zig test src.zig". This is very handy when building a project
 bottom-up when there's just a handful of unrelated source files that don't yet
 work together. For instance most of the basic building blocks in the CPU
@@ -107,16 +107,78 @@ test "add8" {
     impl.add8(&r, 0x44); try expect(testAF(&r, 0x37, CF));
 }
 ```
-Those initial tests written alongside the implementation are great for catching
-some obvious problems without delaying too far into the future, but they 
-are by far not as thorough as specialized instruction testers.
+Those simple initial tests written alongside the implementation are great for catching
+some obvious problems for such a "brain in a jar" CPU but it's no replacement
+for much more thorough instructions testers which have been written and tested
+on real hardware. 
 
 The further I got with the project, the less I relied on such small tests, and
-instead I moved to higher level standard test programs written on Z80 hardware
-like ZEXALL/ZEXDOC (implemented here: https://github.com/floooh/kc85.zig/blob/main/tests/z80zex.zig).
+instead I moved to "established" standard test programs like
+[ZEXALL/ZEXDOC](https://github.com/floooh/kc85.zig/blob/main/tests/z80zex.zig).
+This source file implements a minimalistic CP/M environment, just enough to run
+the ZEX tests and dump its output to the terminal (CP/M was the standard
+operating system of the ancient times even before MS-DOS was a thing).
 
 ## The Zig Project Structure
 
+I started out with a flat list of source files, one file per module, one
+module per emulator component, and one module for the actual system emulator
+at the top of the dependency tree. The module dependencies look like this:
+
+```
+- kc85.zig -+
+            +-- z80.zig
+            +-- z80ctc.zig -+
+            +-- z80pio.zig -+
+            |               +-- z80daisy.zig
+            +-- memory.zig
+            +-- beeper.zig
+            +-- clock.zig
+            +-- keybuf.zig
+```
+
+This is the entire emulator as "pure" platform-agnostic Zig code.
+
+- ```z80.zig```, ```z80ctc.zig``` and ```z80pio.zig``` are the three chip
+  emulators, with the CTC and PIO sharing the same interrupt code in
+  ```z80daisy.zig``` (for "daisy-chain" which was the common name for the
+  fairly sophisticated Z80-family-chip interrupt handshake protocol which
+  automatically managed a priority "daisy chain" of interrupt sources without
+  intervention from the CPU.
+
+- ```memory.zig``` implements a simple layered page table which maps a 16-bit
+  address space to host memory with a 1 KByte page size. This seems a bit
+  overkill for a simple 8-bit home computer, but the KC85 has fairly
+  sophisticated expansion module system which (theoreticall at least) allowed
+  to map 4 MBytes(!) of RAM or ROM into the 64 KByte address space of the Z80
+  via bank switching.
+
+- ```beeper.zig``` is the simple general square-wave oscillator which produces
+  a mono sample stream to be pushed into a separate audio backend. The KC85 had
+  stereo sound, so it needs two of those beepers.
+
+- for ```clock.zig``` and ```keybuf.zig``` it's a bit debatable where they
+  belong, both could just as well live on the host-bindings side (which I
+  haven't mentioned yet).  ```clock.zig``` converts real-world micro-seconds
+  into system-specific clock ticks, and keeps track of "remainder ticks"
+  because the CPU emulation can only run full instructions, and
+  ```keybuf.zig``` is a little helper class to keep short key presses around
+  for at least one host system frame so that the emulator is guaranteed to
+  notice them.
+
+After most of the emulator was in place, I decided to split the source directory
+into subdirectories (and thus "Zig packages"), to separate the platform-agnostic
+emulator code from the "host system bindings". Those host bindings take care
+of:
+
+- rendering the emulator's video output into a window
+- making the emulator's audio output audible
+- feeding the emulator with keyboard input
+- keeping track of real-world time in order to run the emulator at the correct speed
+- and finally secondary things like parsing command line arguments and loading
+ROM and tape image files from the host's file system
+
+[to be continued]
 
 
 TODO:
