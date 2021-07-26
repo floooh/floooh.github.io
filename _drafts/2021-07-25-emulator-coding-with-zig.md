@@ -25,77 +25,21 @@ a Z80-compatible CPU clocked at 1.75 MHz, one Z80 PIO, one U857 (== Z80 CTC).
 and 32+8 KBytes to 128+20 KBytes of RAM and ROM. The video hardware was completely
 hardwired and produced a PAL image with 320x256 pixels.
 
-The address decoding for chip-selection, chip-IO and memory banking was
-implemented with simple and standard logic chips on the KC85/2 and /3 and
-partly with a PROM on the KC85/4 (so unlike most Western home computers, there
-were *no* custom chip at all in this system).
+Unlike most Western home computers, East German computers had no custom chips,
+everything was built from standard parts. This reflected the priorities in the
+East German semiconductor industry, the focus was on office computers and
+microcontrollers for other industries, education or even home computing
+was merely a byproduct. This is (most likely) also the reason why the KC series
+was clocked so low, the chips used in those computers were "waste chips"
+that couldn't run at full speed.
 
-The KC85/2 and /3 had 16 KByte of system RAM, 16 KByte hardwired video RAM and
-the operating system in an 8 KByte ROM at the end of the address space.
-
-The KC85/3 came with a builtin BASIC interpreter in ROM.
-
-The KC85/4 was a true memory monster with 64 KByte general RAM, and 64 KByte 
-video RAM (using bank switching to map 16 KByte at a time into the CPU
-address space - somewhat simplified, because only 10 of the 16 KByte were actually
-available to the CPU, the remaing 6 KByte were always mapped to the first 
-video memory bank).
-
-Hardware-wise, the KC series was clearly inspired by the ZX Spectrum, especially
-the video decoding. Like the ZX Spectrum, the KC85 series used separate 
-color attribute bytes to reduce the video hardware's bandwidth and memory
-requirements. The KC had some improvements over the Speccy though:
-
-1. The display resolution was higher, 320x256 instead of 256x192.
-2. One color attribute byte covered 8x4 pixels on the KC85, versus 8x8 pixels on the Speccy.
-    On the KC85/4, the color attribute resolution was increased to 8x1 pixels.
-3. The color palette was more interesting and aesthetically pleasing than on
-   the Speccy: 15 foreground colors, and a separate set of darker 8 background
-   colors, plus one bit for blinking (which was quite useless but could be used
-   for an interesting [viusal effect](https://floooh.github.io/2017/01/14/yakc-diamond-scroll.html).
-
-On The KC85/2 and KC85/3 pixel and color addressing was cursed though. The
-320x256 display was split into two areas, a left area with 256x256 pixels
-(arranged at 32 byte-columns and 256 rows), and a right area with 64x256 pixels
-(8 columns x 256 rows). Additionally (similar, yet different from the Speccy),
-horizontal pixel lines weren't linearly arranged. Long story short, the video
-memory layout made graphics rendering a nightmare, and this showed in the slow
-display update routines in the operating system. For instance clearing the screen
-with the OS functions took several seconds and when scrolling one could literally
-watch the CPU working.
-
-The pixel addressing issue was entirely fixed on the KC85/4 with a genius
-design solution I haven't seen anywhere else so far: The video memory was
-simply "rotated" by 90 degrees! Incrementally writing bytes to video memory
-would fill vertical columns on screen. This totally makes sense because the
-vertical display resolution is 256 (a nice round number), while the horizontal
-resolution isn't a round number at 320 pixels (or 40 'byte columns', each byte
-describing 8 pixels).
-
-This 'vertical' video memory layout means one can simply put the pixel row
-number (0..255) into the low 8-bit register of a 16-bit register pair, and the
-column number (0..39) into the high-byte register and voila, the 16-bit
-register now is the byte offset into video memory, no extra math needed. And
-since video memory always starts at address 0x8000, just replace the column
-number 0..39 with 128 (== 0x80) to 128+39=167 (== 0xA7), and now the 16-bit
-register is the absolute video memory address between 0x8000 and 0xA7FF.
-
-To blit an 8x8 pixel character, just point HL to the glyph data (8 bytes), and
-DE to the target video memory address, and then run an unrolled loop of 8 LDI
-instructions (LDI copies one byte from (HL) to (DE) and then increments both
-HL and DE).
-
-The KC85 series had no dedicated sound chip, instead two CTC counter channels
-were hardwired to two piezo-beepers which generated a very rough square wave
-sound. By reprogramming the CTC counters from tight CPU loops one could still
-generate quite interesting sound effects, but at the cost of a high CPU
-usage.
-
-But I disgress, enough about the hardware :)
+Hardware-wise the KC series was clearly inspired by the ZX Spectrum, but 
+without being a Speccy clone. Some aspects were worse (like the CPU speed)
+and some were better (like the pixel- and color-resolution).
 
 ## How the emulator works
 
-Nothing new here compared to my earlier versions, only the CPU instruction
+Nothing new here compared to my earlier iterations, only the Z80 instruction
 decoder is "hand crafted" and doesn't rely on code generation like in 
 my ['chips' emulators](https://github.com/floooh/chips) (code generation is an 
 area I want to explore later with Zig).
@@ -127,6 +71,52 @@ needs to follow the wires on the schematics from chip to chip and
 map this wiring to pin-bits in the emulation (it's a bit simplified,
 but all in all it's surpring how well this works for radically
 different systems, this is definitely an idea that worked out very well).
+
+## Testing with Zig
+
+Like many modern languages, Zig has builtin testing capabilities which is very
+easy to use. One can just write tests in regular implementation files, and run
+them with "zig test src.zig". This is very handy when building a project
+bottom-up when there's just a handful of unrelated source files that don't yet
+work together. For instance most of the basic building blocks in the CPU
+emulation consisted of writing a small functions like this:
+
+```zig
+fn add8(r: *Regs, val: u8) void {
+    const acc: u64 = r[A];
+    const res: u64 = acc + val;
+    r[F] = addFlags(acc, val, res);
+    r[A] = @truncate(u8, res);
+}
+```
+
+...and then immediately write a test like this:
+
+```zig
+test "add8" {
+    var r = makeRegs();
+    r[A] = 0xF;
+    impl.add8(&r, r[A]); try expect(testAF(&r, 0x1E, HF));
+    impl.add8(&r, 0xE0); try expect(testAF(&r, 0xFE, SF));
+    r[A] = 0x81; 
+    impl.add8(&r, 0x80); try expect(testAF(&r, 0x01, VF|CF));
+    impl.add8(&r, 0xFF); try expect(testAF(&r, 0x00, ZF|HF|CF));
+    impl.add8(&r, 0x40); try expect(testAF(&r, 0x40, 0));
+    impl.add8(&r, 0x80); try expect(testAF(&r, 0xC0, SF));
+    impl.add8(&r, 0x33); try expect(testAF(&r, 0xF3, SF));
+    impl.add8(&r, 0x44); try expect(testAF(&r, 0x37, CF));
+}
+```
+Those initial tests written alongside the implementation are great for catching
+some obvious problems without delaying too far into the future, but they 
+are by far not as thorough as specialized instruction testers.
+
+The further I got with the project, the less I relied on such small tests, and
+instead I moved to higher level standard test programs written on Z80 hardware
+like ZEXALL/ZEXDOC (implemented here: https://github.com/floooh/kc85.zig/blob/main/tests/z80zex.zig).
+
+## The Zig Project Structure
+
 
 
 TODO:
