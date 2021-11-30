@@ -49,7 +49,7 @@ with seemingly random new Z80-specific instructions. This was the right approach
 to create an "8080 killer", but nearly half a century later it makes life a lot
 harder for emulator authors :)
 
-## The Z80 instruction byte structure
+## The physical shape of Z80 instructions
 
 Like on the Intel 8080, instruction are made up of one or multiple bytes, where
 the first byte is always the opcode byte.
@@ -121,7 +121,7 @@ bytes' and 'opcode bytes' doesn't make much sense (a little spoiler: the CB
 prefix byte is the actual 'opcode', and the 'opcode byte' is just a regular
 immediate value that's decoded as an opcode byte).
 
-## Instruction Timing: M-cycles versus T-cycles
+## Instruction Timing: M-cycles and T-cycles
 
 The above 'physical shape' of Z80 instructions doesn't tell us much what actually happens
 during execution of an instruction (e.g. how long the instruction takes to execute,
