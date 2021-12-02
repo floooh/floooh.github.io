@@ -183,14 +183,14 @@ OPCODE FETCH:
 ┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
 │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
 ├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │     M1/T1/0
-│ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │     M1/T1/1
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │     M1/T2/0
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │     M1/T2/1
-│    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │     M1/T3/0
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │     M1/T3/1
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │     M1/T4/0
-│    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │     M1/T4/1
+│ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │  T1/0
+│ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │  T1/1
+│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │  T2/0
+│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T2/1
+│    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T3/0
+│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T3/1
+│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/0
+│    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/1
 ```
 
 Keep in mind that this shows half-clock-cycles, a 4-clock-cycle opcode fetch machine
@@ -209,7 +209,7 @@ Let's go through each half-cycle:
 ┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
 │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
 ├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │     M1/T1/0
+│ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │  T1/0
 ```
 The M1 pin is set to active, and the address bus has been loaded with
 the current program counter PC. The data bus and instruction register
@@ -220,7 +220,7 @@ to an **LD I,A** instruction (byte sequence: ED 47)).
 ┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
 │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
 ├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │     M1/T1/1
+│ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │  T1/1
 ```
 In the next half cycle, the MREQ and RD pins have been set in addition
 to M1, which initiates a memory read from the address that's currently
@@ -231,7 +231,7 @@ to the next address.
 ┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
 │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
 ├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │     M1/T2/0
+│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │  T2/0
 ```
 Now the memory system has responded to the memory read request
 by putting the content of address 0004 onto the data bus, which
@@ -242,7 +242,7 @@ register hasn't been updated yet.
 ┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
 │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
 ├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │     M1/T2/1
+│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T2/1
 ```
 In the next half cycle the 00 value on the data bus has been
 written into the instruction register. This concludes the first
@@ -252,10 +252,10 @@ half of the opcode fetch machine cycle.
 ┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
 │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
 ├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │     M1/T3/0
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │     M1/T3/1
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │     M1/T4/0
-│    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │     M1/T4/1
+│    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T3/0
+│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T3/1
+│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/0
+│    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/1
 ```
 The remaining 4 half-cycles (2 clock cycles) are spent with
 the Z80-specific 'memory refresh' while the instruction decoder
@@ -275,12 +275,12 @@ MEM READ:
 ┌──────┬────┬──────┬────┬──────┐
 │ MREQ │ RD │ AB   │ DB │ HL   │
 ├──────┼────┼──────┼────┼──────┤
-│      │    │ 0001 │ 21 │ 5555 │    T1/0
-│ MREQ │ RD │ 0001 │ 21 │ 5555 │    T1/1
-│ MREQ │ RD │ 0001 │ 22 │ 5555 │    T2/0
-│ MREQ │ RD │ 0001 │ 22 │ 5555 │    T2/1
-│ MREQ │ RD │ 0001 │ 22 │ 5555 │    T3/0
-│      │    │ 0000 │ 22 │ 5522 │    T3/1
+│      │    │ 0001 │ 21 │ 5555 │  T1/0
+│ MREQ │ RD │ 0001 │ 21 │ 5555 │  T1/1
+│ MREQ │ RD │ 0001 │ 22 │ 5555 │  T2/0
+│ MREQ │ RD │ 0001 │ 22 │ 5555 │  T2/1
+│ MREQ │ RD │ 0001 │ 22 │ 5555 │  T3/0
+│      │    │ 0000 │ 22 │ 5522 │  T3/1
 ```
 
 Here's a **memory write** machine cycle to store the value in register A (33)
@@ -291,12 +291,12 @@ MEM WRITE:
 ┌──────┬────┬──────┬────┬──────┬──────┐
 │ MREQ │ WR │ AB   │ DB │ AF   │ HL   │
 ├──────┼────┼──────┼────┼──────┼──────┤
-│      │    │ 1122 │ 77 │ 3355 │ 1122 │     T1/0
-│ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │     T1/1
-│ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │     T2/0
-│ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │     T2/1
-│ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │     T3/0
-│      │    │ 1122 │ 33 │ 3355 │ 1122 │     T3/1
+│      │    │ 1122 │ 77 │ 3355 │ 1122 │  T1/0
+│ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │  T1/1
+│ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │  T2/0
+│ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │  T2/1
+│ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │  T3/0
+│      │    │ 1122 │ 33 │ 3355 │ 1122 │  T3/1
 ```
 Note how the MREQ pin, address and data bus already contain the required values in
 the second half cycle (T1 +), but the WR (write) pin is only set active in the
@@ -310,14 +310,14 @@ IO READ:
 ┌──────┬────┬────┬──────┬────┐
 │ IORQ │ RD │ WR │ AB   │ DB │
 ├──────┼────┼────┼──────┼────┤
-│      │    │    │ 1122 │ 78 │      T1/0
-│      │    │    │ 1122 │ 78 │      T1/1
-│ IORQ │ RD │    │ 1122 │ 33 │      T2/0
-│ IORQ │ RD │    │ 1122 │ 33 │      T2/1
-│ IORQ │ RD │    │ 1122 │ 33 │      T3/0
-│ IORQ │ RD │    │ 1122 │ 33 │      T3/1
-│ IORQ │ RD │    │ 1122 │ 33 │      T4/0
-│      │    │    │ 1122 │ 33 │      T4/1
+│      │    │    │ 1122 │ 78 │  T1/0
+│      │    │    │ 1122 │ 78 │  T1/1
+│ IORQ │ RD │    │ 1122 │ 33 │  T2/0
+│ IORQ │ RD │    │ 1122 │ 33 │  T2/1
+│ IORQ │ RD │    │ 1122 │ 33 │  T3/0
+│ IORQ │ RD │    │ 1122 │ 33 │  T3/1
+│ IORQ │ RD │    │ 1122 │ 33 │  T4/0
+│      │    │    │ 1122 │ 33 │  T4/1
 ```
 
 ```
@@ -325,14 +325,14 @@ IO WRITE:
 ┌──────┬────┬────┬──────┬────┐
 │ IORQ │ RD │ WR │ AB   │ DB │
 ├──────┼────┼────┼──────┼────┤
-│      │    │    │ 1122 │ 79 │      T1/0
-│      │    │    │ 1122 │ 21 │      T1/1
-│ IORQ │    │ WR │ 1122 │ 21 │      T2/0
-│ IORQ │    │ WR │ 1122 │ 21 │      T2/1
-│ IORQ │    │ WR │ 1122 │ 21 │      T3/0
-│ IORQ │    │ WR │ 1122 │ 21 │      T3/1
-│ IORQ │    │ WR │ 1122 │ 21 │      T4/0
-│      │    │    │ 1122 │ 21 │      T4/1
+│      │    │    │ 1122 │ 79 │  T1/0
+│      │    │    │ 1122 │ 21 │  T1/1
+│ IORQ │    │ WR │ 1122 │ 21 │  T2/0
+│ IORQ │    │ WR │ 1122 │ 21 │  T2/1
+│ IORQ │    │ WR │ 1122 │ 21 │  T3/0
+│ IORQ │    │ WR │ 1122 │ 21 │  T3/1
+│ IORQ │    │ WR │ 1122 │ 21 │  T4/0
+│      │    │    │ 1122 │ 21 │  T4/1
 ```
 It's interesting here that the 'pin timing' is identical between IO reads and
 writes. The WR pin is activated at the same moment as the IORQ pin, while in
@@ -361,19 +361,19 @@ fetch machine cycle will be stretched from 4 to 5 clock cycles:
 
 ```
 OPCODE FETCH:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│ M1 │      │      │      │    │    │      │ 0000 │ 00 │    T1/0
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 00 │    T1/1
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T2/0
-│ M1 │ MREQ │      │      │ RD │    │ WAIT │ 0000 │ 31 │    T2/1    <== WAIT pin sampled here
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T3/0    <== one extra clock cycle inserted
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T3/1    
-│    │      │      │ RFSH │    │    │      │ 0000 │ 31 │    T4/0    <== regular execution continues here
-│    │ MREQ │      │ RFSH │    │    │      │ 0000 │ 31 │    T4/1
-│    │ MREQ │      │ RFSH │    │    │      │ 0000 │ 31 │    T5/0
-│    │      │      │ RFSH │    │    │      │ 0000 │ 31 │    T5/1
+┌────┬──────┬──────┬────┬────┬──────┬──────┬────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
+├────┼──────┼──────┼────┼────┼──────┼──────┼────┤
+│ M1 │      │      │    │    │      │ 0000 │ 00 │  T1/0
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │  T1/1
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T2/0
+│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T2/1    <== WAIT pin sampled here
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T3/0    <== one extra clock cycle inserted
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T3/1    
+│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T4/0    <== regular execution continues here
+│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T4/1
+│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T5/0
+│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T5/1
 ```
 
 If the wait pin goes inactive in the first half cycle, the CPU will leave the wait state mode
@@ -381,57 +381,57 @@ at the end of the clock cycle:
 
 ```
 OPCODE FETCH:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│ M1 │      │      │      │    │    │      │ 0000 │ 00 │    T1/0
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 00 │    T1/1
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T2/0
-│ M1 │ MREQ │      │      │ RD │    │ WAIT │ 0000 │ 31 │    T2/1    <== WAIT pin sampled here
-│ M1 │ MREQ │      │      │ RD │    │ WAIT │ 0000 │ 31 │    T3/0    <== WAIT pin active for 2 half cycles
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T3/1    <== extra clock cycle completes
-│    │      │      │ RFSH │    │    │      │ 0000 │ 31 │    T4/0    <== regular execution continues here
-│    │ MREQ │      │ RFSH │    │    │      │ 0000 │ 31 │    T4/1
-│    │ MREQ │      │ RFSH │    │    │      │ 0000 │ 31 │    T5/0
-│    │      │      │ RFSH │    │    │      │ 0000 │ 31 │    T5/1
+┌────┬──────┬──────┬────┬────┬──────┬──────┬────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
+├────┼──────┼──────┼────┼────┼──────┼──────┼────┤
+│ M1 │      │      │    │    │      │ 0000 │ 00 │  T1/0
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │  T1/1
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T2/0
+│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T2/1    <== WAIT pin sampled here
+│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T3/0    <== WAIT pin active for 2 half cycles
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T3/1    <== extra clock cycle completes
+│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T4/0    <== regular execution continues here
+│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T4/1
+│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T5/0
+│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T5/1
 ```
 
 Setting the WAIT pin until the second half cycle causes one more clock cycle to be inserted:
 
 ```
 OPCODE FETCH:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│ M1 │      │      │      │    │    │      │ 0000 │ 00 │    T1/0
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 00 │    T1/1
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T2/0
-│ M1 │ MREQ │      │      │ RD │    │ WAIT │ 0000 │ 31 │    T2/1    <== WAIT pin sampled here
-│ M1 │ MREQ │      │      │ RD │    │ WAIT │ 0000 │ 31 │    T3/0    <== WAIT pin active for 3 half cycles
-│ M1 │ MREQ │      │      │ RD │    │ WAIT │ 0000 │ 31 │    T3/1    <== first inserted clock cycle completes
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T4/0    <== a second wait clock cycle is inserted    
-│ M1 │ MREQ │      │      │ RD │    │      │ 0000 │ 31 │    T4/1
-│    │      │      │ RFSH │    │    │      │ 0000 │ 31 │    T5/0    <== regular execution continues here
-│    │ MREQ │      │ RFSH │    │    │      │ 0000 │ 31 │    T5/1
-│    │ MREQ │      │ RFSH │    │    │      │ 0000 │ 31 │    T6/0
-│    │      │      │ RFSH │    │    │      │ 0000 │ 31 │    T6/1
+┌────┬──────┬──────┬────┬────┬──────┬──────┬────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
+├────┼──────┼──────┼────┼────┼──────┼──────┼────┤
+│ M1 │      │      │    │    │      │ 0000 │ 00 │  T1/0
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │  T1/1
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T2/0
+│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T2/1    <== WAIT pin sampled here
+│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T3/0    <== WAIT pin active for 3 half cycles
+│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T3/1    <== first inserted clock cycle completes
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T4/0    <== a second wait clock cycle is inserted    
+│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T4/1
+│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T5/0    <== regular execution continues here
+│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T5/1
+│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T6/0
+│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T6/1
 ```
 
 In memory read machine cycles, the WAIT pin is sampled at the second
 half cycle of T2 (same as in an opcode fetch).
 ```
 MEM READ:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│    │      │      │      │    │    │      │ 0001 │ 31 │    T1/0
-│    │ MREQ │      │      │ RD │    │      │ 0001 │ 31 │    T1/1
-│    │ MREQ │      │      │ RD │    │      │ 0001 │ 30 │    T2/0
-│    │ MREQ │      │      │ RD │    │ WAIT │ 0001 │ 30 │    T2/1    <== WAIT pin sampled here
-│    │ MREQ │      │      │ RD │    │      │ 0001 │ 30 │    T3/0    <== extra clock cycle
-│    │ MREQ │      │      │ RD │    │      │ 0001 │ 30 │    T3/1
-│    │ MREQ │      │      │ RD │    │      │ 0001 │ 30 │    T4/0    <== regular execution continues
-│    │      │      │      │    │    │      │ 0000 │ 30 │    T4/1
+┌──────┬────┬────┬──────┬──────┬────┐
+│ MREQ │ RD │ WR │ WAIT │ AB   │ DB │
+├──────┼────┼────┼──────┼──────┼────┤
+│      │    │    │      │ 0001 │ 31 │  T1/0
+│ MREQ │ RD │    │      │ 0001 │ 31 │  T1/1
+│ MREQ │ RD │    │      │ 0001 │ 30 │  T2/0
+│ MREQ │ RD │    │ WAIT │ 0001 │ 30 │  T2/1    <== WAIT pin sampled here
+│ MREQ │ RD │    │      │ 0001 │ 30 │  T3/0    <== extra clock cycle
+│ MREQ │ RD │    │      │ 0001 │ 30 │  T3/1
+│ MREQ │ RD │    │      │ 0001 │ 30 │  T4/0    <== regular execution continues
+│      │    │    │      │ 0000 │ 30 │  T4/1
 ```
 
 In memory write machine cycles, the WAIT pin is also sampled at the
@@ -439,174 +439,483 @@ second half cycle of T2:
 
 ```
 MEM WRITE:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│    │      │      │      │    │    │      │ 1234 │ 77 │    T1/0    
-│    │ MREQ │      │      │    │    │      │ 1234 │ 11 │    T1/1
-│    │ MREQ │      │      │    │    │      │ 1234 │ 11 │    T2/0
-│    │ MREQ │      │      │    │ WR │ WAIT │ 1234 │ 11 │    T2/1    <== WAIT pin sampled here
-│    │ MREQ │      │      │    │ WR │      │ 1234 │ 11 │    T3/0    <== extra clock cycle
-│    │ MREQ │      │      │    │ WR │      │ 1234 │ 11 │    T3/1
-│    │ MREQ │      │      │    │ WR │      │ 1234 │ 11 │    T4/0    <== regular execution continues
-│    │      │      │      │    │    │      │ 1234 │ 11 │    T4/1
+┌──────┬────┬────┬──────┬──────┬────┐
+│ MREQ │ RD │ WR │ WAIT │ AB   │ DB │
+├──────┼────┼────┼──────┼──────┼────┤
+│      │    │    │      │ 1234 │ 77 │  T1/0    
+│ MREQ │    │    │      │ 1234 │ 11 │  T1/1
+│ MREQ │    │    │      │ 1234 │ 11 │  T2/0
+│ MREQ │    │ WR │ WAIT │ 1234 │ 11 │  T2/1    <== WAIT pin sampled here
+│ MREQ │    │ WR │      │ 1234 │ 11 │  T3/0    <== extra clock cycle
+│ MREQ │    │ WR │      │ 1234 │ 11 │  T3/1
+│ MREQ │    │ WR │      │ 1234 │ 11 │  T4/0    <== regular execution continues
+│      │    │    │      │ 1234 │ 11 │  T4/1
 ```
 
 In IO read and write machine cycles, the WAIT pin is samples one full clock 
 cycle later, at the second half cycle of T3:
 ```
 IO READ:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│    │      │      │      │    │    │      │ 1234 │ 78 │    T1/0
-│    │      │      │      │    │    │      │ 1234 │ 78 │    T1/1
-│    │      │ IORQ │      │ RD │    │      │ 1234 │ FF │    T2/0
-│    │      │ IORQ │      │ RD │    │      │ 1234 │ FF │    T2/1
-│    │      │ IORQ │      │ RD │    │      │ 1234 │ FF │    T3/0
-│    │      │ IORQ │      │ RD │    │ WAIT │ 1234 │ FF │    T3/1    <== WAIT pin sampled here
-│    │      │ IORQ │      │ RD │    │      │ 1234 │ FF │    T4/0    <== extra clock cycle
-│    │      │ IORQ │      │ RD │    │      │ 1234 │ FF │    T4/1
-│    │      │ IORQ │      │ RD │    │      │ 1234 │ FF │    T5/0    <== regular execution continues
-│    │      │      │      │    │    │      │ 1234 │ FF │    T5/1
+┌──────┬────┬────┬──────┬──────┬────┐
+│ IORQ │ RD │ WR │ WAIT │ AB   │ DB │
+├──────┼────┼────┼──────┼──────┼────┤
+│      │    │    │      │ 1234 │ 78 │  T1/0
+│      │    │    │      │ 1234 │ 78 │  T1/1
+│ IORQ │ RD │    │      │ 1234 │ FF │  T2/0
+│ IORQ │ RD │    │      │ 1234 │ FF │  T2/1
+│ IORQ │ RD │    │      │ 1234 │ FF │  T3/0
+│ IORQ │ RD │    │ WAIT │ 1234 │ FF │  T3/1    <== WAIT pin sampled here
+│ IORQ │ RD │    │      │ 1234 │ FF │  T4/0    <== extra clock cycle
+│ IORQ │ RD │    │      │ 1234 │ FF │  T4/1
+│ IORQ │ RD │    │      │ 1234 │ FF │  T5/0    <== regular execution continues
+│      │    │    │      │ 1234 │ FF │  T5/1
 ```
 
 ```
 IO WRITE:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│    │      │      │      │    │    │      │ 1234 │ 79 │    T1/0
-│    │      │      │      │    │    │      │ 1234 │ 11 │    T1/1
-│    │      │ IORQ │      │    │ WR │      │ 1234 │ 11 │    T2/0
-│    │      │ IORQ │      │    │ WR │      │ 1234 │ 11 │    T2/1
-│    │      │ IORQ │      │    │ WR │      │ 1234 │ 11 │    T3/0
-│    │      │ IORQ │      │    │ WR │ WAIT │ 1234 │ 11 │    T3/1    <== WAIT pin sampled here
-│    │      │ IORQ │      │    │ WR │      │ 1234 │ 11 │    T4/0    <== extra clock cycle
-│    │      │ IORQ │      │    │ WR │      │ 1234 │ 11 │    T4/1
-│    │      │ IORQ │      │    │ WR │      │ 1234 │ 11 │    T5/0    <== regular execution continues
-│    │      │      │      │    │    │      │ 1234 │ 11 │    T5/1
+┌──────┬────┬────┬──────┬──────┬────┐
+│ IORQ │ RD │ WR │ WAIT │ AB   │ DB │
+├──────┼────┼────┼──────┼──────┼────┤
+│      │    │    │      │ 1234 │ 79 │  T1/0
+│      │    │    │      │ 1234 │ 11 │  T1/1
+│ IORQ │    │ WR │      │ 1234 │ 11 │  T2/0
+│ IORQ │    │ WR │      │ 1234 │ 11 │  T2/1
+│ IORQ │    │ WR │      │ 1234 │ 11 │  T3/0
+│ IORQ │    │ WR │ WAIT │ 1234 │ 11 │  T3/1    <== WAIT pin sampled here
+│ IORQ │    │ WR │      │ 1234 │ 11 │  T4/0    <== extra clock cycle
+│ IORQ │    │ WR │      │ 1234 │ 11 │  T4/1
+│ IORQ │    │ WR │      │ 1234 │ 11 │  T5/0    <== regular execution continues
+│      │    │    │      │ 1234 │ 11 │  T5/1
 ```
 
-## Instruction timing: ???
+## Instruction Timing: Extra Cycles
 
-With this knowledge about machine cycles as basic building blocks of instructions
-we can predict the duration and what's going on during the execution of an instruction.
+With the knowledge that machine cycles are the basic building blocks of instructions, and
+the length of those machine cycles we should be able to 'prefict' the number
+of clock cycles an instruction takes.
 
-For instance **LD HL,(1234h)** (load the 16-bit value stored at address 1234h into HL)
-should consist of:
+For instance the instruction *LD HL,nnnn* (load 16-bit immediate value into register pair *HL*)
+consists of the following machine cycles
 
-- 1 opcode fetch machine cycle (4 clock cycles)
-- 2 memory read machine cycles to load the address (3 clock cycles each)
-- 2 more memory read machine cycles to load the 16-bit value stored at address 1234h
+1. opcode fetch (4 clock cycles) to read the opcode byte
+2. a memory read (3 clock cycles) to readt the next byte into L
+3. and another memory read (3 clock cycles) to read the next byte into H
 
-...all in all **4 + 3 + 3 + 3 + 3 = 16** clock cycles. And a look into the *Z80 CPU User Manual*
-on page 100 confirms this:
+Together: **4 + 3 + 3 = 10 clock cycles**, which is totally correct.
 
-![z80_ld_hl_inni]({{ site.urk }}/images/z80_ld_hl_inni.jpg)
+The instruction **PUSH HL** (push content of HL register on the stack) should be the same,
+except that memory reads are replaced with memory writes:
 
-Let's try another instruction: **PUSH HL**. This writes the 16-bit value in register
-HL to the stack, which should take two memory write machine cycles (3 clock cycles each)
-in addition to the opcode fetch machine cycle, so **4 + 3 + 3 = 10** clock cycles, right?
+1. opcode fetch (4 clock cycles)
+2. a memory write to write H to the stack
+3. another memory write to write L to the stack
 
-Wrong:
-
-![z80_push_hl]({{ site.urk }}/images/z80_push_hl.jpg)
-
-Ugh, why is the opcode fetch machine listed as 5 clock cycles here? Is this a typo? Let's
-check in the netlist simulator:
+This *should* take 10 clock cycles too, but **PUSH HL** actually takes 11 clock cycles
+to execute:
 
 ```
-┌─────────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────────────┐
-│ Cycle/h │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ Asm          │
-├─────────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────────────┤
-│    21/0 │ M1 │      │      │      │    │    │ 0006 │ 12 │ 0006 │ 0100 │ PUSH HL      │    M1/T1 (fetch)
-│    21/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ 12 │ 0007 │ 0100 │ PUSH HL      │
-│    22/0 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ E5 │ 0007 │ 0100 │ PUSH HL      │
-│    22/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ E5 │ 0007 │ 0100 │ PUSH HL      │
-│    23/0 │    │      │      │ RFSH │    │    │ 0002 │ E5 │ 0007 │ 0100 │ PUSH HL      │
-│    23/1 │    │ MREQ │      │ RFSH │    │    │ 0002 │ E5 │ 0007 │ 0100 │ PUSH HL      │
-│    24/0 │    │ MREQ │      │ RFSH │    │    │ 0002 │ E5 │ 0007 │ 0100 │ PUSH HL      │
-│    24/1 │    │      │      │ RFSH │    │    │ 0002 │ E5 │ 0007 │ 0100 │ PUSH HL      │
-│    25/0 │    │      │      │      │    │    │ 0002 │ E5 │ 0007 │ 0100 │ PUSH HL      │ <== WTF???
-│    25/1 │    │      │      │      │    │    │ 0000 │ E5 │ 0007 │ 00FF │ PUSH HL      │ <== WTF???
-│    26/0 │    │      │      │      │    │    │ 00FF │ E5 │ 0007 │ 00FF │ PUSH HL      │    M2/T1 (mem read)
-│    26/1 │    │ MREQ │      │      │    │    │ 00FF │ 12 │ 0007 │ 00FF │ PUSH HL      │
-│    27/0 │    │ MREQ │      │      │    │    │ 00FF │ 12 │ 0007 │ 00FF │ PUSH HL      │
-│    27/1 │    │ MREQ │      │      │    │ WR │ 00FF │ 12 │ 0007 │ 00FE │ PUSH HL      │
-│    28/0 │    │ MREQ │      │      │    │ WR │ 00FF │ 12 │ 0007 │ 00FE │ PUSH HL      │
-│    28/1 │    │      │      │      │    │    │ 00FE │ 12 │ 0007 │ 00FE │ PUSH HL      │
-│    29/0 │    │      │      │      │    │    │ 00FE │ E5 │ 0007 │ 00FE │ PUSH HL      │    M3/T1 (mem read)
-│    29/1 │    │ MREQ │      │      │    │    │ 00FE │ 34 │ 0007 │ 00FE │ PUSH HL      │
-│    30/0 │    │ MREQ │      │      │    │    │ 00FE │ 34 │ 0007 │ 00FE │ PUSH HL      │
-│    30/1 │    │ MREQ │      │      │    │ WR │ 00FE │ 34 │ 0007 │ 00FE │ PUSH HL      │
-│    31/0 │    │ MREQ │      │      │    │ WR │ 00FE │ 34 │ 0007 │ 00FE │ PUSH HL      │
-│    31/1 │    │      │      │      │    │    │ 00FE │ 34 │ 0007 │ 00FE │ PUSH HL      │
-```
-Everything looks as expected except that one additional clock cycle between the opcode fetch
-and memory write machine cycles.
-
-But it gets better. The **POP HL** instruction, which should behave identical, except that 
-the memory write machine cycles are replaced with memory reads takes ... 10 clock cycles:
-
-```
-┌─────────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────────────┐
-│ Cycle/h │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ Asm          │
-├─────────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────────────┤
-│    32/0 │ M1 │      │      │      │    │    │ 0007 │ E5 │ 0007 │ 00FE │ POP HL       │    M1/T1 (fetch)
-│    32/1 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ E5 │ 0008 │ 00FE │ POP HL       │
-│    33/0 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ E1 │ 0008 │ 00FE │ POP HL       │
-│    33/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ E1 │ 0008 │ 00FE │ POP HL       │
-│    34/0 │    │      │      │ RFSH │    │    │ 0003 │ E1 │ 0008 │ 00FE │ POP HL       │
-│    34/1 │    │ MREQ │      │ RFSH │    │    │ 0003 │ E1 │ 0008 │ 00FE │ POP HL       │
-│    35/0 │    │ MREQ │      │ RFSH │    │    │ 0003 │ E1 │ 0008 │ 00FE │ POP HL       │
-│    35/1 │    │      │      │ RFSH │    │    │ 0000 │ E1 │ 0008 │ 00FE │ POP HL       │
-│    36/0 │    │      │      │      │    │    │ 00FE │ E1 │ 0008 │ 00FE │ POP HL       │    M2/T1 (mem read)
-│    36/1 │    │ MREQ │      │      │ RD │    │ 00FE │ E1 │ 0008 │ 00FE │ POP HL       │
-│    37/0 │    │ MREQ │      │      │ RD │    │ 00FE │ 34 │ 0008 │ 00FE │ POP HL       │
-│    37/1 │    │ MREQ │      │      │ RD │    │ 00FE │ 34 │ 0008 │ 00FF │ POP HL       │
-│    38/0 │    │ MREQ │      │      │ RD │    │ 00FE │ 34 │ 0008 │ 00FF │ POP HL       │
-│    38/1 │    │      │      │      │    │    │ 00FE │ 34 │ 0008 │ 00FF │ POP HL       │
-│    39/0 │    │      │      │      │    │    │ 00FF │ 34 │ 0008 │ 00FF │ POP HL       │    M3/T1 (mem read)
-│    39/1 │    │ MREQ │      │      │ RD │    │ 00FF │ 34 │ 0008 │ 00FF │ POP HL       │
-│    40/0 │    │ MREQ │      │      │ RD │    │ 00FF │ 12 │ 0008 │ 00FF │ POP HL       │
-│    40/1 │    │ MREQ │      │      │ RD │    │ 00FF │ 12 │ 0008 │ 0100 │ POP HL       │
-│    41/0 │    │ MREQ │      │      │ RD │    │ 00FF │ 12 │ 0008 │ 0100 │ POP HL       │
-│    41/1 │    │      │      │      │    │    │ 0000 │ 12 │ 0008 │ 0100 │ POP HL       │
+PUSH HL:
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ HL   │ SP   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │    │    │ 0006 │ 12 │ 1234 │ 0100 │  M1/T1/0 (opcode fetch)
+│ M1 │ MREQ │      │ RD │    │ 0006 │ 12 │ 1234 │ 0100 │  M1/T1/1
+│ M1 │ MREQ │      │ RD │    │ 0006 │ E5 │ 1234 │ 0100 │  M1/T2/0
+│ M1 │ MREQ │      │ RD │    │ 0006 │ E5 │ 1234 │ 0100 │  M1/T2/1
+│    │      │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │  M1/T3/0
+│    │ MREQ │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │  M1/T3/1
+│    │ MREQ │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │  M1/T4/0
+│    │      │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │  M1/T4/1
+│    │      │      │    │    │ 0002 │ E5 │ 1234 │ 0100 │  <== WTF???
+│    │      │      │    │    │ 0000 │ E5 │ 1234 │ 00FF │  <== WTF???
+│    │      │      │    │    │ 00FF │ E5 │ 1234 │ 00FF │  M2/T1/0 (memory write)
+│    │ MREQ │      │    │    │ 00FF │ 12 │ 1234 │ 00FF │  M2/T1/1
+│    │ MREQ │      │    │    │ 00FF │ 12 │ 1234 │ 00FF │  M2/T2/0
+│    │ MREQ │      │    │ WR │ 00FF │ 12 │ 1234 │ 00FE │  M2/T2/1
+│    │ MREQ │      │    │ WR │ 00FF │ 12 │ 1234 │ 00FE │  M2/T3/0
+│    │      │      │    │    │ 00FE │ 12 │ 1234 │ 00FE │  M2/T3/1
+│    │      │      │    │    │ 00FE │ E5 │ 1234 │ 00FE │  M3/T1/0 (memory write)
+│    │ MREQ │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │  M3/T1/1
+│    │ MREQ │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │  M3/T2/0
+│    │ MREQ │      │    │ WR │ 00FE │ 34 │ 1234 │ 00FE │  M3/T2/1
+│    │ MREQ │      │    │ WR │ 00FE │ 34 │ 1234 │ 00FE │  M3/T3/0
+│    │      │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │  M3/T3/1
 ```
 
-In the POP instruction the machine cycles are packed tightly as expected. When
-lookin closely at the stack pointer (SP) column it becomes clear *why* the PUSH
-instruction needs to waste that additional "WTF cycle":
+There's an additional clock cycle squeezed inbetween the opcode fetch and
+first memory read machine cycle which is used to 'pre-decrement'
+the *SP* register before the memory write machine cycles can happen.
+
+It's little irregularities like this which complicate writing a Z80 emulator.
+In a cycle correct emulator it is not only important that instructions
+take the correct number of clock cycles to execute, but also that
+memory and IO reads/writes happen at the correct clock cycle.
+
+## Overlapped Execution
+
+In some instructions, execution 'leaks' into the opcode fetch machine cycle
+of the next instruction.
+
+For instance when inspecting the instruction 'XOR A' (which clears the A register
+and sets flags accordingly the instruction doesn't seem to have any effect:
 
 ```
-┌─────────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────────────┐
-│ Cycle/h │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ Asm          │
-├─────────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────────────┤
-...
-│    25/0 │    │      │      │      │    │    │ 0002 │ E5 │ 0007 │ 0100 │ PUSH HL      │ <== WTF???
-│    25/1 │    │      │      │      │    │    │ 0000 │ E5 │ 0007 │ 00FF │ PUSH HL      │ <== WTF???
-...
+XOR A:
+┌────┬──────┬──────┬────┬────┬──────┬──────────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AF   │ Flags    │
+├────┼──────┼──────┼────┼────┼──────┼──────────┤
+│ M1 │      │      │    │    │ FFAC │ SzYhXVnc │  T1/0
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │  T1/1
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │  T2/0
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │  T2/1
+│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │  T3/0
+│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │  T3/1
+│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │  T4/0
+│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │  T4/1
+                               ^^     ^^^^^^^^
 ```
 
-Before the stack pointer can be placed on the stack, it must be decremented from 0100 to 00FF
-before it can be placed on the address bus, while in the POP instruction the stack pointer
-already points to the right memory location, and instead is 'post-incremented' *during* the
-regular memory read machine cycle from 00FE to 00FF, so no extra cycles are needed:
+*XOR A* takes 4 clock cycles, yet at the end of the instruction A isn't zero,
+and flag bits haven't been updated either. Here's the same diagram including
+the *NOP* instruction that follows:
 
 ```
-┌─────────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬───────┬──────────────┐
-│ Cycle/h │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ Watch │ Asm          │
-├─────────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼───────┼──────────────┤
-...
-│    37/0 │    │ MREQ │      │      │ RD │    │ 00FE │ 34 │ 0008 │ 00FE │ ??    │ POP HL       │    M2/T2-
-│    37/1 │    │ MREQ │      │      │ RD │    │ 00FE │ 34 │ 0008 │ 00FF │ ??    │ POP HL       │    M2/T2+
-...
+XOR A + NOP:
+┌────┬──────┬──────┬────┬────┬──────┬──────────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AF   │ Flags    │
+├────┼──────┼──────┼────┼────┼──────┼──────────┤
+│ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ T1/0 <== XOR A start
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ T1/1
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ T2/0
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ T2/1
+│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ T3/0
+│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ T3/1
+│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ T4/0
+│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ T4/1
+├────┼──────┼──────┼────┼────┼──────┼──────────┤
+│ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ T1/0 <== NOP starts here
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ T1/1
+│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ T2/0
+│ M1 │ MREQ │      │ RD │    │ 00AC │ SzYhXVnc │ T2/1 <== A updated here
+│    │      │ RFSH │    │    │ 00AC │ SzYhXVnc │ T3/0
+│    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ T3/1 <== flags updated here 
+│    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ T4/0
+│    │      │ RFSH │    │    │ 0044 │ sZyhxVnc │ T4/1
 ```
 
-This is an example of the typical oddities in the Z80 instruction set an emulator writer
-needs to deal with.
+The results of the *XOR A* instruction only become available
+at the end of the second and third clock cycles of the following instruction.
 
+Thankfully this overlapped instruction execution is hardly relevant for CPU
+emulators, because it only affects the internal state of the CPU, not any state
+that's observable from the outside. The result of an instruction is relevant at
+the earliest *after* the opcode fetch machine cycle of the next instruction has
+finished.
 
-FIXME: next topic: |xx|yyy|zzz pattern.
+## The 3 Instruction Subsets
 
+The Z80 instruction set is really 3 separate subsets each occupying
+256 opcodes. There's the main instruction set which mostly overlaps
+with the Intel 8080 instruction set and two additional sets of instructions
+selected with the *ED* and *CB* prefix opcodes.
+
+The main and CB subsets each occupy the full range of 256 instructions,
+while the ED subset is mostly empty and only implements 59 instructions.
+
+I'm not counting the *DD* and *FD* prefix instruction ranges as separate
+subsets because they only slightly modify the behaviour of the main
+instructions.
+
+This means there are 571 unique instructions in the Z80 instruction set
+(I'm counting the RETI and RETN instruction as one because they have 
+identical behaviour).
+
+## The 2-3-3 Opcode Bit Pattern
+
+Opcode bytes can be split into three bit groups to reveal a hidden
+'octal structure' of a 256 instruction subset:
+
+```
+  7 6   5 4 3   2 1 0
+| x x | y y y | z z z | 
+```
+
+The two topmost bits (xx) split the instruction space into 4 quadrants,
+and the remaining 6 bits are divided into two 3-bit groups (yyy) and (zzz)
+which are used by the instruction decoder to select a specific group
+of instructions or as an 'register index'.
+
+Let's look at each instruction subset and quadrant one by one:
+
+## Main Quadrant 1 (xx = 01):
+
+I'm starting with Main Quadrant 1 (not 0) because unlike 0 it is has such
+a simple structure. In an Z80 emulator this is usually the first quadrant
+I'm implementing.
+
+The 64 instructions with the bit pattern **|01|yyy|zzz|** implement
+8-bit move instructions where **yyy** defines the target and **zzz**
+the source. As a table, the main quadrant 1 looks like this:
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=01</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">LD B,B</td><td class="z80c0">LD B,C</td><td class="z80c0">LD B,D</td><td class="z80c0">LD B,E</td><td class="z80c0">LD B,H</td><td class="z80c0">LD B,L</td><td class="z80c0">LD B,(HL)</td><td class="z80c0">LD B,A</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">LD C,B</td><td class="z80c0">LD C,C</td><td class="z80c0">LD C,D</td><td class="z80c0">LD C,E</td><td class="z80c0">LD C,H</td><td class="z80c0">LD C,L</td><td class="z80c0">LD C,(HL)</td><td class="z80c0">LD C,A</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c0">LD D,B</td><td class="z80c0">LD D,C</td><td class="z80c0">LD D,D</td><td class="z80c0">LD D,E</td><td class="z80c0">LD D,H</td><td class="z80c0">LD D,L</td><td class="z80c0">LD D,(HL)</td><td class="z80c0">LD D,A</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c0">LD E,B</td><td class="z80c0">LD E,C</td><td class="z80c0">LD E,D</td><td class="z80c0">LD E,E</td><td class="z80c0">LD E,H</td><td class="z80c0">LD E,L</td><td class="z80c0">LD E,(HL)</td><td class="z80c0">LD E,A</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c0">LD H,B</td><td class="z80c0">LD H,C</td><td class="z80c0">LD H,D</td><td class="z80c0">LD H,E</td><td class="z80c0">LD H,H</td><td class="z80c0">LD H,L</td><td class="z80c0">LD H,(HL)</td><td class="z80c0">LD H,A</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c0">LD L,B</td><td class="z80c0">LD L,C</td><td class="z80c0">LD L,D</td><td class="z80c0">LD L,E</td><td class="z80c0">LD L,H</td><td class="z80c0">LD L,L</td><td class="z80c0">LD L,(HL)</td><td class="z80c0">LD L,A</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c0">LD (HL),B</td><td class="z80c0">LD (HL),C</td><td class="z80c0">LD (HL),D</td><td class="z80c0">LD (HL),E</td><td class="z80c0">LD (HL),H</td><td class="z80c0">LD (HL),L</td><td class="z80c0">HALT</td><td class="z80c0">LD (HL),A</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c0">LD A,B</td><td class="z80c0">LD A,C</td><td class="z80c0">LD A,D</td><td class="z80c0">LD A,E</td><td class="z80c0">LD A,H</td><td class="z80c0">LD A,L</td><td class="z80c0">LD A,(HL)</td><td class="z80c0">LD A,A</td></tr>
+</table><br>
+
+*y* and *z* are registers indices as binary numbers:
+
+```
+000 = 0 => B
+001 = 1 => C
+010 = 2 => D
+011 = 3 => E
+100 = 4 => H
+101 = 5 => L
+110 = 6 => (HL)
+111 = 7 => A
+```
+
+The 'register index' 6 is a bit special. Normally this index should be used for
+the F (flags) register, which isn't directly accessible. Instead this index is
+used as special case to load or store the 8-bit values addressed by the register
+pair HL.
+
+And another oddity is the HALT instruction at bit pattern **|01|110|110|** (==
+76 hex). Following the 'table logic' this instruction slot *should* be occupied by
+an **LD (HL),(HL)** instruction which doesn't make a lot of sense, so instead
+this slot was reused for the HALT instruction.
+
+I have choosen the green background for instructions that have no 'timing
+surprises' (like the **PUSH HL** instruction discussed above).  The duration
+of 'green' instructions is simply the sum of their default machine cycle
+lengths.  All instructions in the Main Quadrant 1 take 4 clock cycles (for the
+opcode fetch), except the instructions involving **(HL)** which take an additional
+memory read or write machine cycle, resulting in 7 clock cycles.
+
+## Main Quadrant 2 (xx = 10)
+
+This is the second 'beautiful' quadrant in the main instruction set, this
+is where the basic 8-bit ALU instructions live:
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=10</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">ADD B</td><td class="z80c0">ADD C</td><td class="z80c0">ADD D</td><td class="z80c0">ADD E</td><td class="z80c0">ADD H</td><td class="z80c0">ADD L</td><td class="z80c0">ADD (HL)</td><td class="z80c0">ADD A</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">ADC B</td><td class="z80c0">ADC C</td><td class="z80c0">ADC D</td><td class="z80c0">ADC E</td><td class="z80c0">ADC H</td><td class="z80c0">ADC L</td><td class="z80c0">ADC (HL)</td><td class="z80c0">ADC A</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c0">SUB B</td><td class="z80c0">SUB C</td><td class="z80c0">SUB D</td><td class="z80c0">SUB E</td><td class="z80c0">SUB H</td><td class="z80c0">SUB L</td><td class="z80c0">SUB (HL)</td><td class="z80c0">SUB A</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c0">SBC B</td><td class="z80c0">SBC C</td><td class="z80c0">SBC D</td><td class="z80c0">SBC E</td><td class="z80c0">SBC H</td><td class="z80c0">SBC L</td><td class="z80c0">SBC (HL)</td><td class="z80c0">SBC A</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c0">AND B</td><td class="z80c0">AND C</td><td class="z80c0">AND D</td><td class="z80c0">AND E</td><td class="z80c0">AND H</td><td class="z80c0">AND L</td><td class="z80c0">AND (HL)</td><td class="z80c0">AND A</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c0">XOR B</td><td class="z80c0">XOR C</td><td class="z80c0">XOR D</td><td class="z80c0">XOR E</td><td class="z80c0">XOR H</td><td class="z80c0">XOR L</td><td class="z80c0">XOR (HL)</td><td class="z80c0">XOR A</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c0">OR B</td><td class="z80c0">OR C</td><td class="z80c0">OR D</td><td class="z80c0">OR E</td><td class="z80c0">OR H</td><td class="z80c0">OR L</td><td class="z80c0">OR (HL)</td><td class="z80c0">OR A</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c0">CP B</td><td class="z80c0">CP C</td><td class="z80c0">CP D</td><td class="z80c0">CP E</td><td class="z80c0">CP H</td><td class="z80c0">CP L</td><td class="z80c0">CP (HL)</td><td class="z80c0">CP A</td></tr>
+</table><br>
+
+Again, no timing surprises in this quadrant. The *z* bit group selects the
+source register or **(HL)**, and the *y* bit group the ALU operation:
+
+```
+000 => 0 => ADD
+001 => 1 => ADC (add with carry)
+010 => 2 => SUB
+011 => 3 => SBC (sub with carry)
+100 => 4 => AND
+101 => 5 => XOR
+110 => 6 => OR
+111 => 7 => CP (compare - like SUB, but discard result)
+```
+
+This table also demonstrates nicely why all ALU operations implicitely use the
+register **A** to store the result.  There's simply no bits left in the 8-bit
+opcode to select a destination register.
+
+## Main Quadrant 0 (xx = 00)
+
+This is the first of the two 'messy' quadrants in the main set:
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=00</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">NOP</td><td class="z80c0">LD BC,nn</td><td class="z80c0">LD (BC),A</td><td class="z80c1">INC BC</td><td class="z80c0">INC B</td><td class="z80c0">DEC B</td><td class="z80c0">LD B,n</td><td class="z80c0">RLCA</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">EX AF,AF'</td><td class="z80c1">ADD HL,BC</td><td class="z80c0">LD A,(BC)</td><td class="z80c1">DEC BC</td><td class="z80c0">INC C</td><td class="z80c0">DEC C</td><td class="z80c0">LD C,n</td><td class="z80c0">RRCA</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c1">DJNZ d</td><td class="z80c0">LD DE,nn</td><td class="z80c0">LD (DE),A</td><td class="z80c1">INC DE</td><td class="z80c0">INC D</td><td class="z80c0">DEC D</td><td class="z80c0">LD D,n</td><td class="z80c0">RLA</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c1">JR d</td><td class="z80c1">ADD HL,DE</td><td class="z80c0">LD A,(DE)</td><td class="z80c1">DEC DE</td><td class="z80c0">INC E</td><td class="z80c0">DEC E</td><td class="z80c0">LD E,n</td><td class="z80c0">RRA</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c1">JR NZ,d</td><td class="z80c0">LD HL,nn</td><td class="z80c0">LD (nn),HL</td><td class="z80c1">INC HL</td><td class="z80c0">INC H</td><td class="z80c0">DEC H</td><td class="z80c0">LD H,n</td><td class="z80c0">DAA</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c1">JR Z,d</td><td class="z80c1">ADD HL,HL</td><td class="z80c0">LD HL,(nn)</td><td class="z80c1">DEC HL</td><td class="z80c0">INC L</td><td class="z80c0">DEC L</td><td class="z80c0">LD L,n</td><td class="z80c0">CPL</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c1">JR NC,d</td><td class="z80c0">LD SP,nn</td><td class="z80c0">LD (nn),A</td><td class="z80c1">INC SP</td><td class="z80c1">INC (HL)</td><td class="z80c1">DEC (HL)</td><td class="z80c0">LD (HL),n</td><td class="z80c0">SCF</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c1">JR C,d</td><td class="z80c1">ADD HL,SP</td><td class="z80c0">LD A,(nn)</td><td class="z80c1">DEC SP</td><td class="z80c0">INC A</td><td class="z80c0">DEC A</td><td class="z80c0">LD A,n</td><td class="z80c0">CCF</td></tr>
+</table><br>
+
+The red background color means that those instructions have squeeze some extra
+clock cycles inbetween the regular memory access machine cycles and need to be
+handled with special care in cycle-correct emulators. 
+
+The **INC (HL)** and **DEC (HL)** instructions stick out, those are read-modify-write
+instructions. Let's see why they have a red background:
+
+```
+INC (HL):
+┌────┬──────┬──────┬────┬────┬──────┬────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │
+├────┼──────┼──────┼────┼────┼──────┼────┤
+│ M1 │      │      │    │    │ 0003 │ 12 │ M1/T1/0 <== opcode fetch
+│ M1 │ MREQ │      │ RD │    │ 0003 │ 12 │ M1/T1/1
+│ M1 │ MREQ │      │ RD │    │ 0003 │ 34 │ M1/T2/0
+│ M1 │ MREQ │      │ RD │    │ 0000 │ 34 │ M1/T2/1
+│    │      │ RFSH │    │    │ 0001 │ 34 │ M1/T3/0
+│    │ MREQ │ RFSH │    │    │ 0001 │ 34 │ M1/T3/1
+│    │ MREQ │ RFSH │    │    │ 0001 │ 34 │ M1/T4/0
+│    │      │ RFSH │    │    │ 0000 │ 34 │ M1/T4/1
+│    │      │      │    │    │ 1234 │ 34 │ M2/T1/0 <== memory read
+│    │ MREQ │      │ RD │    │ 1234 │ 34 │ M2/T1/1
+│    │ MREQ │      │ RD │    │ 1234 │ 00 │ M2/T2/0
+│    │ MREQ │      │ RD │    │ 1234 │ 00 │ M2/T2/1
+│    │ MREQ │      │ RD │    │ 1234 │ 00 │ M2/T3/0
+│    │      │      │    │    │ 1234 │ 00 │ M2/T3/1
+│    │      │      │    │    │ 1234 │ 00 │         <== ??? 
+│    │      │      │    │    │ 1234 │ 00 │         <== ???
+│    │      │      │    │    │ 1234 │ 00 │ M3/T1/0 <== memory write
+│    │ MREQ │      │    │    │ 1234 │ 01 │ M3/T1/1
+│    │ MREQ │      │    │    │ 1234 │ 01 │ M3/T2/0
+│    │ MREQ │      │    │ WR │ 1234 │ 01 │ M3/T2/1
+│    │ MREQ │      │    │ WR │ 1234 │ 01 │ M3/T3/0
+│    │      │      │    │    │ 1234 │ 01 │ M3/T3/1
+```
+
+As expected, there's an opcode fetch, memory read and memory write machine cycle.
+An extra clock cycle has been squeezed between the read and write machine cycle,
+no doubt to increment the byte that's been loaded from memory before it is 
+written back.
+
+The 16-bit **INC/DEC** column adds two additional clock cycles after the opcode fetch
+machine cycle to perform the 16-bit math:
+
+```
+INC BC:
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ BC   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┤
+│ M1 │      │      │    │    │ 0003 │ FF │ FFFF │ M1/T1/0
+│ M1 │ MREQ │      │ RD │    │ 0003 │ FF │ FFFF │ M1/T1/1
+│ M1 │ MREQ │      │ RD │    │ 0003 │ 03 │ FFFF │ M1/T2/0
+│ M1 │ MREQ │      │ RD │    │ 0000 │ 03 │ FFFF │ M1/T2/1
+│    │      │ RFSH │    │    │ 0001 │ 03 │ FFFF │ M1/T3/0
+│    │ MREQ │ RFSH │    │    │ 0001 │ 03 │ FFFF │ M1/T3/1
+│    │ MREQ │ RFSH │    │    │ 0001 │ 03 │ FFFF │ M1/T4/0
+│    │      │ RFSH │    │    │ 0001 │ 03 │ FFFF │ M1/T4/1
+│    │      │      │    │    │ 0001 │ 03 │ FFFF │        <== ???
+│    │      │      │    │    │ 0001 │ 03 │ 0000 │        <== ???
+│    │      │      │    │    │ 0001 │ 03 │ 0000 │        <== ???
+│    │      │      │    │    │ 0000 │ 03 │ 0000 │        <== ???
+```
+It's interesting that the result is already available at the
+end of the first extra clock cycle. No idea why there's 
+a second 'wasted' clock cycle, especially since the 
+16-bit INC/DEC instructions don't update the flag bits. 
+
+The 16-bit **ADD** instructions add 7 extra clock cycles after
+the opcode fetch machine cycle:
+
+```
+ADD HL,DE
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ DE   │ HL   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │    │    │ 0006 │ 22 │ 2222 │ 1111 │ M1/T1/0
+│ M1 │ MREQ │      │ RD │    │ 0006 │ 22 │ 2222 │ 1111 │ M1/T1/1
+│ M1 │ MREQ │      │ RD │    │ 0006 │ 19 │ 2222 │ 1111 │ M1/T2/0
+│ M1 │ MREQ │      │ RD │    │ 0006 │ 19 │ 2222 │ 1111 │ M1/T2/1
+│    │      │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │ M1/T3/0
+│    │ MREQ │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │ M1/T3/1
+│    │ MREQ │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │ M1/T4/0
+│    │      │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │ M1/T4/1
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │ X/T1/0
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │ X/T1/1
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │ X/T2/0
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │ X/T2/1
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │ X/T3/0
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T3/1 <== result low byte
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T4/0
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T4/1
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T5/0
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T5/1
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T6/0
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T6/1
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ X/T7/0
+│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 3333 │ Z/T7/1 <== result high byte
+```
+
+This time, no clock cycles are wasted. The 16-bit result is only
+ready in the very last half cycle of the instruction. Not shown 
+here is that the flag bits (H and C) are updated in the opcode fetch
+machine cycle of the next instruction (at M1/T3/1).
+
+The relative jump **JR d** performs a regular memory read machine cycle
+after the opcode fetch, and then spends 5 more clock cycles to compute
+the jump target address:
+
+```
+JR d
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │    │    │ 0002 │ 00 │ 0002 │ 5555 │ M1/T1/0 <== opcode fetch
+│ M1 │ MREQ │      │ RD │    │ 0002 │ 00 │ 0003 │ 5555 │ M1/T1/1
+│ M1 │ MREQ │      │ RD │    │ 0002 │ 18 │ 0003 │ 5555 │ M1/T2/0
+│ M1 │ MREQ │      │ RD │    │ 0002 │ 18 │ 0003 │ 5555 │ M1/T2/1
+│    │      │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │ M1/T3/0
+│    │ MREQ │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │ M1/T3/1
+│    │ MREQ │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │ M1/T4/0
+│    │      │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │ M1/T4/1
+│    │      │      │    │    │ 0003 │ 18 │ 0003 │ 5555 │ M2/T1/0 <== memory ready
+│    │ MREQ │      │ RD │    │ 0003 │ 18 │ 0004 │ 5555 │ M2/T1/1
+│    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │ M2/T2/0
+│    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │ M2/T2/1
+│    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │ M2/T3/0
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ M2/T3/1
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ X/T1/0  <== extra cycles
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ X/T1/1
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ X/T2/0
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ X/T2/1
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ X/T3/0
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ X/T3/1
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ X/T4/0
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ X/T4/1
+│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ X/T5/0
+│    │      │      │    │    │ 0001 │ FC │ 0004 │ 0000 │ X/T5/1 <== dst addr in WZ
+```
+
+The computed target address isn't stored in the **PC** register, but instead
+in the internal 16-bit 'helper' register **WZ**. In fact the PC register *never*
+contains the actual target address (0000), it switches straight from the address
+following the **JR d** instruction (0004) to the address following the
+destination address:
+
+```
+JR d CONTINUED: NOP at the jump destination (address 0000)
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │    │    │ 0000 │ FC │ 0004 │ 0000 │ <== PC still 0004!
+│ M1 │ MREQ │      │ RD │    │ 0000 │ FC │ 0001 │ 0000 │ <== PC goes right to 0001!
+│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0000 │
+│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0000 │
+│    │      │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
+│    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
+│    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
+│    │      │ RFSH │    │    │ 0000 │ 00 │ 0001 │ 0000 │
+```
+
+TODO DJNZ
+
+TODO JR cc
+
+## Main Quadrant 3 (xx == 11)
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=11</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c1">RET NZ</td><td class="z80c0">POP BC</td><td class="z80c0">JP NZ,nn</td><td class="z80c0">JP nn</td><td class="z80c1">CALL NZ,nn</td><td class="z80c1">PUSH BC</td><td class="z80c0">ADD n</td><td class="z80c1">RST 0h</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c1">RET Z</td><td class="z80c0">RET</td><td class="z80c0">JP Z,nn</td><td class="z80c0">CB prefix</td><td class="z80c1">CALL Z,nn</td><td class="z80c1">CALL nn</td><td class="z80c0">ADC n</td><td class="z80c1">RST 8h</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c1">RET NC</td><td class="z80c0">POP DE</td><td class="z80c0">JP NC,nn</td><td class="z80c0">OUT (n),A</td><td class="z80c1">CALL NC,nn</td><td class="z80c1">PUSH DE</td><td class="z80c0">SUB n</td><td class="z80c1">RST 10h</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c1">RET C</td><td class="z80c0">EXX</td><td class="z80c0">JP C,nn</td><td class="z80c0">IN A,(n)</td><td class="z80c1">CALL C,nn</td><td class="z80c0">DD prefix</td><td class="z80c0">SBC n</td><td class="z80c1">RST 18h</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c1">RET PO</td><td class="z80c0">POP HL</td><td class="z80c0">JP PO,nn</td><td class="z80c1">EX (SP),HL</td><td class="z80c1">CALL PO,nn</td><td class="z80c1">PUSH HL</td><td class="z80c0">AND n</td><td class="z80c1">RST 20h</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c1">RET PE</td><td class="z80c0">JP HL</td><td class="z80c0">JP PE,nn</td><td class="z80c0">EX DE,HL</td><td class="z80c1">CALL PE,nn</td><td class="z80c0">ED prefix</td><td class="z80c0">XOR n</td><td class="z80c1">RST 28h</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c1">RET P</td><td class="z80c0">POP AF</td><td class="z80c0">JP P,nn</td><td class="z80c0">DI</td><td class="z80c1">CALL P,nn</td><td class="z80c1">PUSH AF</td><td class="z80c0">OR n</td><td class="z80c1">RST 30h</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c1">RET M</td><td class="z80c1">LD SP,HL</td><td class="z80c0">JP M,nn</td><td class="z80c0">EI</td><td class="z80c1">CALL M,nn</td><td class="z80c0">FD prefix</td><td class="z80c0">CP n</td><td class="z80c1">RST 38h</td></tr>
+</table><br>
