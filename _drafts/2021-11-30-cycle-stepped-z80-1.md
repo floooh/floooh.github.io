@@ -2209,15 +2209,249 @@ INIR:
 
 ### CB Prefix
 
-TODO: CB instruction quadrants
+The CB instruction subset is the most 'orderly' and contains bit-manipulation and -testing instructions
+Timing is as expected (2 opcode fetch machine cycles, 8 clock cycles), except for the read-modify-write instructions
+involving (HL) which insert an extra clock cycle between the memory read and memory write machine cycle
+and are thus take 15 clock cycles:
 
-### DD/FD + CB Prefix
+- opcode fetch CB prefix: 4 clock cycles
+- opcode fetch: 4 clock cycles
+- memory read: 3 clock cycles
+- 1 extra clock cycle
+- memory write: 3 clock cycles
 
-TODO: DD/FD + CB special case opcode fetch (regular mem read, no M1, no R++)
+4 + 4 + 3 + 1 + 3 = **15 clock cycles**
 
-TODO: some instruction trace logs
+The **BIT x,(HL)** instructions in CB quadrant 1 don't have the memory write cycle, but still add 
+an extra clock cycle after the memory read:
 
-TODO: special undocumented behaviour
+- opcode fetch CB prefix: 4 clock cycles
+- opcode fetch: 4 clock cycles
+- memory read: 3 clock cycles
+- 1 extra clock cycle
+
+4 + 4 + 3 + 1 = **12 clock cycles**
+
+#### CB Quadrant 0
+
+The first CB quadrant contains rotate and shift instructions:
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=00</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">RLC B</td><td class="z80c0">RLC C</td><td class="z80c0">RLC D</td><td class="z80c0">RLC E</td><td class="z80c0">RLC H</td><td class="z80c0">RLC L</td><td class="z80c1">RLC (HL)</td><td class="z80c0">RLC A</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">RRC B</td><td class="z80c0">RRC C</td><td class="z80c0">RRC D</td><td class="z80c0">RRC E</td><td class="z80c0">RRC H</td><td class="z80c0">RRC L</td><td class="z80c1">RRC (HL)</td><td class="z80c0">RRC A</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c0">RL B</td><td class="z80c0">RL C</td><td class="z80c0">RL D</td><td class="z80c0">RL E</td><td class="z80c0">RL H</td><td class="z80c0">RL L</td><td class="z80c1">RL (HL)</td><td class="z80c0">RL A</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c0">RR B</td><td class="z80c0">RR C</td><td class="z80c0">RR D</td><td class="z80c0">RR E</td><td class="z80c0">RR H</td><td class="z80c0">RR L</td><td class="z80c1">RR (HL)</td><td class="z80c0">RR A</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c0">SLA B</td><td class="z80c0">SLA C</td><td class="z80c0">SLA D</td><td class="z80c0">SLA E</td><td class="z80c0">SLA H</td><td class="z80c0">SLA L</td><td class="z80c1">SLA (HL)</td><td class="z80c0">SLA A</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c0">SRA B</td><td class="z80c0">SRA C</td><td class="z80c0">SRA D</td><td class="z80c0">SRA E</td><td class="z80c0">SRA H</td><td class="z80c0">SRA L</td><td class="z80c1">SRA (HL)</td><td class="z80c0">SRA A</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c0">SLL B</td><td class="z80c0">SLL C</td><td class="z80c0">SLL D</td><td class="z80c0">SLL E</td><td class="z80c0">SLL H</td><td class="z80c0">SLL L</td><td class="z80c1">SLL (HL)</td><td class="z80c0">SLL A</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c0">SRL B</td><td class="z80c0">SRL C</td><td class="z80c0">SRL D</td><td class="z80c0">SRL E</td><td class="z80c0">SRL H</td><td class="z80c0">SRL L</td><td class="z80c1">SRL (HL)</td><td class="z80c0">SRL A</td></tr>
+</table><br>
+
+#### CB Quadrant 1
+
+CB Quadrant one contains the bit testing instructions in all 64 possible combination:
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=01</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">BIT 0,B</td><td class="z80c0">BIT 0,C</td><td class="z80c0">BIT 0,D</td><td class="z80c0">BIT 0,E</td><td class="z80c0">BIT 0,H</td><td class="z80c0">BIT 0,L</td><td class="z80c1">BIT 0,(HL)</td><td class="z80c0">BIT 0,A</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">BIT 1,B</td><td class="z80c0">BIT 1,C</td><td class="z80c0">BIT 1,D</td><td class="z80c0">BIT 1,E</td><td class="z80c0">BIT 1,H</td><td class="z80c0">BIT 1,L</td><td class="z80c1">BIT 1,(HL)</td><td class="z80c0">BIT 1,A</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c0">BIT 2,B</td><td class="z80c0">BIT 2,C</td><td class="z80c0">BIT 2,D</td><td class="z80c0">BIT 2,E</td><td class="z80c0">BIT 2,H</td><td class="z80c0">BIT 2,L</td><td class="z80c1">BIT 2,(HL)</td><td class="z80c0">BIT 2,A</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c0">BIT 3,B</td><td class="z80c0">BIT 3,C</td><td class="z80c0">BIT 3,D</td><td class="z80c0">BIT 3,E</td><td class="z80c0">BIT 3,H</td><td class="z80c0">BIT 3,L</td><td class="z80c1">BIT 3,(HL)</td><td class="z80c0">BIT 3,A</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c0">BIT 4,B</td><td class="z80c0">BIT 4,C</td><td class="z80c0">BIT 4,D</td><td class="z80c0">BIT 4,E</td><td class="z80c0">BIT 4,H</td><td class="z80c0">BIT 4,L</td><td class="z80c1">BIT 4,(HL)</td><td class="z80c0">BIT 4,A</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c0">BIT 5,B</td><td class="z80c0">BIT 5,C</td><td class="z80c0">BIT 5,D</td><td class="z80c0">BIT 5,E</td><td class="z80c0">BIT 5,H</td><td class="z80c0">BIT 5,L</td><td class="z80c1">BIT 5,(HL)</td><td class="z80c0">BIT 5,A</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c0">BIT 6,B</td><td class="z80c0">BIT 6,C</td><td class="z80c0">BIT 6,D</td><td class="z80c0">BIT 6,E</td><td class="z80c0">BIT 6,H</td><td class="z80c0">BIT 6,L</td><td class="z80c1">BIT 6,(HL)</td><td class="z80c0">BIT 6,A</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c0">BIT 7,B</td><td class="z80c0">BIT 7,C</td><td class="z80c0">BIT 7,D</td><td class="z80c0">BIT 7,E</td><td class="z80c0">BIT 7,H</td><td class="z80c0">BIT 7,L</td><td class="z80c1">BIT 7,(HL)</td><td class="z80c0">BIT 7,A</td></tr>
+</table><br>
+
+#### CB Quadrant 2
+
+CB Quadrant 2 has all the bit clear instructions...
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=10</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">RES 0,B</td><td class="z80c0">RES 0,C</td><td class="z80c0">RES 0,D</td><td class="z80c0">RES 0,E</td><td class="z80c0">RES 0,H</td><td class="z80c0">RES 0,L</td><td class="z80c1">RES 0,(HL)</td><td class="z80c0">RES 0,A</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">RES 1,B</td><td class="z80c0">RES 1,C</td><td class="z80c0">RES 1,D</td><td class="z80c0">RES 1,E</td><td class="z80c0">RES 1,H</td><td class="z80c0">RES 1,L</td><td class="z80c1">RES 1,(HL)</td><td class="z80c0">RES 1,A</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c0">RES 2,B</td><td class="z80c0">RES 2,C</td><td class="z80c0">RES 2,D</td><td class="z80c0">RES 2,E</td><td class="z80c0">RES 2,H</td><td class="z80c0">RES 2,L</td><td class="z80c1">RES 2,(HL)</td><td class="z80c0">RES 2,A</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c0">RES 3,B</td><td class="z80c0">RES 3,C</td><td class="z80c0">RES 3,D</td><td class="z80c0">RES 3,E</td><td class="z80c0">RES 3,H</td><td class="z80c0">RES 3,L</td><td class="z80c1">RES 3,(HL)</td><td class="z80c0">RES 3,A</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c0">RES 4,B</td><td class="z80c0">RES 4,C</td><td class="z80c0">RES 4,D</td><td class="z80c0">RES 4,E</td><td class="z80c0">RES 4,H</td><td class="z80c0">RES 4,L</td><td class="z80c1">RES 4,(HL)</td><td class="z80c0">RES 4,A</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c0">RES 5,B</td><td class="z80c0">RES 5,C</td><td class="z80c0">RES 5,D</td><td class="z80c0">RES 5,E</td><td class="z80c0">RES 5,H</td><td class="z80c0">RES 5,L</td><td class="z80c1">RES 5,(HL)</td><td class="z80c0">RES 5,A</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c0">RES 6,B</td><td class="z80c0">RES 6,C</td><td class="z80c0">RES 6,D</td><td class="z80c0">RES 6,E</td><td class="z80c0">RES 6,H</td><td class="z80c0">RES 6,L</td><td class="z80c1">RES 6,(HL)</td><td class="z80c0">RES 6,A</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c0">RES 7,B</td><td class="z80c0">RES 7,C</td><td class="z80c0">RES 7,D</td><td class="z80c0">RES 7,E</td><td class="z80c0">RES 7,H</td><td class="z80c0">RES 7,L</td><td class="z80c1">RES 7,(HL)</td><td class="z80c0">RES 7,A</td></tr>
+</table><br>
+
+#### CB Quadrant 3:
+
+...and the last CB Quadrant all the bit-set instructions:
+
+<style>
+.z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
+.z80h { border:1px solid black;border-collapse:collapse;padding:5px;color:black;background-color:Gainsboro }
+.z80c0 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:PaleGreen; }
+.z80c1 { border:1px solid black;border-collapse:collapse;padding:5px;font-size:80%;font-weight:bold;color:black;background-color:LightPink; }
+</style>
+<table class="z80t">
+<tr class="z80t"><th class="z80h">x=11</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">SET 0,B</td><td class="z80c0">SET 0,C</td><td class="z80c0">SET 0,D</td><td class="z80c0">SET 0,E</td><td class="z80c0">SET 0,H</td><td class="z80c0">SET 0,L</td><td class="z80c1">SET 0,(HL)</td><td class="z80c0">SET 0,A</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">SET 1,B</td><td class="z80c0">SET 1,C</td><td class="z80c0">SET 1,D</td><td class="z80c0">SET 1,E</td><td class="z80c0">SET 1,H</td><td class="z80c0">SET 1,L</td><td class="z80c1">SET 1,(HL)</td><td class="z80c0">SET 1,A</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c0">SET 2,B</td><td class="z80c0">SET 2,C</td><td class="z80c0">SET 2,D</td><td class="z80c0">SET 2,E</td><td class="z80c0">SET 2,H</td><td class="z80c0">SET 2,L</td><td class="z80c1">SET 2,(HL)</td><td class="z80c0">SET 2,A</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c0">SET 3,B</td><td class="z80c0">SET 3,C</td><td class="z80c0">SET 3,D</td><td class="z80c0">SET 3,E</td><td class="z80c0">SET 3,H</td><td class="z80c0">SET 3,L</td><td class="z80c1">SET 3,(HL)</td><td class="z80c0">SET 3,A</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c0">SET 4,B</td><td class="z80c0">SET 4,C</td><td class="z80c0">SET 4,D</td><td class="z80c0">SET 4,E</td><td class="z80c0">SET 4,H</td><td class="z80c0">SET 4,L</td><td class="z80c1">SET 4,(HL)</td><td class="z80c0">SET 4,A</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c0">SET 5,B</td><td class="z80c0">SET 5,C</td><td class="z80c0">SET 5,D</td><td class="z80c0">SET 5,E</td><td class="z80c0">SET 5,H</td><td class="z80c0">SET 5,L</td><td class="z80c1">SET 5,(HL)</td><td class="z80c0">SET 5,A</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c0">SET 6,B</td><td class="z80c0">SET 6,C</td><td class="z80c0">SET 6,D</td><td class="z80c0">SET 6,E</td><td class="z80c0">SET 6,H</td><td class="z80c0">SET 6,L</td><td class="z80c1">SET 6,(HL)</td><td class="z80c0">SET 6,A</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c0">SET 7,B</td><td class="z80c0">SET 7,C</td><td class="z80c0">SET 7,D</td><td class="z80c0">SET 7,E</td><td class="z80c0">SET 7,H</td><td class="z80c0">SET 7,L</td><td class="z80c1">SET 7,(HL)</td><td class="z80c0">SET 7,A</td></tr>
+</table><br>
+
+### DD CB and DD FD Prefix
+
+The **DD CB** and **FD CB** double-prefix pseudo-subset is a very special beast. The documented
+instructions of the subset just provide the "expected" (IX+d) and (IY+d) versions of the CB-prefixed
+(HL) instructions, for instance:
+
+* BIT n,(HL) => BIT n,(IX+d)
+* SET n,(HL) => SET n,(IX+d)
+* RES n,(HL) => RED n,(IX+d)
+* RLC (H) => RLC (IX+d)
+
+But the much larger undocumented instructions have the strange behaviour that they store the
+result both in (IX+d) *and* a register (except the BIT instructions, which only read the value).
+
+But there are more oddities:
+
+- The d-offset sits between the CB prefix and 'actual' opcode, while in all other DD/FD prefixed
+instructions, the d-offset follows the opcode byte.
+
+- The d-offset always exists, also for instructions that involve (HL).
+
+- The R register is only incremented twice, but for two prefix bytes and an additional opcode
+it would be expected that it is incremented three times.
+
+Let's first look at the timing of the documented **SET 1,(IX+d)** instruction (machine code byte sequence: **DD CB 03 CE**):
+
+```
+SET 1,(IX+3):
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │ WZ   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ M1 │      │      │    │    │ 0004 │ 10 │ 0004 │ 1000 │ 5555 │ <== opcode fetch DD prefix
+│ M1 │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 1000 │ 5555 │
+│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
+│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
+│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ M1 │      │      │    │    │ 0005 │ DD │ 0005 │ 1000 │ 5555 │ <== opcode fetch CB prefix
+│ M1 │ MREQ │      │ RD │    │ 0005 │ DD │ 0006 │ 1000 │ 5555 │
+│ M1 │ MREQ │      │ RD │    │ 0005 │ CB │ 0006 │ 1000 │ 5555 │
+│ M1 │ MREQ │      │ RD │    │ 0004 │ CB │ 0006 │ 1000 │ 5555 │
+│    │      │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
+│    │ MREQ │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
+│    │ MREQ │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
+│    │      │ RFSH │    │    │ 0000 │ CB │ 0006 │ 1000 │ 5555 │
+│    │      │      │    │    │ 0006 │ CB │ 0006 │ 1000 │ 5555 │ <== memory read d-offset
+│    │ MREQ │      │ RD │    │ 0006 │ CB │ 0007 │ 1000 │ 5555 │
+│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│    │      │      │    │    │ 0007 │ 03 │ 0007 │ 1000 │ 5555 │ <== memory read (pseudo opcode fetch)
+│    │ MREQ │      │ RD │    │ 0007 │ 03 │ 0008 │ 1000 │ 5555 │
+│    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5555 │
+│    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │ <== 2 extra clock cycles
+│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│    │      │      │    │    │ 0000 │ CE │ 0008 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ CE │ 0008 │ 1000 │ 1003 │ <== memory read (operand)
+│    │ MREQ │      │ RD │    │ 1003 │ CE │ 0008 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │ <== 1 extra clock cycle
+│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │ <== memory write (operand)
+│    │ MREQ │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│    │ MREQ │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+```
+
+It all starts as expected:
+
+- a regular opcode fetch for the DD prefix
+- another regular opcode fetch for the CB prefix
+- a memory read machine cycle to load the d-offset (03)
+
+But now it gets weird. The next byte that must be loaded is the 'regular' opcode **CE**,
+but this doesn't happen with an opcode fetch machine cycle, but instead with a
+memory read machine cycle. The M1 pin isn't set, and there's are also no RFSH clock
+cycles (which also explains why the R register isn't incremented).
+
+Now let's have a look at the undocumented instruction **SET 1,(IX+d),B** (machine code
+byte sequence **DD CB 03 C8**):
+
+```
+SET 1,(IX+d),B
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ IX   │ WZ   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ M1 │      │      │    │    │ 000B │ 00 │ 000B │ 0000 │ 1000 │ 1003 │ <== opcode fetch DD prefix
+│ M1 │ MREQ │      │ RD │    │ 000B │ 00 │ 000C │ 0000 │ 1000 │ 1003 │
+│ M1 │ MREQ │      │ RD │    │ 000B │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ M1 │ MREQ │      │ RD │    │ 0008 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│    │      │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│    │      │ RFSH │    │    │ 0004 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ M1 │      │      │    │    │ 000C │ DD │ 000C │ 0000 │ 1000 │ 1003 │ <== opcode fetch CB prefix
+│ M1 │ MREQ │      │ RD │    │ 000C │ DD │ 000D │ 0000 │ 1000 │ 1003 │
+│ M1 │ MREQ │      │ RD │    │ 000C │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│ M1 │ MREQ │      │ RD │    │ 000C │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│    │      │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│    │      │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 000D │ CB │ 000D │ 0000 │ 1000 │ 1003 │ <== memory read (d-offset)
+│    │ MREQ │      │ RD │    │ 000D │ CB │ 000E │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 000C │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 000E │ 03 │ 000E │ 0000 │ 1000 │ 1003 │ <== memory read (pseudo opcode fetch)
+│    │ MREQ │      │ RD │    │ 000E │ 03 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │ <== 2 extra clock cycles
+│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ C8 │ 000F │ 0000 │ 1000 │ 1003 │ <== memory read (operand)
+│    │ MREQ │      │ RD │    │ 1003 │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │ <== 1 extra clock cycle
+│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │ <== memory write (operand)
+│    │ MREQ │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│    │      │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+```
+
+...it looks *identical* to the documented **SET 1,(IX+3)** instruction!
+
+But so far, the B register hasn't been updated, this happens overlapped
+in the opcode fetch of the next instruction:
+```
+SET 1,(IX+d),B - continued into next opcode fetch
+┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ IX   │ WZ   │
+├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ M1 │      │      │    │    │ 000F │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│ M1 │ MREQ │      │ RD │    │ 000F │ 00 │ 0010 │ 0000 │ 1000 │ 1003 │
+│ M1 │ MREQ │      │ RD │    │ 000F │ 00 │ 0010 │ 0000 │ 1000 │ 1003 │
+│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │ <== B register updated
+│    │      │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+│    │ MREQ │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+│    │ MREQ │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+│    │      │ RFSH │    │    │ 0000 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+```
 
 ## Interrupt Behaviour
 
