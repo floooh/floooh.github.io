@@ -161,7 +161,7 @@ take more time than a single clock cycle. But it's useful to understand the
 action of reading or writing a memory byte as a single step, and that's exactly
 what a "machine cycle" is.
 
-Machine cycles come in 6 main flavours:
+Machine cycles come in 7 main flavours:
 
 - **Opcode Fetch** (aka M1 cycle): this is always the first (and sometimes only) machine
 cycle in an instruction and takes 4 clock cycles
@@ -170,6 +170,8 @@ cycle in an instruction and takes 4 clock cycles
 - **IO Read**: read a byte from an IO port (4 clock cycles)
 - **IO Write**: write a byte to an IO port (4 clock cycles)
 - **Internal**: an internal 'processing' machine cycle of variable length
+- **Interrupt Acknowledge**: these are special machine cycles which are execyted at the start
+of maskable interrupt handling, they will be handled in detail in the last section of this blog post
 
 All instruction are built from those machine cycle types, but as always on the Z80,
 there's more: at the start of interrupt handling, a special machine cycle is executed.
@@ -279,7 +281,7 @@ last half-clock-cycle.
 
 Let's quickly go over the remaining machine cycle types for completeness:
 
-### Memory Read Machine Cycle
+### Memory Read Machine Cycles
 
 A **memory read** machine cycle looks like (in this case to load the byte value 22 from
 address 0001 into the register L):
@@ -296,7 +298,7 @@ MEM READ:
 │      │    │ 0000 │ 22 │ 5522 │  T3/1
 ```
 
-### Memory Write Machine Cycle
+### Memory Write Machine Cycles
 
 Here's a **memory write** machine cycle to store the value in register A (33)
 into the address in register HL (1122):
@@ -2455,18 +2457,683 @@ SET 1,(IX+d),B - continued into next opcode fetch
 
 ## Interrupt Behaviour
 
-TODO: EI/DI tracelogs, no INTs in EI sequences
+Disclaimer: I'm not 100% sure if I have correctly identified the
+Z80 netlist node which contains the IFF1 state. At the time this
+blog post was written the most likely candidate was node #231.
 
-TODO: RETI/RETN tracelog
+I haven't found the IFF2 node yet (but haven't looked very hard either).
 
-TODO: no INT/NMI in prefix sequences (DD DD DD ...)
+### Interrupt Detection Timing
 
-TODO: NMI tracelog
+To trigger a maskable interrupt, the INT pin must be active during the first
+half-cycle of the last clock cycle of an instruction (and interrupts must
+be enabled):
 
-TODO: IM0 tracelog
+```
+LD A,03h:
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0000 │ 3E │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
+│    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │ <== memory read
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ INT │ 0004 │ 03 │ IFF1 │ <== INT detection happens here!
+│    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== interrupt has been detected
+```
 
-TODO: IM1 tracelog
+Non-maskable interrupts are edge-triggered (meaning that the CPU will remember
+that the NMI pin was going from inactive to active during instruction execution).
+To trigger an NMI it is enough to activate the NMI pin for one half-cycle in the middle
+of an instruction. NMI interrupt handling will start in the last half-cycle of the current
+instruction by disabling interrupts (same as maskable interrupts):
 
-TODO: IM2 tracelog
+```
+LD A,03h:
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │ NMI │ 0000 │ 3E │ IFF1 │ <== NMI pin active for at least one half cycle
+│    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
+│    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== interrupt has been detected
+```
 
-TODO: interrupt behaviour in prefix sequences
+The last moment an NMI is detected is the first half cycle of the
+last clock cycle of an instruction (the same half cycle where the
+INT pin is sampled):
+
+```
+LD A,03h
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0000 │ 3E │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
+│    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │ <== memory read
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ NMI │ 0004 │ 03 │ IFF1 │ <== NMI active for 1 half-cycle
+│    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== NMI has been detected
+```
+
+If the NMI pin is active one half-cycle later, the interrupt handling
+will be delayed to the end of the following instruction.
+
+### Prefix Bytes and Interrupts
+
+Interrupts are not handled at the end of prefix opcode fetches. If the NMI pin
+is active during a prefix fetch the interrupt will be triggered at of the
+instruction following the prefix byte. This means that even non-maskable
+interrupts will not trigger during long sequenced of DD or FD prefix bytes:
+
+```
+2x DD followed by LD IX,1000h
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch DD prefix
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ DD │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │ NMI │ 0000 │ DD │ IFF1 │ <== NMI pin active for 1 half cycle
+│    │      │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0000 │ DD │ IFF1 │ <== no interrupt triggered
+│ M1 │      │      │      │    │    │     │ 0004 │ DD │ IFF1 │ <== opcode fetch DD prefix
+│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│ M1 │      │      │      │    │    │     │ 0005 │ DD │ IFF1 │ <== opcode fetch DD prefix (LD IX,nnnn)
+│ M1 │ MREQ │      │      │ RD │    │     │ 0005 │ DD │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0005 │ DD │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│ M1 │      │      │      │    │    │     │ 0006 │ DD │ IFF1 │ <== opcode fetch (21)
+│ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ DD │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ 21 │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ 21 │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│    │      │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│    │      │      │      │    │    │     │ 0007 │ 21 │ IFF1 │ <== memory read
+│    │ MREQ │      │      │ RD │    │     │ 0007 │ 21 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
+│    │      │      │      │    │    │     │ 0000 │ 00 │ IFF1 │
+│    │      │      │      │    │    │     │ 0008 │ 00 │ IFF1 │ <== memory read
+│    │ MREQ │      │      │ RD │    │     │ 0008 │ 00 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
+│    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
+│    │      │      │      │    │    │     │ 0008 │ 10 │      │ <== NMI triggered here
+```
+
+### EI, DI and interrupts
+
+The **EI** instruction enables maskable interrupts during the opcode fetch machine cycle
+of the *next* instruction:
+
+```
+EI
+┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │      │    │    │ 0000 │ 00 │ 0000 │      │ <== opcode fetch
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0001 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+
+...continued, opcode fetch of next instruction:
+
+│ M1 │      │      │      │    │    │ 0001 │ FB │ 0001 │      │ <== opcode fetch
+│ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0002 │ IFF1 │ <== interrupts enabled here
+│    │      │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
+│    │      │      │ RFSH │    │    │ 0000 │ 00 │ 0002 │ IFF1 │
+```
+
+This is the reason why maskable interrupts are only handled at the end of the instruction that
+follows **EI**.
+
+**EI** also explicitely supresses masked interrupts in the second half of its opcode fetch
+machine cycle. This is why masked interrupts are not triggered during a sequence of
+**EI** instructions:
+
+```
+2x EI + NOP
+┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │      │    │    │ 0000 │ 00 │ 0000 │      │ <== opcode fetch 1st EI
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0001 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+
+...continued, 2nd EI:
+
+│ M1 │      │      │      │    │    │ 0001 │ FB │ 0001 │      │ <== opcode fetch 2nd EI
+│ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0002 │ IFF1 │ <== int enabled for 1 half cycle
+│    │      │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │ <== int disabled right away
+│    │ MREQ │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │
+│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0002 │      │
+
+...continued, NOP:
+
+│ M1 │      │      │      │    │    │ 0002 │ FB │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ FB │ 0003 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │ <== interrupts enabled
+│    │      │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│    │      │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│ M1 │      │      │      │    │    │ 0003 │ 00 │ 0003 │ IFF1 │
+```
+
+Since maskable interrupts are checked in the fist half-cycle of the last clock
+cycle of an instruction, it doesn't matter that interrupts are enabled
+for one half-cycle during a sequence of EI instructions.
+
+The **DI** instruction disables interrupts right in the middle of the opcode
+fetch machine cycle:
+
+```
+DI:
+┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │      │    │    │ 0002 │ 00 │ 0002 │ IFF1 │ <== opcode fetch
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ F3 │ 0003 │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ F3 │ 0003 │ IFF1 │
+│    │      │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │ <== interrupts disabled
+│    │ MREQ │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
+│    │      │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
+```
+
+### RETI and RETN
+
+**RETI** and **RETN** behave identical, both copy the IFF2 bit (so far unidentified in the
+netlist) back into IFF1 in the following opcode fetch machine cycle.
+
+For instance this is what an NMI interrupt service routine looks like that only consists
+of a **RETI** instruction. Maskable interrupts had been enabled when the NMI was triggered:
+
+```
+RETI/RETN after NMI while interrupts were enabled
+┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │      │    │    │ 0066 │ 00 │ 0002 │      │ <= opcode fetch ED prefix
+│ M1 │ MREQ │      │      │ RD │    │ 0066 │ 00 │ 0067 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│    │      │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
+│    │      │      │ RFSH │    │    │ 0000 │ ED │ 0067 │      │
+│ M1 │      │      │      │    │    │ 0067 │ ED │ 0067 │      │ <== opcode fetch RETI
+│ M1 │ MREQ │      │      │ RD │    │ 0067 │ ED │ 0068 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0067 │ 4D │ 0068 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0060 │ 4D │ 0068 │      │
+│    │      │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│    │      │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│    │      │      │      │    │    │ 5553 │ 4D │ 0068 │      │ <== memory read (return addr)
+│    │ MREQ │      │      │ RD │    │ 5553 │ 4D │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
+│    │      │      │      │    │    │ 5550 │ 02 │ 0068 │      │
+│    │      │      │      │    │    │ 5554 │ 02 │ 0068 │      │ <== memory read (return addr)
+│    │ MREQ │      │      │ RD │    │ 5554 │ 02 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│    │      │      │      │    │    │ 5554 │ 00 │ 0068 │      │
+
+...NOP following RETI:
+
+│ M1 │      │      │      │    │    │ 0002 │ 00 │ 0068 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │ <== IFF1 restored
+│    │      │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
+│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0003 │ IFF1 │
+```
+
+If interrupts had not been enabled when the NMI was triggered,
+RETI/RETN will not enable interrupts (because IFF1 is copied from
+IFF2).
+
+```
+RETI/RETN after NMI while interrupts were disabled:
+
+┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │      │    │    │ 0066 │ 00 │ 0001 │      │ <== opcode fetch ED prefix
+│ M1 │ MREQ │      │      │ RD │    │ 0066 │ 00 │ 0067 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│ M1 │      │      │      │    │    │ 0067 │ ED │ 0067 │      │ <== opcode fetch RETN
+│ M1 │ MREQ │      │      │ RD │    │ 0067 │ ED │ 0068 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0067 │ 45 │ 0068 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0060 │ 45 │ 0068 │      │
+│    │      │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
+│    │      │      │ RFSH │    │    │ 0000 │ 45 │ 0068 │      │
+│    │      │      │      │    │    │ 5553 │ 45 │ 0068 │      │ <== memory read (return addr)
+│    │ MREQ │      │      │ RD │    │ 5553 │ 45 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
+│    │      │      │      │    │    │ 5550 │ 01 │ 0068 │      │
+│    │      │      │      │    │    │ 5554 │ 01 │ 0068 │      │ <== memory read (return addr)
+│    │ MREQ │      │      │ RD │    │ 5554 │ 01 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│    │      │      │      │    │    │ 5554 │ 00 │ 0068 │      │
+
+...NOP following RETN:
+
+│ M1 │      │      │      │    │    │ 0001 │ 00 │ 0068 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0002 │      │ <== interrupts not enabled
+│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+```
+
+With the typical **EI+RETI** sequence at the end of maskable interrupt service
+routines, interrupts will already be enabled in the opcode fetch of the
+RETI instruction, so that the next maskable interrupt can kick in right
+at the end of RETI (note how the INT pin is active here all the time):
+
+```
+EI + RETI (maskable interrupt)
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ M1 │      │      │      │    │    │ INT │ 0038 │ E0 │ 0004 │      │ <== opcode fetch EI
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ E0 │ 0039 │      │
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ FB │ 0039 │      │
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ FB │ 0039 │      │
+│    │      │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
+│    │      │      │ RFSH │    │    │ INT │ 0004 │ FB │ 0039 │      │
+
+...continued: RETI
+
+│ M1 │      │      │      │    │    │ INT │ 0039 │ FB │ 0039 │      │ <== opcode fetch ED prefix
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 0039 │ FB │ 003A │      │
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 0039 │ ED │ 003A │      │
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ ED │ 003A │ IFF1 │ <== interrupts enabled (by EI)
+│    │      │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│    │      │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│ M1 │      │      │      │    │    │ INT │ 003A │ ED │ 003A │ IFF1 │ <== opcode fetch RETI
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ ED │ 003B │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ 4D │ 003B │ IFF1 │
+│ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ 4D │ 003B │ IFF1 │
+│    │      │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
+│    │      │      │ RFSH │    │    │ INT │ 0000 │ 4D │ 003B │ IFF1 │
+│    │      │      │      │    │    │ INT │ 5553 │ 4D │ 003B │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 4D │ 003B │ IFF1 │ <== memory read (return addr)
+│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
+│    │      │      │      │    │    │ INT │ 5550 │ 04 │ 003B │ IFF1 │
+│    │      │      │      │    │    │ INT │ 5554 │ 04 │ 003B │ IFF1 │ <== memory read (return addr)
+│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 04 │ 003B │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
+│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
+│    │      │      │      │    │    │ INT │ 5554 │ 00 │ 003B │      │ <== interrupt handling starts!
+```
+
+### NMI Timing
+
+When an NMI is triggered, the IFF1 bit and the HALT state (if active) will be cleared 
+in the last half-cycle of the current instruction.
+
+Next, a opcode fetch machine cycle is performed (NOT an interrupt acknowledge
+cycle identified with M1|IORQ). The PC is *not* incremented during the opcode fetch and
+the resulting opcode byte will be ignored.
+
+The opcode fetch is followed by an extra clock cycle.
+
+Next, two regular memory write machine cycles are performed to put the current
+PC on the stack. 
+
+Execution then continues at the first instruction of the interrupt service
+routine at 
+
+```
+NMI timing
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ HALT │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼──────┼────┼──────┼──────┤
+
+...last clock cycle of instruction where NMI was detected:
+
+│    │ MREQ │      │ RFSH │    │    │     │ HALT │ 0002 │ 00 │ 0002 │ IFF1 │ <== NMI detected
+│    │      │      │ RFSH │    │    │     │      │ 0002 │ 00 │ 0002 │      │ <== IFF1 and HALT cleared
+
+...NMI handling:
+
+│ M1 │      │      │      │    │    │     │      │ 0002 │ 00 │ 0002 │      │ <== opcode fetch (ignored)
+│ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │ <== PC not incremenred!
+│ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │
+│ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │
+│    │      │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│    │ MREQ │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│    │ MREQ │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│    │      │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│    │      │      │      │    │    │     │      │ 0003 │ 00 │ 0002 │      │ <== extra clock cycle
+│    │      │      │      │    │    │     │      │ 0001 │ 00 │ 0002 │      │
+│    │      │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │
+│    │ MREQ │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │
+│    │ MREQ │      │      │    │ WR │     │      │ 5554 │ 00 │ 0002 │      │
+│    │ MREQ │      │      │    │ WR │     │      │ 5554 │ 00 │ 0002 │      │
+│    │      │      │      │    │    │     │      │ 5550 │ 00 │ 0002 │      │
+│    │      │      │      │    │    │     │      │ 5553 │ 00 │ 0002 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
+│    │ MREQ │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
+│    │ MREQ │      │      │    │ WR │     │      │ 5553 │ 02 │ 0002 │      │
+│    │ MREQ │      │      │    │ WR │     │      │ 5553 │ 02 │ 0002 │      │
+│    │      │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
+
+...interrupt service routine is entered at address 0066h:
+
+│ M1 │      │      │      │    │    │     │      │ 0066 │ 00 │ 0002 │      │ <== opcode fetch at 0066h
+│ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │ <== PC updated to ISR + 1
+│ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │
+│ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │
+│    │      │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+│    │ MREQ │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+│    │ MREQ │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+│    │      │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+```
+
+### Mode 0 Interrupt Timing
+
+Mode 0 interrupts have been inherited from the Intel 8080. Interrupt
+handling starts in the last half cycle of the current instruction by clearing
+the IFF1 bit and HALT state.
+
+Next, an "interrupt acknowledge" machine cycle is executed. The hardware
+which requested the interrupt is expected to place an opcode byte on the
+data bus which is executed after the interrupt acknowledge machine cycle.
+
+Usually this will be the single-byte **RST p** instruction which is a hardwire
+subroutine call into one of eight hardwired destination addresses.
+
+Here's an IM0 interrupt which executes an **RST 20h** instruction:
+
+```
+Mode 0 Interrupt with RST 20h:
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+
+...last clock cycle of instruction where INT was detected:
+
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0003 │ 00 │ 0004 │ IFF1 │ <== interrupt detected
+│    │      │      │ RFSH │    │    │     │ 0000 │ 00 │ 0004 │      │ <== IFF1 and HALT cleared
+
+...interrupt handling starts:
+
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge machine cycle
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │ IORQ │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== opcode E7 (RST 20) on data bus
+│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== RST 20 starts executing
+│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5554 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5550 │ 00 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5553 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+
+...interrupt service routine at address 0020h entered:
+
+│ M1 │      │      │      │    │    │     │ 0020 │ E7 │ 0004 │      │ <== opcode fetch at 0020h
+│ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ E7 │ 0021 │      │ <== PC updated (ISR + 1)
+│ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ 00 │ 0021 │      │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ 00 │ 0021 │      │
+│    │      │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
+│    │      │      │ RFSH │    │    │     │ 0004 │ 00 │ 0021 │      │
+```
+
+### Mode 1 Interrupt Timing
+
+In interrupt mode 1 the Z80 first clears the HALT and IFF1 state in the last
+half cycle of the current instruction and then executes an interrupt acknowledge
+machine cycle, but the value on the data bus will be ignored. Next an extra clock
+cycle is executed, followed by two memory write machine cycles to place the PC
+as return address on the stack. Next, execution will continue at the hardwired
+address 0038h:
+
+```
+Mode 1 Interrupt
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+
+...last clock cycle of instruction where INT was detected:
+
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0003 │ 00 │ 0004 │ IFF1 │ <== INT detected
+│    │      │      │ RFSH │    │    │     │ 0000 │ 00 │ 0004 │      │ <== IFF1 and HALT cleared
+
+...interrupt handling starts:
+
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge machine cycle
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │ IORQ │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== data bus value ignored
+│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== one extra clock cycle
+│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5554 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5550 │ 00 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5553 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│    │      │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+
+...interrupt service routine at address 0038h entered:
+
+│ M1 │      │      │      │    │    │     │ 0038 │ E7 │ 0004 │      │ <== opcode fetch at 0038h
+│ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ E7 │ 0039 │      │ <== PC updated to ISR + 1
+│ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ 00 │ 0039 │      │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ 00 │ 0039 │      │
+│    │      │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
+│    │      │      │ RFSH │    │    │     │ 0004 │ 00 │ 0039 │      │
+```
+
+## Mode 2 Interrupt Timing
+
+Mode 2 interrupts are the most complex:
+
+- in the last half cycle of the current instruction, IFF1 and HALT are cleared
+- an interrupt acknowledge machine cycle is initiated during which the interrupt
+requesting device is expected to place an 'interrupt vector low byte' on the data bus
+- an extra clock cycle is executed
+- next, 2 memory write machine cycles are executed to place the PC on the stack
+as return address
+- next a 16-bit interrupt vector is constructed by putting the I register (as high byte)
+and the 'interrupt vector low byte'
+- the 16-bit interrupt vector is placed on the data bus and two memory read machine cycles
+are performed to read another 16-bit address which is the start of the interrupt
+service routine
+- execution continues at the interrupt service routine
+
+In the following Mode 2 timing diagram the the I register has already been
+loaded with **01** and the byte **E0** will be placed on the address bus during
+the interrupt acknowledge machine cycle. Those two values are combined to
+the 16-bit interrupt vector address **01E0**. At address **01E0** the 16-bit
+value **0300** is stored, which is the entry address of the interrupt
+service routine:
+
+```
+Mode 2 Interrupt
+┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+
+...last clock cycle of instruction where INT was detected:
+
+│    │ MREQ │      │ RFSH │    │    │ INT │ 0106 │ 00 │ 0008 │ IFF1 │ <== interrupt detected
+│    │      │      │ RFSH │    │    │     │ 0106 │ 00 │ 0008 │      │ <== IFF1 and HALT cleared
+
+...interrupt handling starts:
+
+│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │ <== interrupt acknowledge machine cycle
+│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ M1 │      │ IORQ │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ M1 │      │ IORQ │      │    │    │     │ 0008 │ E0 │ 0008 │      │ <== int vector low byte (E0) on data bus
+│ M1 │      │ IORQ │      │    │    │     │ 0000 │ E0 │ 0008 │      │
+│    │      │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│    │      │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│    │      │      │      │    │    │     │ 0107 │ E0 │ 0008 │      │ <== one extra clock cycle
+│    │      │      │      │    │    │     │ 0105 │ E0 │ 0008 │      │
+│    │      │      │      │    │    │     │ 5554 │ E0 │ 0008 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0008 │      │
+│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0008 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0008 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0008 │      │
+│    │      │      │      │    │    │     │ 5550 │ 00 │ 0008 │      │
+│    │      │      │      │    │    │     │ 5553 │ E0 │ 0008 │      │ <== memory write (PC => stack)
+│    │ MREQ │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
+│    │ MREQ │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
+│    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
+│    │      │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
+│    │      │      │      │    │    │     │ 01E0 │ E0 │ 0008 │      │ <== memory read from 01E0 (I<<8)|(E0)
+│    │ MREQ │      │      │ RD │    │     │ 01E0 │ E0 │ 0008 │      │
+│    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │ <== data bus: ISR address low byte (00)
+│    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
+│    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
+│    │      │      │      │    │    │     │ 01E0 │ 00 │ 0008 │      │
+│    │      │      │      │    │    │     │ 01E1 │ 00 │ 0008 │      │ <== memory read from 01E1
+│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 00 │ 0008 │      │
+│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │ <==> data bus: ISR address high byte (03)
+│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
+│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
+│    │      │      │      │    │    │     │ 01E1 │ 03 │ 0008 │      │
+
+...ISR entered at address 0300h
+
+│ M1 │      │      │      │    │    │     │ 0300 │ 03 │ 0008 │      │ <== opcode fetch
+│ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 03 │ 0301 │      │ <== PC updated to ISR + 1
+│ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 00 │ 0301 │      │
+│ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 00 │ 0301 │      │
+│    │      │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+│    │ MREQ │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+│    │      │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+```
