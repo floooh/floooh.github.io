@@ -2279,7 +2279,7 @@ instructions of the subset just provide the "expected" (IX+d) and (IY+d) version
 
 * BIT n,(HL) => BIT n,(IX+d)
 * SET n,(HL) => SET n,(IX+d)
-* RES n,(HL) => RED n,(IX+d)
+* RES n,(HL) => RES n,(IX+d)
 * RLC (H) => RLC (IX+d)
 
 But the much larger undocumented instructions have the strange behaviour that they store the
