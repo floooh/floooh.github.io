@@ -42,8 +42,8 @@ been created from a Z8400 because of those two details found on the die:
 
 ...at least this might explain why the netlist doesn't suffer from the six
 'reverse engineering traps' that were placed on the original Z80.  By the time
-the Z8400 was created the Z80 had already been widely cloned so any additional
-effort to make reverse engineering harder probably was no longer a concern.
+the Z8400 was created, the Z80 had already been widely cloned so reverse
+engineering probably was no longer a concern.
 
 Anyway, back to the actual topic of the blog post:
 
