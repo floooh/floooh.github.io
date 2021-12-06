@@ -281,7 +281,7 @@ MEM READ:
 │  T  │ MREQ │ RD │ AB   │ DB │ HL   │
 ├─────┼──────┼────┼──────┼────┼──────┤
 │ 1/0 │      │    │ 0001 │ 21 │ 5555 │ <== address 0001 on address bus
-│ 1/1 │ MREQ │ RD │ 0001 │ 21 │ 5555 │ <== MREQ|RD go active active
+│ 1/1 │ MREQ │ RD │ 0001 │ 21 │ 5555 │ <== MREQ|RD active
 │ 2/0 │ MREQ │ RD │ 0001 │ 22 │ 5555 │ <== memory content 22 on data bus
 │ 2/1 │ MREQ │ RD │ 0001 │ 22 │ 5555 │
 │ 3/0 │ MREQ │ RD │ 0001 │ 22 │ 5555 │
