@@ -31,7 +31,7 @@ The 'remix' has some usability advantages over the original:
 There's a lot more information in the project readme here: [https://github.com/floooh/v6502r](https://github.com/floooh/v6502r).
 
 A word of warning though, the Z80 netlist from visual6502 has some subtle
-differences in undocumented behaviour from what's known about original Z80's
+differences in undocumented behaviour from what's known about original Z80s
 (see here for a list of issues I found so far:
 [https://github.com/floooh/v6502r/issues/2](https://github.com/floooh/v6502r/issues/2). My guess is that the netlist has
 been created from a Z8400 because of those two details found on the die:
