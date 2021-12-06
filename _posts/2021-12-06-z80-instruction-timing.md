@@ -682,7 +682,7 @@ clock cycles. All instructions in the Main Quadrant 1 take 4 clock cycles (for t
 opcode fetch), except the instructions involving **(HL)** which take an additional
 memory read or write machine cycle, resulting in 7 clock cycles.
 
-*y* and *z* are registers indices as binary numbers:
+*y* and *z* are register indices as binary numbers:
 
 ```
 000 = 0 => B
