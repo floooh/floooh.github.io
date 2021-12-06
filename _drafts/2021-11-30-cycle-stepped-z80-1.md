@@ -3,6 +3,9 @@ layout: post
 title: Getting into way too much detail with the Z80 netlist simulation
 ---
 
+TL;DR: a detailed look at Z80 instruction timings with the help of a 
+Z80 netlist simulation.
+
 ## Table of Content
 
 * TOC
@@ -29,17 +32,18 @@ There's a lot more information in the project readme here: [https://github.com/f
 
 A word of warning though, the Z80 netlist from visual6502 has some subtle
 differences in undocumented behaviour from what's known about original Z80's
-(more on this toward the end of this blog post). My guess is that the netlist
-has been created from a Z8400 because of those two details found on the die:
+(see here for a list of issues I found so far:
+[https://github.com/floooh/v6502r/issues/2](https://github.com/floooh/v6502r/issues/2). My guess is that the netlist has
+been created from a Z8400 because of those two details found on the die:
 
 ![z80_detail]({{ site.url }}/images/z80_detail.jpg)
 
 ![z80_detail_2]({{ site.urk }}/images/z80_detail_2.jpg)
 
-...at least this might explain why the netlist doesn't suffer from the six 'traps' that were 
-placed on the original Z80 to hinder reverse engineering efforts. By the time the Z8400 was
-created the Z80 had already been widely cloned so any additional effort to make reverse
-engineering harder would have been pointless.
+...at least this might explain why the netlist doesn't suffer from the six
+'reverse engineering traps' that were placed on the original Z80.  By the time
+the Z8400 was created the Z80 had already been widely cloned so any additional
+effort to make reverse engineering harder probably was no longer a concern.
 
 Anyway, back to the actual topic of the blog post:
 
@@ -56,7 +60,7 @@ with seemingly random new Z80-specific instructions. This was the right approach
 to create an "8080 killer", but nearly half a century later it makes life a lot
 harder for emulator authors :)
 
-## The physical shape of Z80 instructions
+## The shape of Z80 instructions
 
 Like on the Intel 8080, instruction are made up of one or multiple bytes, where
 the first byte is always the opcode byte.
@@ -76,7 +80,7 @@ Just the opcode byte (for example **NOP**, **LD A,B**, **RET**):
     C9      => RET
 ```
 
-An opcode byte followed by an 'immediate value' byte (for example **LD A,n**, **ADD n**, **JR d**):
+An opcode byte followed by an 8-bit 'immediate value' (for example **LD A,n**, **ADD n**, **JR d**):
 ```
 ┏━━━━━━━━┳━━━━━━┓
 ┃ OPCODE ┃ IMM8 ┃
@@ -84,7 +88,7 @@ An opcode byte followed by an 'immediate value' byte (for example **LD A,n**, **
     3E      11      => LD A,11h
 ```
 
-An opcode byte followed by two immediate value bytes, used as a 16-bit value (for example
+An opcode byte followed by a 16-bit immediate value (in little endian order):
 **LD HL,nnnn**, **CALL nn**):
 ```
 ┏━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
@@ -112,34 +116,28 @@ section about the DD/FD prefixes):
 
 The last special instruction shape looks extremely weird because at first glance it doesn't
 fit into the above patterns at all. In 'double-prefixed' instructions (like **SET 1,(IX+3)**)
-the d-offset and 'actual' opcode seems to have switched places!
+the d-offset and 'actual' opcode have switched places:
 ```
 ┏━━━━━━━━┓┏━━━━━━━━┓┏━━━━━━━┳━━━━━━━━┓
 ┃ PREFIX ┃┃ PREFIX ┃┃ DIMM8 ┃ OPCODE ┃
 ┗━━━━━━━━┛┗━━━━━━━━┛┗━━━━━━━┻━━━━━━━━┛
     DD        CB       03       CE      => SET 1,(IX+3)
 ```
-Those double-prefixed instructions are definitely the biggest oddity in the
-whole instruction set. At least this specific oddity (d-offset before the
-opcode) will be explained later in the dedicated DD/FD+CB prefix section.
 
-Then it will also become clear why the artificial separation between 'prefix
-bytes' and 'opcode bytes' doesn't make much sense (a little spoiler: the CB
-prefix byte is the actual 'opcode', and the 'opcode byte' is just a regular
-immediate value that's decoded as an opcode byte).
+More on that later in the dedicated section section about **DD CB** and **FD CB** double-prefixes.
 
 ## General Instruction Timing
 
 ### M-cycles and T-states
 
 The above 'physical shape' of Z80 instructions doesn't tell us much what actually happens
-during execution of an instruction (e.g. how long the instruction takes to execute,
+during execution of an instruction (e.g. how many clock cycles the instruction takes to execute,
 and how the internal and externally visible state of the CPU changes during execution).
 
 The Z80 netlist simulation is perfect for this because it allows us to inspect the internal
-and observable CPU state after each clock cycle (actually: after each **half**-clock-cycle).
+and observable CPU state after each clock cycle (or rather: after each **half**-clock-cycle).
 
-But first some explanation of another Z80 oddity: When reading Z80 documentation there's
+But first an explanation of another Z80 oddity: When reading Z80 documentation there's
 a lot of talk about so called "M-cycles" and "T-states", often written as **M1/T2** or
 **M3/T1** which confused me to no end in the beginning.
 
@@ -150,10 +148,7 @@ Long story short:
 
 So M-cycles and T-states are just a special notation to identify a specific clock cycle in an instruction.
 
-"T-state" is equivalent with a clock cycle (which is a full "on/off" cycle of the CLK pin 
-located in the bottom-right corner of the chip):
-
-![z80_clock_pin]({{ site.url }}/images/z80_clock_pin.jpg)
+"T-state" is equivalent with a clock cycle.
 
 "M-Cycle" means "machine cycle" and simply means a related group of T-states or
 clock cycles. On the Z80, basic operations like reading or writing a memory byte
@@ -161,7 +156,7 @@ take more time than a single clock cycle. But it's useful to understand the
 action of reading or writing a memory byte as a single step, and that's exactly
 what a "machine cycle" is.
 
-Machine cycles come in 7 main flavours:
+Machine cycles come in 7 flavours:
 
 - **Opcode Fetch** (aka M1 cycle): this is always the first (and sometimes only) machine
 cycle in an instruction and takes 4 clock cycles
@@ -169,13 +164,11 @@ cycle in an instruction and takes 4 clock cycles
 - **Memory Write**: write a byte to memory (3 clock cycles)
 - **IO Read**: read a byte from an IO port (4 clock cycles)
 - **IO Write**: write a byte to an IO port (4 clock cycles)
-- **Internal**: an internal 'processing' machine cycle of variable length
 - **Interrupt Acknowledge**: these are special machine cycles which are execyted at the start
 of maskable interrupt handling, they will be handled in detail in the last section of this blog post
-
-All instruction are built from those machine cycle types, but as always on the Z80,
-there's more: at the start of interrupt handling, a special machine cycle is executed.
-Let's ignore that for now and come back to it later in the section about interrupts.
+- **Extra**: many instructions contain extra clock cycles necessary for computations, in the official
+CPU documentation these are sometimes identified as separate machine cycles, and sometimes just
+lumped together with other machine cycle types.
 
 Since machine cycles are the basic building blocks of all instructions, it helps to understand
 what exactly happens during their execution.
@@ -193,20 +186,20 @@ An **Opcode Fetch** looks like this in the tracelog (with all the relevant CPU s
 
 ```
 OPCODE FETCH:
-┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
-├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │  T1/0
-│ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │  T1/1
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │  T2/0
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T2/1
-│    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T3/0
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T3/1
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/0
-│    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/1
+┌─────┬────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
+│ 1/0 │ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │
+│ 1/1 │ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │
+│ 2/0 │ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │
+│ 2/1 │ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │
+│ 3/0 │    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │
+│ 3/1 │    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │
+│ 4/0 │    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │
+│ 4/1 │    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │
 ```
 
-Keep in mind that this shows half-clock-cycles, a 4-clock-cycle opcode fetch machine
+Keep in mind that this shows half-clock-cycles, a 4-clock-cycle opcode-fetch machine
 cycle is shown as 8 half-clock-cycles in the trace log.
 
 The **M1, MREQ, RFSH and RD** columns show the current state of the respective CPU
@@ -216,24 +209,24 @@ pins.
 which holds the current opcode byte. **I** and **R** are the respective CPU registers
 (I is the upper byte of the interrupt vector, R is the 'refresh counter' register).
 
-Let's go through each half-cycle:
+Let's go through each half-cycle of an opcode-fetch machine cycle:
 
 ```
-┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
-├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │  T1/0
+┌─────┬────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
+│ 1/0 │ M1 │      │      │    │ 0004 │ 47 │ 0004 │ 47 │ 22 │ 03 │
 ```
 The M1 pin is set to active, and the address bus has been loaded with
-the current program counter PC. The data bus and instruction register
+the current program counter (PC). The data bus and instruction register
 still have their values from the last instruction set (which happened
 to an **LD I,A** instruction (byte sequence: ED 47)).
 
 ```
-┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
-├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │  T1/1
+┌─────┬────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
+│ 1/1 │ M1 │ MREQ │      │ RD │ 0004 │ 47 │ 0005 │ 47 │ 22 │ 03 │
 ```
 In the next half cycle, the MREQ and RD pins have been set in addition
 to M1, which initiates a memory read from the address that's currently
@@ -241,43 +234,40 @@ on the address bus (0004). The program counter has been incremented
 to the next address.
 
 ```
-┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
-├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │  T2/0
+┌─────┬────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
+│ 2/0 │ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 47 │ 22 │ 03 │
 ```
-Now the memory system has responded to the memory read request
-by putting the content of address 0004 onto the data bus, which
-happens to be 00 (which is a NOP instruction). The instruction
-register hasn't been updated yet.
+Now the memory system has responded to the **MREQ|RD** pins being active by
+putting the content of address 0004 onto the data bus, which happens to be 00
+(which is a NOP instruction). The instruction register hasn't been updated yet.
 
 ```
-┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
-├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T2/1
+┌─────┬────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
+│ 2/1 │ M1 │ MREQ │      │ RD │ 0004 │ 00 │ 0005 │ 00 │ 22 │ 03 │
 ```
 In the next half cycle the 00 value on the data bus has been
-written into the instruction register. This concludes the first
+written into the instruction register (IR). This concludes the first
 half of the opcode fetch machine cycle.
 
 ```
-┌────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
-├────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
-│    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │  T3/0
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T3/1
-│    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/0
-│    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │  T4/1
+┌─────┬────┬──────┬──────┬────┬──────┬────┬──────┬────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ AB   │ DB │ PC   │ IR │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼──────┼────┼──────┼────┼────┼────┤
+│ 3/0 │    │      │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 03 │
+│ 3/1 │    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │
+│ 4/0 │    │ MREQ │ RFSH │    │ 2203 │ 00 │ 0005 │ 00 │ 22 │ 04 │
+│ 4/1 │    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │
 ```
-The remaining 4 half-cycles (2 clock cycles) are spent with
-the Z80-specific 'memory refresh' while the instruction decoder
-figures out what to do next (in this case: nothing, because
-it's a NOP instruction). Note how the 16-bit instruction pair
-made of the I and R register is put onto the address bus, and how
-the R register is incremented. Also, I haven't figured out so far
-why the lower 8 bits on the address bus are cleared in the very
-last half-clock-cycle.
+The remaining 4 half-cycles (2 clock cycles) are spent with the Z80-specific
+'memory refresh'. A 16-bit value made from the registers I and R is put on
+the address bus, and the R register is incremented. I haven't figured
+out so far why the lower 8 bits on the address bus are cleared in the very last
+half-clock-cycle (this also happens in the last half-cycle of some other
+instructions).
 
 Let's quickly go over the remaining machine cycle types for completeness:
 
@@ -287,15 +277,15 @@ A **memory read** machine cycle looks like (in this case to load the byte value 
 address 0001 into the register L):
 ```
 MEM READ:
-┌──────┬────┬──────┬────┬──────┐
-│ MREQ │ RD │ AB   │ DB │ HL   │
-├──────┼────┼──────┼────┼──────┤
-│      │    │ 0001 │ 21 │ 5555 │  T1/0
-│ MREQ │ RD │ 0001 │ 21 │ 5555 │  T1/1
-│ MREQ │ RD │ 0001 │ 22 │ 5555 │  T2/0
-│ MREQ │ RD │ 0001 │ 22 │ 5555 │  T2/1
-│ MREQ │ RD │ 0001 │ 22 │ 5555 │  T3/0
-│      │    │ 0000 │ 22 │ 5522 │  T3/1
+┌─────┬──────┬────┬──────┬────┬──────┐
+│  T  │ MREQ │ RD │ AB   │ DB │ HL   │
+├─────┼──────┼────┼──────┼────┼──────┤
+│ 1/0 │      │    │ 0001 │ 21 │ 5555 │ <== address 0001 on address bus
+│ 1/1 │ MREQ │ RD │ 0001 │ 21 │ 5555 │ <== MREQ|RD go active active
+│ 2/0 │ MREQ │ RD │ 0001 │ 22 │ 5555 │ <== memory content 22 on data bus
+│ 2/1 │ MREQ │ RD │ 0001 │ 22 │ 5555 │
+│ 3/0 │ MREQ │ RD │ 0001 │ 22 │ 5555 │
+│ 3/1 │      │    │ 0000 │ 22 │ 5522 │ <== target register L updated
 ```
 
 ### Memory Write Machine Cycles
@@ -305,15 +295,15 @@ into the address in register HL (1122):
 
 ```
 MEM WRITE:
-┌──────┬────┬──────┬────┬──────┬──────┐
-│ MREQ │ WR │ AB   │ DB │ AF   │ HL   │
-├──────┼────┼──────┼────┼──────┼──────┤
-│      │    │ 1122 │ 77 │ 3355 │ 1122 │  T1/0
-│ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │  T1/1
-│ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │  T2/0
-│ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │  T2/1
-│ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │  T3/0
-│      │    │ 1122 │ 33 │ 3355 │ 1122 │  T3/1
+┌─────┬──────┬────┬──────┬────┬──────┬──────┐
+│  T  │ MREQ │ WR │ AB   │ DB │ AF   │ HL   │
+├─────┼──────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │      │    │ 1122 │ 77 │ 3355 │ 1122 │ <== address 1122 on address bus
+│ 1/1 │ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │ <== value 33 on data bus
+│ 2/0 │ MREQ │    │ 1122 │ 33 │ 3355 │ 1122 │
+│ 2/1 │ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │ <== MREQ|WR active
+│ 3/0 │ MREQ │ WR │ 1122 │ 33 │ 3355 │ 1122 │
+│ 3/1 │      │    │ 1122 │ 33 │ 3355 │ 1122 │
 ```
 Note how the MREQ pin, address and data bus already contain the required values in
 the second half cycle (T1 +), but the WR (write) pin is only set active in the
@@ -326,32 +316,32 @@ and setting the CPU pins is delayed by a half-clock-cycle.
 
 ```
 IO READ:
-┌──────┬────┬────┬──────┬────┐
-│ IORQ │ RD │ WR │ AB   │ DB │
-├──────┼────┼────┼──────┼────┤
-│      │    │    │ 1122 │ 78 │  T1/0
-│      │    │    │ 1122 │ 78 │  T1/1
-│ IORQ │ RD │    │ 1122 │ 33 │  T2/0
-│ IORQ │ RD │    │ 1122 │ 33 │  T2/1
-│ IORQ │ RD │    │ 1122 │ 33 │  T3/0
-│ IORQ │ RD │    │ 1122 │ 33 │  T3/1
-│ IORQ │ RD │    │ 1122 │ 33 │  T4/0
-│      │    │    │ 1122 │ 33 │  T4/1
+┌─────┬──────┬────┬────┬──────┬────┐
+│  T  │ IORQ │ RD │ WR │ AB   │ DB │
+├─────┼──────┼────┼────┼──────┼────┤
+│ 1/0 │      │    │    │ 1122 │ 78 │
+│ 1/1 │      │    │    │ 1122 │ 78 │ 
+│ 2/0 │ IORQ │ RD │    │ 1122 │ 33 │
+│ 2/1 │ IORQ │ RD │    │ 1122 │ 33 │
+│ 3/0 │ IORQ │ RD │    │ 1122 │ 33 │
+│ 3/1 │ IORQ │ RD │    │ 1122 │ 33 │
+│ 4/0 │ IORQ │ RD │    │ 1122 │ 33 │
+│ 4/1 │      │    │    │ 1122 │ 33 │
 ```
 
 ```
 IO WRITE:
-┌──────┬────┬────┬──────┬────┐
-│ IORQ │ RD │ WR │ AB   │ DB │
-├──────┼────┼────┼──────┼────┤
-│      │    │    │ 1122 │ 79 │  T1/0
-│      │    │    │ 1122 │ 21 │  T1/1
-│ IORQ │    │ WR │ 1122 │ 21 │  T2/0
-│ IORQ │    │ WR │ 1122 │ 21 │  T2/1
-│ IORQ │    │ WR │ 1122 │ 21 │  T3/0
-│ IORQ │    │ WR │ 1122 │ 21 │  T3/1
-│ IORQ │    │ WR │ 1122 │ 21 │  T4/0
-│      │    │    │ 1122 │ 21 │  T4/1
+┌─────┬──────┬────┬────┬──────┬────┐
+│  T  │ IORQ │ RD │ WR │ AB   │ DB │
+├─────┼──────┼────┼────┼──────┼────┤
+│ 1/0 │      │    │    │ 1122 │ 79 │
+│ 1/1 │      │    │    │ 1122 │ 21 │
+│ 2/0 │ IORQ │    │ WR │ 1122 │ 21 │
+│ 2/1 │ IORQ │    │ WR │ 1122 │ 21 │
+│ 3/0 │ IORQ │    │ WR │ 1122 │ 21 │
+│ 3/1 │ IORQ │    │ WR │ 1122 │ 21 │
+│ 4/0 │ IORQ │    │ WR │ 1122 │ 21 │
+│ 4/1 │      │    │    │ 1122 │ 21 │
 ```
 It's interesting here that the 'pin timing' is identical between IO reads and
 writes. The WR pin is activated at the same moment as the IORQ pin, while in
@@ -360,19 +350,19 @@ MREQ pin.
 
 ### Wait states
 
-All machine cycles that access memory or IO check the WAIT input pin at exactly
-one clock cycle. If the WAIT pin is active, the execution 'freezes' until
-the WAIT pin goes inactive. The original intent was to give slow memory and
-IO devices time to react, but some computer systems also use wait states in more
-creative ways to memory access between CPU and video hardware (for instance on
-the Amstrad CPC).
+All machine cycles that access memory or IO ports check the WAIT input pin at
+exactly one half-clock-cycle. If the WAIT pin is active, the execution
+'freezes' until the WAIT pin goes inactive. The original intent was to give
+slow memory and IO devices time to react, but some computer systems also use
+wait states in more creative ways to arbitrate memory access between CPU and
+video hardware (for instance on the Amstrad CPC).
 
-The exact T-state where the wait pin is samples depends on the machine cycle
+The exact (half-)clock cycle where the wait pin is sampled depends on the machine cycle
 type.
 
 In the opcode fetch machine cycle, the wait pin is sampled in the second half-cycle
-of M1/T2. If the WAIT pin isn't active in this exact half cycle, the CPU will not go
-into wait state mode, otherwise the CPU will insert extra 'wait cycles' until the
+of T2. If the WAIT pin isn't active in this exact half-cycle, the CPU will not enter
+wait mode, otherwise the CPU will insert extra 'wait cycles' until the
 WAIT pin goes inactive. 
 
 For instance if the WAIT pin is only active in the second half cycle of T2, the opcode
@@ -380,19 +370,19 @@ fetch machine cycle will be stretched from 4 to 5 clock cycles:
 
 ```
 OPCODE FETCH:
-┌────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│ M1 │      │      │    │    │      │ 0000 │ 00 │  T1/0
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │  T1/1
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T2/0
-│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T2/1    <== WAIT pin sampled here
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T3/0    <== one extra clock cycle inserted
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T3/1    
-│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T4/0    <== regular execution continues here
-│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T4/1
-│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T5/0
-│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T5/1
+┌─────┬────┬──────┬──────┬────┬────┬──────┬──────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
+├─────┼────┼──────┼──────┼────┼────┼──────┼──────┼────┤
+│ 1/0 │ M1 │      │      │    │    │      │ 0000 │ 00 │
+│ 1/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin sampled here
+│ 3/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ <== one extra clock cycle inserted
+│ 3/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ 
+│ 4/0 │    │      │ RFSH │    │    │      │ 0000 │ 31 │ <== regular execution continues here
+│ 4/1 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
+│ 5/0 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
+│ 5/1 │    │      │ RFSH │    │    │      │ 0000 │ 31 │
 ```
 
 If the wait pin goes inactive in the first half cycle, the CPU will leave the wait state mode
@@ -400,57 +390,57 @@ at the end of the clock cycle:
 
 ```
 OPCODE FETCH:
-┌────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│ M1 │      │      │    │    │      │ 0000 │ 00 │  T1/0
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │  T1/1
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T2/0
-│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T2/1    <== WAIT pin sampled here
-│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T3/0    <== WAIT pin active for 2 half cycles
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T3/1    <== extra clock cycle completes
-│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T4/0    <== regular execution continues here
-│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T4/1
-│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T5/0
-│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T5/1
+┌─────┬────┬──────┬──────┬────┬────┬──────┬──────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
+├─────┼────┼──────┼──────┼────┼────┼──────┼──────┼────┤
+│ 1/0 │ M1 │      │      │    │    │      │ 0000 │ 00 │
+│ 1/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin sampled here
+│ 3/0 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin active for 2 half cycles
+│ 3/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ <== extra clock cycle completes
+│ 4/0 │    │      │ RFSH │    │    │      │ 0000 │ 31 │ <== regular execution continues here
+│ 4/1 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
+│ 5/0 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
+│ 5/1 │    │      │ RFSH │    │    │      │ 0000 │ 31 │
 ```
 
 Setting the WAIT pin until the second half cycle causes one more clock cycle to be inserted:
 
 ```
 OPCODE FETCH:
-┌────┬──────┬──────┬────┬────┬──────┬──────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
-├────┼──────┼──────┼────┼────┼──────┼──────┼────┤
-│ M1 │      │      │    │    │      │ 0000 │ 00 │  T1/0
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │  T1/1
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T2/0
-│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T2/1    <== WAIT pin sampled here
-│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T3/0    <== WAIT pin active for 3 half cycles
-│ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │  T3/1    <== first inserted clock cycle completes
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T4/0    <== a second wait clock cycle is inserted    
-│ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │  T4/1
-│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T5/0    <== regular execution continues here
-│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T5/1
-│    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │  T6/0
-│    │      │ RFSH │    │    │      │ 0000 │ 31 │  T6/1
+┌─────┬────┬──────┬──────┬────┬────┬──────┬──────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ WAIT │ AB   │ DB │
+├─────┼────┼──────┼──────┼────┼────┼──────┼──────┼────┤
+│ 1/0 │ M1 │      │      │    │    │      │ 0000 │ 00 │
+│ 1/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 00 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin sampled here
+│ 3/0 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin active for 3 half cycles
+│ 3/1 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== first inserted clock cycle completes
+│ 4/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ <== a second wait clock cycle is inserted    
+│ 4/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │
+│ 5/0 │    │      │ RFSH │    │    │      │ 0000 │ 31 │ <== regular execution continues here
+│ 5/1 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
+│ 6/0 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
+│ 6/1 │    │      │ RFSH │    │    │      │ 0000 │ 31 │
 ```
 
-In memory read machine cycles, the WAIT pin is sampled at the second
+In memory-read machine-cycles, the WAIT pin is sampled at the second
 half cycle of T2 (same as in an opcode fetch).
 ```
 MEM READ:
-┌──────┬────┬────┬──────┬──────┬────┐
-│ MREQ │ RD │ WR │ WAIT │ AB   │ DB │
-├──────┼────┼────┼──────┼──────┼────┤
-│      │    │    │      │ 0001 │ 31 │  T1/0
-│ MREQ │ RD │    │      │ 0001 │ 31 │  T1/1
-│ MREQ │ RD │    │      │ 0001 │ 30 │  T2/0
-│ MREQ │ RD │    │ WAIT │ 0001 │ 30 │  T2/1    <== WAIT pin sampled here
-│ MREQ │ RD │    │      │ 0001 │ 30 │  T3/0    <== extra clock cycle
-│ MREQ │ RD │    │      │ 0001 │ 30 │  T3/1
-│ MREQ │ RD │    │      │ 0001 │ 30 │  T4/0    <== regular execution continues
-│      │    │    │      │ 0000 │ 30 │  T4/1
+┌─────┬──────┬────┬────┬──────┬──────┬────┐
+│  T  │ MREQ │ RD │ WR │ WAIT │ AB   │ DB │
+├─────┼──────┼────┼────┼──────┼──────┼────┤
+│ 1/0 │      │    │    │      │ 0001 │ 31 │
+│ 1/1 │ MREQ │ RD │    │      │ 0001 │ 31 │
+│ 2/0 │ MREQ │ RD │    │      │ 0001 │ 30 │
+│ 2/1 │ MREQ │ RD │    │ WAIT │ 0001 │ 30 │ <== WAIT pin sampled here
+│ 3/0 │ MREQ │ RD │    │      │ 0001 │ 30 │ <== extra clock cycle
+│ 3/1 │ MREQ │ RD │    │      │ 0001 │ 30 │
+│ 4/0 │ MREQ │ RD │    │      │ 0001 │ 30 │ <== regular execution continues
+│ 4/1 │      │    │    │      │ 0000 │ 30 │
 ```
 
 In memory write machine cycles, the WAIT pin is also sampled at the
@@ -458,66 +448,66 @@ second half cycle of T2:
 
 ```
 MEM WRITE:
-┌──────┬────┬────┬──────┬──────┬────┐
-│ MREQ │ RD │ WR │ WAIT │ AB   │ DB │
-├──────┼────┼────┼──────┼──────┼────┤
-│      │    │    │      │ 1234 │ 77 │  T1/0    
-│ MREQ │    │    │      │ 1234 │ 11 │  T1/1
-│ MREQ │    │    │      │ 1234 │ 11 │  T2/0
-│ MREQ │    │ WR │ WAIT │ 1234 │ 11 │  T2/1    <== WAIT pin sampled here
-│ MREQ │    │ WR │      │ 1234 │ 11 │  T3/0    <== extra clock cycle
-│ MREQ │    │ WR │      │ 1234 │ 11 │  T3/1
-│ MREQ │    │ WR │      │ 1234 │ 11 │  T4/0    <== regular execution continues
-│      │    │    │      │ 1234 │ 11 │  T4/1
+┌─────┬──────┬────┬────┬──────┬──────┬────┐
+│  T  │ MREQ │ RD │ WR │ WAIT │ AB   │ DB │
+├─────┼──────┼────┼────┼──────┼──────┼────┤
+│ 1/0 │      │    │    │      │ 1234 │ 77 │
+│ 1/1 │ MREQ │    │    │      │ 1234 │ 11 │
+│ 2/0 │ MREQ │    │    │      │ 1234 │ 11 │
+│ 2/1 │ MREQ │    │ WR │ WAIT │ 1234 │ 11 │ <== WAIT pin sampled here
+│ 3/0 │ MREQ │    │ WR │      │ 1234 │ 11 │ <== extra clock cycle
+│ 3/1 │ MREQ │    │ WR │      │ 1234 │ 11 │
+│ 4/0 │ MREQ │    │ WR │      │ 1234 │ 11 │ <== regular execution continues
+│ 4/1 │      │    │    │      │ 1234 │ 11 │
 ```
 
-In IO read and write machine cycles, the WAIT pin is samples one full clock 
-cycle later, at the second half cycle of T3:
+In IO read and write machine cycles, the WAIT pin is sampled one full clock 
+cycle later, at the second half-cycle of T3:
 ```
 IO READ:
-┌──────┬────┬────┬──────┬──────┬────┐
-│ IORQ │ RD │ WR │ WAIT │ AB   │ DB │
-├──────┼────┼────┼──────┼──────┼────┤
-│      │    │    │      │ 1234 │ 78 │  T1/0
-│      │    │    │      │ 1234 │ 78 │  T1/1
-│ IORQ │ RD │    │      │ 1234 │ FF │  T2/0
-│ IORQ │ RD │    │      │ 1234 │ FF │  T2/1
-│ IORQ │ RD │    │      │ 1234 │ FF │  T3/0
-│ IORQ │ RD │    │ WAIT │ 1234 │ FF │  T3/1    <== WAIT pin sampled here
-│ IORQ │ RD │    │      │ 1234 │ FF │  T4/0    <== extra clock cycle
-│ IORQ │ RD │    │      │ 1234 │ FF │  T4/1
-│ IORQ │ RD │    │      │ 1234 │ FF │  T5/0    <== regular execution continues
-│      │    │    │      │ 1234 │ FF │  T5/1
+┌─────┬──────┬────┬────┬──────┬──────┬────┐
+│  T  │ IORQ │ RD │ WR │ WAIT │ AB   │ DB │
+├─────┼──────┼────┼────┼──────┼──────┼────┤
+│ 1/0 │      │    │    │      │ 1234 │ 78 │
+│ 1/1 │      │    │    │      │ 1234 │ 78 │
+│ 2/0 │ IORQ │ RD │    │      │ 1234 │ FF │
+│ 2/1 │ IORQ │ RD │    │      │ 1234 │ FF │
+│ 3/0 │ IORQ │ RD │    │      │ 1234 │ FF │
+│ 3/1 │ IORQ │ RD │    │ WAIT │ 1234 │ FF │ <== WAIT pin sampled here
+│ 4/0 │ IORQ │ RD │    │      │ 1234 │ FF │ <== extra clock cycle
+│ 4/1 │ IORQ │ RD │    │      │ 1234 │ FF │
+│ 5/0 │ IORQ │ RD │    │      │ 1234 │ FF │ <== regular execution continues
+│ 5/1 │      │    │    │      │ 1234 │ FF │
 ```
 
 ```
 IO WRITE:
-┌──────┬────┬────┬──────┬──────┬────┐
-│ IORQ │ RD │ WR │ WAIT │ AB   │ DB │
-├──────┼────┼────┼──────┼──────┼────┤
-│      │    │    │      │ 1234 │ 79 │  T1/0
-│      │    │    │      │ 1234 │ 11 │  T1/1
-│ IORQ │    │ WR │      │ 1234 │ 11 │  T2/0
-│ IORQ │    │ WR │      │ 1234 │ 11 │  T2/1
-│ IORQ │    │ WR │      │ 1234 │ 11 │  T3/0
-│ IORQ │    │ WR │ WAIT │ 1234 │ 11 │  T3/1    <== WAIT pin sampled here
-│ IORQ │    │ WR │      │ 1234 │ 11 │  T4/0    <== extra clock cycle
-│ IORQ │    │ WR │      │ 1234 │ 11 │  T4/1
-│ IORQ │    │ WR │      │ 1234 │ 11 │  T5/0    <== regular execution continues
-│      │    │    │      │ 1234 │ 11 │  T5/1
+┌─────┬──────┬────┬────┬──────┬──────┬────┐
+│  T  │ IORQ │ RD │ WR │ WAIT │ AB   │ DB │
+├─────┼──────┼────┼────┼──────┼──────┼────┤
+│ 1/0 │      │    │    │      │ 1234 │ 79 │
+│ 1/1 │      │    │    │      │ 1234 │ 11 │
+│ 2/0 │ IORQ │    │ WR │      │ 1234 │ 11 │
+│ 2/1 │ IORQ │    │ WR │      │ 1234 │ 11 │
+│ 3/0 │ IORQ │    │ WR │      │ 1234 │ 11 │
+│ 3/1 │ IORQ │    │ WR │ WAIT │ 1234 │ 11 │ <== WAIT pin sampled here
+│ 4/0 │ IORQ │    │ WR │      │ 1234 │ 11 │ <== extra clock cycle
+│ 4/1 │ IORQ │    │ WR │      │ 1234 │ 11 │
+│ 5/0 │ IORQ │    │ WR │      │ 1234 │ 11 │ <== regular execution continues
+│ 5/1 │      │    │    │      │ 1234 │ 11 │
 ```
 
 ### Extra Clock Cycles
 
 With the knowledge that machine cycles are the basic building blocks of instructions, and
-the length of those machine cycles we should be able to 'prefict' the number
-of clock cycles an instruction takes.
+the length of those machine cycles we should be able to predict the number
+of clock cycles in an instruction.
 
-For instance the instruction *LD HL,nnnn* (load 16-bit immediate value into register pair *HL*)
+For instance **LD HL,nnnn** (load 16-bit immediate value into register pair **HL**)
 consists of the following machine cycles
 
 1. opcode fetch (4 clock cycles) to read the opcode byte
-2. a memory read (3 clock cycles) to readt the next byte into L
+2. a memory read (3 clock cycles) to read the next byte into L
 3. and another memory read (3 clock cycles) to read the next byte into H
 
 Together: **4 + 3 + 3 = 10 clock cycles**, which is totally correct.
@@ -531,44 +521,44 @@ except that memory reads are replaced with memory writes:
 
 This *should* take 10 clock cycles too, but **PUSH HL** actually takes 11 clock cycles
 to execute:
-
 ```
 PUSH HL:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ HL   │ SP   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0006 │ 12 │ 1234 │ 0100 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0006 │ 12 │ 1234 │ 0100 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ E5 │ 1234 │ 0100 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ E5 │ 1234 │ 0100 │
-│    │      │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
-│    │      │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
-│    │      │      │    │    │ 0002 │ E5 │ 1234 │ 0100 │ <== WTF???
-│    │      │      │    │    │ 0000 │ E5 │ 1234 │ 00FF │ <== WTF???
-│    │      │      │    │    │ 00FF │ E5 │ 1234 │ 00FF │ <== memory write
-│    │ MREQ │      │    │    │ 00FF │ 12 │ 1234 │ 00FF │
-│    │ MREQ │      │    │    │ 00FF │ 12 │ 1234 │ 00FF │
-│    │ MREQ │      │    │ WR │ 00FF │ 12 │ 1234 │ 00FE │
-│    │ MREQ │      │    │ WR │ 00FF │ 12 │ 1234 │ 00FE │
-│    │      │      │    │    │ 00FE │ 12 │ 1234 │ 00FE │
-│    │      │      │    │    │ 00FE │ E5 │ 1234 │ 00FE │ <== memory write
-│    │ MREQ │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │
-│    │ MREQ │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │
-│    │ MREQ │      │    │ WR │ 00FE │ 34 │ 1234 │ 00FE │
-│    │ MREQ │      │    │ WR │ 00FE │ 34 │ 1234 │ 00FE │
-│    │      │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ HL   │ SP   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0006 │ 12 │ 1234 │ 0100 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ 12 │ 1234 │ 0100 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0006 │ E5 │ 1234 │ 0100 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ E5 │ 1234 │ 0100 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ E5 │ 1234 │ 0100 │
+│ 5/0 │    │      │      │    │    │ 0002 │ E5 │ 1234 │ 0100 │ <== WTF???
+│ 5/1 │    │      │      │    │    │ 0000 │ E5 │ 1234 │ 00FF │ <== WTF???
+│ 6/0 │    │      │      │    │    │ 00FF │ E5 │ 1234 │ 00FF │ <== memory write
+│ 6/1 │    │ MREQ │      │    │    │ 00FF │ 12 │ 1234 │ 00FF │
+│ 7/0 │    │ MREQ │      │    │    │ 00FF │ 12 │ 1234 │ 00FF │
+│ 7/1 │    │ MREQ │      │    │ WR │ 00FF │ 12 │ 1234 │ 00FE │
+│ 8/0 │    │ MREQ │      │    │ WR │ 00FF │ 12 │ 1234 │ 00FE │
+│ 8/1 │    │      │      │    │    │ 00FE │ 12 │ 1234 │ 00FE │
+│ 9/0 │    │      │      │    │    │ 00FE │ E5 │ 1234 │ 00FE │ <== memory write
+│ 9/1 │    │ MREQ │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │
+│10/0 │    │ MREQ │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │
+│10/1 │    │ MREQ │      │    │ WR │ 00FE │ 34 │ 1234 │ 00FE │
+│11/0 │    │ MREQ │      │    │ WR │ 00FE │ 34 │ 1234 │ 00FE │
+│11/1 │    │      │      │    │    │ 00FE │ 34 │ 1234 │ 00FE │
 ```
 
 There's an additional clock cycle squeezed inbetween the opcode fetch and
 first memory read machine cycle which is used to 'pre-decrement'
-the *SP* register before the memory write machine cycles can happen.
+the **SP** register before the memory write machine cycles can happen.
 
 It's little irregularities like this which complicate writing a Z80 emulator.
 In a cycle correct emulator it is not only important that instructions
 take the correct number of clock cycles to execute, but also that
-memory and IO reads/writes happen at the correct clock cycle.
+memory and IO reads/writes happen at the correct clock cycle within
+the instruction.
 
 ## Overlapped Execution
 
@@ -580,73 +570,71 @@ and sets flags accordingly the instruction doesn't seem to have any effect:
 
 ```
 XOR A:
-┌────┬──────┬──────┬────┬────┬──────┬──────────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AF   │ Flags    │
-├────┼──────┼──────┼────┼────┼──────┼──────────┤
-│ M1 │      │      │    │    │ FFAC │ SzYhXVnc │  T1/0
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │  T1/1
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │  T2/0
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │  T2/1
-│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │  T3/0
-│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │  T3/1
-│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │  T4/0
-│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │  T4/1
-                               ^^     ^^^^^^^^
+┌─────┬────┬──────┬──────┬────┬────┬──────┬──────────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AF   │ Flags    │
+├─────┼────┼──────┼──────┼────┼────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ FFAC │ SzYhXVnc │
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
+│ 3/0 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │
+│ 4/1 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ <== A and Flags not modified!
+                                     ^^     ^^^^^^^^
 ```
 
-*XOR A* takes 4 clock cycles, yet at the end of the instruction A isn't zero,
-and flag bits haven't been updated either. Here's the same diagram including
-the *NOP* instruction that follows:
+**XOR A** takes 4 clock cycles, yet at the end of the instruction A isn't zero,
+and the flag bits haven't been updated either. Here's the same diagram including
+the **NOP** instruction that follows:
 
 ```
 XOR A + NOP:
-┌────┬──────┬──────┬────┬────┬──────┬──────────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AF   │ Flags    │
-├────┼──────┼──────┼────┼────┼──────┼──────────┤
-│ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ <== XOR A start
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
-│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
-│    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
-│    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
-├────┼──────┼──────┼────┼────┼──────┼──────────┤
-│ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ <== NOP starts here
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ M1 │ MREQ │      │ RD │    │ 00AC │ SzYhXVnc │ <== A updated here
-│    │      │ RFSH │    │    │ 00AC │ SzYhXVnc │ 
-│    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ <== flags updated here 
-│    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ 
-│    │      │ RFSH │    │    │ 0044 │ sZyhxVnc │ 
+┌─────┬────┬──────┬──────┬────┬────┬──────┬──────────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AF   │ Flags    │
+├─────┼────┼──────┼──────┼────┼────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ <== XOR A start
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
+│ 3/0 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
+│ 3/1 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
+│ 4/0 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
+│ 4/1 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
+├─────┼────┼──────┼──────┼────┼────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ <== NOP starts here
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 00AC │ SzYhXVnc │ <== A updated here
+│ 3/0 │    │      │ RFSH │    │    │ 00AC │ SzYhXVnc │ 
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ <== flags updated here 
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ 
+│ 4/1 │    │      │ RFSH │    │    │ 0044 │ sZyhxVnc │ 
 ```
 
-The results of the *XOR A* instruction only become available
+The results of the **XOR A** instruction only become available
 at the end of the second and third clock cycles of the following instruction.
 
-Thankfully this overlapped instruction execution is hardly relevant for CPU
+Thankfully this overlapped execution is hardly relevant for CPU
 emulators, because it only affects the internal state of the CPU, not any state
-that's observable from the outside. The result of an instruction is relevant at
-the earliest *after* the opcode fetch machine cycle of the next instruction has
-finished.
+that's observable from the outside. 
 
 ## The 3 Instruction Subsets
 
 The Z80 instruction set is really 3 separate subsets each occupying
-256 opcodes. There's the main instruction set which mostly overlaps
+256 opcode 'slots'. There's the main instruction set which mostly overlaps
 with the Intel 8080 instruction set and two additional sets of instructions
-selected with the *ED* and *CB* prefix opcodes.
+selected with the **ED** and **CB** prefix opcodes.
 
 The main and CB subsets each occupy the full range of 256 instructions,
 while the ED subset is mostly empty and only implements 59 instructions.
 
-I'm not counting the *DD* and *FD* prefix instruction ranges as separate
+I'm not counting the **DD** and **FD** prefix instruction ranges as separate
 subsets because they only slightly modify the behaviour of the main
 instructions.
 
 This means there are 571 unique instructions in the Z80 instruction set
-(I'm counting the RETI and RETN instruction as one because they have 
+(counting the RETI and RETN instructions as one because they have 
 identical behaviour).
 
 ## The 2-3-3 Opcode Bit Pattern
@@ -659,19 +647,18 @@ Opcode bytes can be split into three bit groups to reveal a hidden
 | x x | y y y | z z z | 
 ```
 
-The two topmost bits (xx) split the instruction space into 4 quadrants,
+The two top-most bits (xx) split the instruction space into 4 quadrants,
 and the remaining 6 bits are divided into two 3-bit groups (yyy) and (zzz)
-which are used by the instruction decoder to select a specific group
-of instructions or as an 'register index'.
+which are used as arguments to the instruction decoder.
 
 Let's look at each instruction subset and quadrant one by one:
 
-## Main Quadrant Instructions
+## Main Instructions
 
 ### Main Quadrant 1 (xx = 01)
 
-I'm starting with Main Quadrant 1 (not 0) because unlike 0 it is has such
-a simple structure. In an Z80 emulator this is usually the first quadrant
+I'm starting with Main Quadrant 1 (not 0) because unlike 0 it is has a simple
+and 'orderly' structure. In an Z80 emulator this is usually the first quadrant
 I'm implementing.
 
 The 64 instructions with the bit pattern **|01|yyy|zzz|** implement
@@ -688,6 +675,13 @@ the source. As a table, the main quadrant 1 looks like this:
 <tr class="z80t"><th class="z80h">x=01</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">LD B,B</td><td class="z80c0">LD B,C</td><td class="z80c0">LD B,D</td><td class="z80c0">LD B,E</td><td class="z80c0">LD B,H</td><td class="z80c0">LD B,L</td><td class="z80c0">LD B,(HL)</td><td class="z80c0">LD B,A</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">LD C,B</td><td class="z80c0">LD C,C</td><td class="z80c0">LD C,D</td><td class="z80c0">LD C,E</td><td class="z80c0">LD C,H</td><td class="z80c0">LD C,L</td><td class="z80c0">LD C,(HL)</td><td class="z80c0">LD C,A</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c0">LD D,B</td><td class="z80c0">LD D,C</td><td class="z80c0">LD D,D</td><td class="z80c0">LD D,E</td><td class="z80c0">LD D,H</td><td class="z80c0">LD D,L</td><td class="z80c0">LD D,(HL)</td><td class="z80c0">LD D,A</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c0">LD E,B</td><td class="z80c0">LD E,C</td><td class="z80c0">LD E,D</td><td class="z80c0">LD E,E</td><td class="z80c0">LD E,H</td><td class="z80c0">LD E,L</td><td class="z80c0">LD E,(HL)</td><td class="z80c0">LD E,A</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c0">LD H,B</td><td class="z80c0">LD H,C</td><td class="z80c0">LD H,D</td><td class="z80c0">LD H,E</td><td class="z80c0">LD H,H</td><td class="z80c0">LD H,L</td><td class="z80c0">LD H,(HL)</td><td class="z80c0">LD H,A</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c0">LD L,B</td><td class="z80c0">LD L,C</td><td class="z80c0">LD L,D</td><td class="z80c0">LD L,E</td><td class="z80c0">LD L,H</td><td class="z80c0">LD L,L</td><td class="z80c0">LD L,(HL)</td><td class="z80c0">LD L,A</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c0">LD (HL),B</td><td class="z80c0">LD (HL),C</td><td class="z80c0">LD (HL),D</td><td class="z80c0">LD (HL),E</td><td class="z80c0">LD (HL),H</td><td class="z80c0">LD (HL),L</td><td class="z80c0">HALT</td><td class="z80c0">LD (HL),A</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c0">LD A,B</td><td class="z80c0">LD A,C</td><td class="z80c0">LD A,D</td><td class="z80c0">LD A,E</td><td class="z80c0">LD A,H</td><td class="z80c0">LD A,L</td><td class="z80c0">LD A,(HL)</td><td class="z80c0">LD A,A</td></tr>
 </table><br>
 
+I have choosen the green background for instructions that have no 'timing
+surprises' (like the **PUSH HL** instruction discussed above).  The duration
+of 'green' instructions is simply the sum of their machine cycle default
+clock cycles. All instructions in the Main Quadrant 1 take 4 clock cycles (for the
+opcode fetch), except the instructions involving **(HL)** which take an additional
+memory read or write machine cycle, resulting in 7 clock cycles.
+
 *y* and *z* are registers indices as binary numbers:
 
 ```
@@ -701,22 +695,17 @@ the source. As a table, the main quadrant 1 looks like this:
 111 = 7 => A
 ```
 
-The 'register index' 6 is a bit special. Normally this index should be used for
-the F (flags) register, which isn't directly accessible. Instead this index is
-used as special case to load or store the 8-bit values addressed by the register
-pair HL.
+The 'register index' 6 is a bit special. According to the 'hardware pattern' of
+the Z80 register bank, index 6 would actually address the F (status flags)
+register, but this isn't directly accessible in the instruction set (and
+'wasting' one index for the F register in most instructions also wouldn't make
+much sense). Instead index 6 is used as special case to load or store the 8-bit
+values addressed by the register pair HL.
 
 And another oddity is the HALT instruction at bit pattern **|01|110|110|** (==
 76 hex). Following the 'table logic' this instruction slot *should* be occupied by
 an **LD (HL),(HL)** instruction which doesn't make a lot of sense, so instead
 this slot was reused for the HALT instruction.
-
-I have choosen the green background for instructions that have no 'timing
-surprises' (like the **PUSH HL** instruction discussed above).  The duration
-of 'green' instructions is simply the sum of their default machine cycle
-lengths.  All instructions in the Main Quadrant 1 take 4 clock cycles (for the
-opcode fetch), except the instructions involving **(HL)** which take an additional
-memory read or write machine cycle, resulting in 7 clock cycles.
 
 ### Main Quadrant 2 (xx = 10)
 
@@ -765,9 +754,11 @@ This is the first of the two 'messy' quadrants in the main set:
 <tr class="z80t"><th class="z80h">x=00</th><th class="z80h">z=000</th><th class="z80h">z=001</th><th class="z80h">z=010</th><th class="z80h">z=011</th><th class="z80h">z=100</th><th class="z80h">z=101</th><th class="z80h">z=110</th><th class="z80h">z=111</th></tr><tr class="z80t"><th class="z80h">y=000</th><td class="z80c0">NOP</td><td class="z80c0">LD BC,nn</td><td class="z80c0">LD (BC),A</td><td class="z80c1">INC BC</td><td class="z80c0">INC B</td><td class="z80c0">DEC B</td><td class="z80c0">LD B,n</td><td class="z80c0">RLCA</td></tr><tr class="z80t"><th class="z80h">y=001</th><td class="z80c0">EX AF,AF'</td><td class="z80c1">ADD HL,BC</td><td class="z80c0">LD A,(BC)</td><td class="z80c1">DEC BC</td><td class="z80c0">INC C</td><td class="z80c0">DEC C</td><td class="z80c0">LD C,n</td><td class="z80c0">RRCA</td></tr><tr class="z80t"><th class="z80h">y=010</th><td class="z80c1">DJNZ d</td><td class="z80c0">LD DE,nn</td><td class="z80c0">LD (DE),A</td><td class="z80c1">INC DE</td><td class="z80c0">INC D</td><td class="z80c0">DEC D</td><td class="z80c0">LD D,n</td><td class="z80c0">RLA</td></tr><tr class="z80t"><th class="z80h">y=011</th><td class="z80c1">JR d</td><td class="z80c1">ADD HL,DE</td><td class="z80c0">LD A,(DE)</td><td class="z80c1">DEC DE</td><td class="z80c0">INC E</td><td class="z80c0">DEC E</td><td class="z80c0">LD E,n</td><td class="z80c0">RRA</td></tr><tr class="z80t"><th class="z80h">y=100</th><td class="z80c1">JR NZ,d</td><td class="z80c0">LD HL,nn</td><td class="z80c0">LD (nn),HL</td><td class="z80c1">INC HL</td><td class="z80c0">INC H</td><td class="z80c0">DEC H</td><td class="z80c0">LD H,n</td><td class="z80c0">DAA</td></tr><tr class="z80t"><th class="z80h">y=101</th><td class="z80c1">JR Z,d</td><td class="z80c1">ADD HL,HL</td><td class="z80c0">LD HL,(nn)</td><td class="z80c1">DEC HL</td><td class="z80c0">INC L</td><td class="z80c0">DEC L</td><td class="z80c0">LD L,n</td><td class="z80c0">CPL</td></tr><tr class="z80t"><th class="z80h">y=110</th><td class="z80c1">JR NC,d</td><td class="z80c0">LD SP,nn</td><td class="z80c0">LD (nn),A</td><td class="z80c1">INC SP</td><td class="z80c1">INC (HL)</td><td class="z80c1">DEC (HL)</td><td class="z80c0">LD (HL),n</td><td class="z80c0">SCF</td></tr><tr class="z80t"><th class="z80h">y=111</th><td class="z80c1">JR C,d</td><td class="z80c1">ADD HL,SP</td><td class="z80c0">LD A,(nn)</td><td class="z80c1">DEC SP</td><td class="z80c0">INC A</td><td class="z80c0">DEC A</td><td class="z80c0">LD A,n</td><td class="z80c0">CCF</td></tr>
 </table><br>
 
-The red background color means that those instructions have squeeze some extra
-clock cycles inbetween the regular memory access machine cycles and need to be
-handled with special care in cycle-correct emulators. 
+The red background color means that those instructions insert extra
+clock cycles between regular memory or IO machine cycles and need to be
+handled with special care in cycle-correct emulators. For the rest of the blog post
+I will focus on those 'red' instructions (because the timing of the 'green' instructions
+can trivially be derived from the instruction's machine cycles).
 
 #### INC/DEC (HL)
 
@@ -776,35 +767,35 @@ instructions. Let's see why they have a red background:
 
 ```
 INC (HL):
-┌────┬──────┬──────┬────┬────┬──────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │
-├────┼──────┼──────┼────┼────┼──────┼────┤
-│ M1 │      │      │    │    │ 0003 │ 12 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 12 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 34 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 34 │
-│    │      │ RFSH │    │    │ 0001 │ 34 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ 34 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ 34 │
-│    │      │ RFSH │    │    │ 0000 │ 34 │
-│    │      │      │    │    │ 1234 │ 34 │ <== memory read
-│    │ MREQ │      │ RD │    │ 1234 │ 34 │
-│    │ MREQ │      │ RD │    │ 1234 │ 00 │
-│    │ MREQ │      │ RD │    │ 1234 │ 00 │
-│    │ MREQ │      │ RD │    │ 1234 │ 00 │
-│    │      │      │    │    │ 1234 │ 00 │
-│    │      │      │    │    │ 1234 │ 00 │ <== ??? 
-│    │      │      │    │    │ 1234 │ 00 │ <== ???
-│    │      │      │    │    │ 1234 │ 00 │ <== memory write
-│    │ MREQ │      │    │    │ 1234 │ 01 │
-│    │ MREQ │      │    │    │ 1234 │ 01 │
-│    │ MREQ │      │    │ WR │ 1234 │ 01 │
-│    │ MREQ │      │    │ WR │ 1234 │ 01 │
-│    │      │      │    │    │ 1234 │ 01 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 12 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 12 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 34 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 34 │
+│ 3/0 │    │      │ RFSH │    │    │ 0001 │ 34 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0001 │ 34 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0001 │ 34 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ 34 │
+│ 5/0 │    │      │      │    │    │ 1234 │ 34 │ <== memory read
+│ 5/1 │    │ MREQ │      │ RD │    │ 1234 │ 34 │
+│ 6/0 │    │ MREQ │      │ RD │    │ 1234 │ 00 │
+│ 6/1 │    │ MREQ │      │ RD │    │ 1234 │ 00 │
+│ 7/0 │    │ MREQ │      │ RD │    │ 1234 │ 00 │
+│ 7/1 │    │      │      │    │    │ 1234 │ 00 │
+│ 8/0 │    │      │      │    │    │ 1234 │ 00 │ <== extra clock cycle
+│ 8/1 │    │      │      │    │    │ 1234 │ 00 │
+│ 9/0 │    │      │      │    │    │ 1234 │ 00 │ <== memory write
+│ 9/1 │    │ MREQ │      │    │    │ 1234 │ 01 │
+│10/0 │    │ MREQ │      │    │    │ 1234 │ 01 │
+│10/1 │    │ MREQ │      │    │ WR │ 1234 │ 01 │
+│11/0 │    │ MREQ │      │    │ WR │ 1234 │ 01 │
+│11/1 │    │      │      │    │    │ 1234 │ 01 │
 ```
 
 As expected, there's an opcode fetch, memory read and memory write machine cycle.
-An extra clock cycle has been squeezed between the read and write machine cycle,
+An extra clock cycle has been squeezed inbetween the read and write machine cycle,
 no doubt to increment the byte that's been loaded from memory before it is 
 written back.
 
@@ -815,21 +806,21 @@ machine cycle to perform the 16-bit math:
 
 ```
 INC BC:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ BC   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ FF │ FFFF │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ FF │ FFFF │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 03 │ FFFF │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 03 │ FFFF │
-│    │      │ RFSH │    │    │ 0001 │ 03 │ FFFF │
-│    │ MREQ │ RFSH │    │    │ 0001 │ 03 │ FFFF │
-│    │ MREQ │ RFSH │    │    │ 0001 │ 03 │ FFFF │
-│    │      │ RFSH │    │    │ 0001 │ 03 │ FFFF │
-│    │      │      │    │    │ 0001 │ 03 │ FFFF │ <== 2 extra clock cycles
-│    │      │      │    │    │ 0001 │ 03 │ 0000 │
-│    │      │      │    │    │ 0001 │ 03 │ 0000 │
-│    │      │      │    │    │ 0000 │ 03 │ 0000 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ BC   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ FF │ FFFF │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ FF │ FFFF │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 03 │ FFFF │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 03 │ FFFF │
+│ 3/0 │    │      │ RFSH │    │    │ 0001 │ 03 │ FFFF │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0001 │ 03 │ FFFF │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0001 │ 03 │ FFFF │
+│ 4/1 │    │      │ RFSH │    │    │ 0001 │ 03 │ FFFF │
+│ 5/0 │    │      │      │    │    │ 0001 │ 03 │ FFFF │ <== 2 extra clock cycles
+│ 5/1 │    │      │      │    │    │ 0001 │ 03 │ 0000 │
+│ 6/0 │    │      │      │    │    │ 0001 │ 03 │ 0000 │
+│ 6/1 │    │      │      │    │    │ 0000 │ 03 │ 0000 │
 ```
 It's interesting that the result is already available at the
 end of the first extra clock cycle. No idea why there's 
@@ -843,31 +834,31 @@ the opcode fetch machine cycle:
 
 ```
 ADD HL,DE
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ DE   │ HL   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0006 │ 22 │ 2222 │ 1111 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0006 │ 22 │ 2222 │ 1111 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ 19 │ 2222 │ 1111 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ 19 │ 2222 │ 1111 │
-│    │      │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │      │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │ <== 7 extra clock cycles
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ <== result low byte
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
-│    │      │      │    │    │ 0002 │ 19 │ 2222 │ 3333 │ <== result high byte
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ DE   │ HL   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0006 │ 22 │ 2222 │ 1111 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ 22 │ 2222 │ 1111 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0006 │ 19 │ 2222 │ 1111 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ 19 │ 2222 │ 1111 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 5/0 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │ <== 7 extra clock cycles
+│ 5/1 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 6/0 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 6/1 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 7/0 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1111 │
+│ 7/1 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │ <== result low byte
+│ 8/0 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
+│ 8/1 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
+│ 9/0 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
+│ 9/1 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
+│10/0 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
+│10/1 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
+│11/0 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 1133 │
+│11/1 │    │      │      │    │    │ 0002 │ 19 │ 2222 │ 3333 │ <== result high byte
 ```
 
 This time, no clock cycles are wasted. The 16-bit result is only
@@ -883,33 +874,33 @@ the jump target address:
 
 ```
 JR d
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0002 │ 00 │ 0002 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0002 │ 00 │ 0003 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0002 │ 18 │ 0003 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0002 │ 18 │ 0003 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
-│    │      │      │    │    │ 0003 │ 18 │ 0003 │ 5555 │ <== memory ready
-│    │ MREQ │      │ RD │    │ 0003 │ 18 │ 0004 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ <== 5 extra clock cycles
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ 
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ 
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│    │      │      │    │    │ 0001 │ FC │ 0004 │ 0000 │ <== dst addr in WZ
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0002 │ 00 │ 0002 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0002 │ 00 │ 0003 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0002 │ 18 │ 0003 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0002 │ 18 │ 0003 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ 18 │ 0003 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0003 │ 18 │ 0003 │ 5555 │ <== memory ready
+│ 5/1 │    │ MREQ │      │ RD │    │ 0003 │ 18 │ 0004 │ 5555 │
+│ 6/0 │    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │
+│ 6/1 │    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │
+│ 7/0 │    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │
+│ 7/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │
+│ 8/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ <== 5 extra clock cycles
+│ 8/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ 
+│ 9/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ 
+│ 9/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
+│10/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
+│10/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
+│11/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
+│11/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
+│12/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
+│12/1 │    │      │      │    │    │ 0001 │ FC │ 0004 │ 0000 │ <== dst addr in WZ
 ```
 
 The computed target address isn't stored in the **PC** register, but instead
@@ -920,17 +911,17 @@ destination address:
 
 ```
 JR d CONTINUED: NOP at the jump destination (address 0000)
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0000 │ FC │ 0004 │ 0000 │ <== PC still 0004!
-│ M1 │ MREQ │      │ RD │    │ 0000 │ FC │ 0001 │ 0000 │ <== PC goes right to 0001!
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0000 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0000 │
-│    │      │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
-│    │      │ RFSH │    │    │ 0000 │ 00 │ 0001 │ 0000 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0000 │ FC │ 0004 │ 0000 │ <== PC still 0004!
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ FC │ 0001 │ 0000 │ <== PC goes right to 0001!
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0000 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0000 │
+│ 3/0 │    │      │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0001 │ 0000 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ 00 │ 0001 │ 0000 │
 ```
 
 #### DJNZ d
@@ -942,60 +933,60 @@ is taken, 5 additional clock cycles (this branch part is identical with the
 
 ```
 DJNZ d - branch taken:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ 00 │ 0003 │ 0255 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 00 │ 0004 │ 0255 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 10 │ 0004 │ 0255 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 10 │ 0004 │ 0255 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
-│    │      │      │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │ <== 1 extra clock cycle
-│    │      │      │    │    │ 0000 │ 10 │ 0004 │ 0255 │ 5555 │        
-│    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0255 │ 5555 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 0155 │ 5555 │ <== B decremented
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │ <== 5 extra clock cycles
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 0002 │ <== dst addr in WZ
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 00 │ 0003 │ 0255 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 00 │ 0004 │ 0255 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 10 │ 0004 │ 0255 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 10 │ 0004 │ 0255 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │ <== 1 extra clock cycle
+│ 5/1 │    │      │      │    │    │ 0000 │ 10 │ 0004 │ 0255 │ 5555 │        
+│ 6/0 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0255 │ 5555 │ <== memory read
+│ 6/1 │    │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 0155 │ 5555 │ <== B decremented
+│ 7/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
+│ 7/1 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
+│ 8/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
+│ 8/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
+│ 9/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │ <== 5 extra clock cycles
+│ 9/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
+│10/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
+│10/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
+│11/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
+│11/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
+│12/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
+│12/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
+│13/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 5502 │
+│13/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0155 │ 0002 │ <== dst addr in WZ
 ```
 
 If the branch is not taken, **DJNZ** is finished right after the memory read:
 
 ```
 DJNZ d - branch not taken:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ 00 │ 0003 │ 0155 │ 0002 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 00 │ 0004 │ 0155 │ 0002 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 10 │ 0004 │ 0155 │ 0002 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 10 │ 0004 │ 0155 │ 0002 │
-│    │      │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
-│    │      │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
-│    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │ <== 1 extra clock cycle
-│    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │        
-│    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 0055 │ 0002 │ <== B decremented
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 00 │ 0003 │ 0155 │ 0002 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 00 │ 0004 │ 0155 │ 0002 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 10 │ 0004 │ 0155 │ 0002 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 10 │ 0004 │ 0155 │ 0002 │
+│ 3/0 │    │      │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
+│ 4/1 │    │      │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
+│ 5/0 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │ <== 1 extra clock cycle
+│ 5/1 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │        
+│ 6/0 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │ <== memory read
+│ 6/1 │    │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 0055 │ 0002 │ <== B decremented
+│ 7/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
+│ 7/1 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
+│ 8/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
+│ 8/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
 ```
 
 #### JR cc,d
@@ -1007,54 +998,54 @@ cycle (so the branch behaviour is identical swith DJNZ and JR):
 
 ```
 JR cc,d - branch taken
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ 05 │ 0003 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 05 │ 0004 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 20 │ 0004 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 20 │ 0004 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │      │      │    │    │ 0004 │ 20 │ 0004 │ 5555 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0004 │ 20 │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │ <== 5 extra clock cycles
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 0002 │ <== dest addr in WZ
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 05 │ 0003 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 05 │ 0004 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 20 │ 0004 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 20 │ 0004 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0004 │ 20 │ 0004 │ 5555 │ <== memory read
+│ 5/1 │    │ MREQ │      │ RD │    │ 0004 │ 20 │ 0005 │ 5555 │
+│ 6/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 6/1 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 7/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 7/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 8/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │ <== 5 extra clock cycles
+│ 8/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 9/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 9/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
+│10/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
+│10/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
+│11/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
+│11/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
+│12/0 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5502 │
+│12/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 0002 │ <== dest addr in WZ
 ```
 
 ```
 JR cc,d - branch not taken
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ 05 │ 0003 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 05 │ 0004 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 20 │ 0004 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 20 │ 0004 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
-│    │      │      │    │    │ 0004 │ 20 │ 0004 │ 5555 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0004 │ 20 │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
-│    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 05 │ 0003 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 05 │ 0004 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 20 │ 0004 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 20 │ 0004 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ 20 │ 0004 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0004 │ 20 │ 0004 │ 5555 │ <== memory read
+│ 5/1 │    │ MREQ │      │ RD │    │ 0004 │ 20 │ 0005 │ 5555 │
+│ 6/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 6/1 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 7/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 5555 │
+│ 7/1 │    │      │      │    │    │ 0004 │ FD │ 0005 │ 5555 │
 ```
 
 ### Main Quadrant 3 (xx == 11)
@@ -1077,43 +1068,43 @@ cycle (to load the destination addres) and the first memory write machine cycle
 
 ```
 CALL nn
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0000 │ 00 │ 0000 │ 0100 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0100 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
-│    │      │      │    │    │ 0001 │ CD │ 0001 │ 0100 │ 5555 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0001 │ CD │ 0002 │ 0100 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0001 │ 22 │ 0002 │ 0100 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0001 │ 22 │ 0002 │ 0100 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0001 │ 22 │ 0002 │ 0100 │ 5555 │
-│    │      │      │    │    │ 0000 │ 22 │ 0002 │ 0100 │ 5522 │
-│    │      │      │    │    │ 0002 │ 22 │ 0002 │ 0100 │ 5522 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0002 │ 22 │ 0003 │ 0100 │ 5522 │
-│    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 0100 │ 5522 │
-│    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 0100 │ 5522 │
-│    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 0100 │ 5522 │
-│    │      │      │    │    │ 0002 │ 11 │ 0003 │ 0100 │ 1122 │ <== branch target in WZ
-│    │      │      │    │    │ 0002 │ 11 │ 0003 │ 0100 │ 1122 │ <== extra clock cycle
-│    │      │      │    │    │ 0000 │ 11 │ 0003 │ 00FF │ 1122 │ <== SP pre-decremented
-│    │      │      │    │    │ 5554 │ 11 │ 0003 │ 00FF │ 1122 │ <== memory write
-│    │ MREQ │      │    │    │ 5554 │ 00 │ 0003 │ 00FF │ 1122 │
-│    │ MREQ │      │    │    │ 5554 │ 00 │ 0003 │ 00FF │ 1122 │
-│    │ MREQ │      │    │ WR │ 5554 │ 00 │ 0003 │ 00FE │ 1122 │
-│    │ MREQ │      │    │ WR │ 5554 │ 00 │ 0003 │ 00FE │ 1122 │
-│    │      │      │    │    │ 5550 │ 00 │ 0003 │ 00FE │ 1122 │
-│    │      │      │    │    │ 5553 │ 11 │ 0003 │ 00FE │ 1122 │ <== memory write
-│    │ MREQ │      │    │    │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
-│    │ MREQ │      │    │    │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
-│    │ MREQ │      │    │ WR │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
-│    │ MREQ │      │    │ WR │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
-│    │      │      │    │    │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0000 │ 00 │ 0000 │ 0100 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 0100 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ CD │ 0001 │ 0100 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0001 │ CD │ 0001 │ 0100 │ 5555 │ <== memory read
+│ 5/1 │    │ MREQ │      │ RD │    │ 0001 │ CD │ 0002 │ 0100 │ 5555 │
+│ 6/0 │    │ MREQ │      │ RD │    │ 0001 │ 22 │ 0002 │ 0100 │ 5555 │
+│ 6/1 │    │ MREQ │      │ RD │    │ 0001 │ 22 │ 0002 │ 0100 │ 5555 │
+│ 7/0 │    │ MREQ │      │ RD │    │ 0001 │ 22 │ 0002 │ 0100 │ 5555 │
+│ 7/1 │    │      │      │    │    │ 0000 │ 22 │ 0002 │ 0100 │ 5522 │
+│ 8/0 │    │      │      │    │    │ 0002 │ 22 │ 0002 │ 0100 │ 5522 │ <== memory read
+│ 8/1 │    │ MREQ │      │ RD │    │ 0002 │ 22 │ 0003 │ 0100 │ 5522 │
+│ 9/0 │    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 0100 │ 5522 │
+│ 9/1 │    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 0100 │ 5522 │
+│10/0 │    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 0100 │ 5522 │
+│10/1 │    │      │      │    │    │ 0002 │ 11 │ 0003 │ 0100 │ 1122 │ <== branch target in WZ
+│11/0 │    │      │      │    │    │ 0002 │ 11 │ 0003 │ 0100 │ 1122 │ <== extra clock cycle
+│11/1 │    │      │      │    │    │ 0000 │ 11 │ 0003 │ 00FF │ 1122 │ <== SP pre-decremented
+│12/0 │    │      │      │    │    │ 5554 │ 11 │ 0003 │ 00FF │ 1122 │ <== memory write
+│12/1 │    │ MREQ │      │    │    │ 5554 │ 00 │ 0003 │ 00FF │ 1122 │
+│13/0 │    │ MREQ │      │    │    │ 5554 │ 00 │ 0003 │ 00FF │ 1122 │
+│13/1 │    │ MREQ │      │    │ WR │ 5554 │ 00 │ 0003 │ 00FE │ 1122 │
+│14/0 │    │ MREQ │      │    │ WR │ 5554 │ 00 │ 0003 │ 00FE │ 1122 │
+│14/1 │    │      │      │    │    │ 5550 │ 00 │ 0003 │ 00FE │ 1122 │
+│15/0 │    │      │      │    │    │ 5553 │ 11 │ 0003 │ 00FE │ 1122 │ <== memory write
+│15/1 │    │ MREQ │      │    │    │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
+│16/0 │    │ MREQ │      │    │    │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
+│16/1 │    │ MREQ │      │    │ WR │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
+│17/0 │    │ MREQ │      │    │ WR │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
+│17/1 │    │      │      │    │    │ 5553 │ 03 │ 0003 │ 00FE │ 1122 │
 ```
 
 Like in other branch instructions, the **PC** register isn't updated in the instruction,
@@ -1122,13 +1113,13 @@ subroutine instruction:
 
 ```
 CALL nn - continued (first opcode fetch in subroutine)
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 1122 │ 11 │ 0003 │ 1122 │ <== PC still at CALL nn + 1
-│ M1 │ MREQ │      │ RD │    │ 1122 │ 11 │ 1123 │ 1122 │ <== PC now at dst addr + 1
-│ M1 │ MREQ │      │ RD │    │ 1122 │ C9 │ 1123 │ 1122 │
-│ M1 │ MREQ │      │ RD │    │ 1122 │ C9 │ 1123 │ 1122 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 1122 │ 11 │ 0003 │ 1122 │ <== PC still at CALL nn + 1
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 1122 │ 11 │ 1123 │ 1122 │ <== PC now at dst addr + 1
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 1122 │ C9 │ 1123 │ 1122 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 1122 │ C9 │ 1123 │ 1122 │
 ```
 
 #### CALL cc,nn
@@ -1139,29 +1130,29 @@ early after the second memory read:
 
 ```
 CALL NZ,nn - branch not taken
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ 05 │ 0003 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 05 │ 0004 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ CC │ 0004 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ CC │ 0004 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
-│    │      │      │    │    │ 0004 │ CC │ 0004 │ 5555 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0004 │ CC │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ 0B │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ 0B │ 0005 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0004 │ 0B │ 0005 │ 5555 │
-│    │      │      │    │    │ 0004 │ 0B │ 0005 │ 550B │
-│    │      │      │    │    │ 0005 │ 0B │ 0005 │ 550B │ <== memory read
-│    │ MREQ │      │ RD │    │ 0005 │ 0B │ 0006 │ 550B │
-│    │ MREQ │      │ RD │    │ 0005 │ 00 │ 0006 │ 550B │
-│    │ MREQ │      │ RD │    │ 0005 │ 00 │ 0006 │ 550B │
-│    │ MREQ │      │ RD │    │ 0005 │ 00 │ 0006 │ 550B │
-│    │      │      │    │    │ 0005 │ 00 │ 0006 │ 000B │ <== dst addr in WZ
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 05 │ 0003 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 05 │ 0004 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ CC │ 0004 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ CC │ 0004 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ CC │ 0004 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0004 │ CC │ 0004 │ 5555 │ <== memory read
+│ 5/1 │    │ MREQ │      │ RD │    │ 0004 │ CC │ 0005 │ 5555 │
+│ 6/0 │    │ MREQ │      │ RD │    │ 0004 │ 0B │ 0005 │ 5555 │
+│ 6/1 │    │ MREQ │      │ RD │    │ 0004 │ 0B │ 0005 │ 5555 │
+│ 7/0 │    │ MREQ │      │ RD │    │ 0004 │ 0B │ 0005 │ 5555 │
+│ 7/1 │    │      │      │    │    │ 0004 │ 0B │ 0005 │ 550B │
+│ 8/0 │    │      │      │    │    │ 0005 │ 0B │ 0005 │ 550B │ <== memory read
+│ 8/1 │    │ MREQ │      │ RD │    │ 0005 │ 0B │ 0006 │ 550B │
+│ 9/0 │    │ MREQ │      │ RD │    │ 0005 │ 00 │ 0006 │ 550B │
+│ 9/1 │    │ MREQ │      │ RD │    │ 0005 │ 00 │ 0006 │ 550B │
+│10/0 │    │ MREQ │      │ RD │    │ 0005 │ 00 │ 0006 │ 550B │
+│10/1 │    │      │      │    │    │ 0005 │ 00 │ 0006 │ 000B │ <== dst addr in WZ
 ```
 
 #### RET cc
@@ -1173,48 +1164,48 @@ WZ.
 
 ```
 RET Z - condition false
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 000C │ 05 │ 000C │ 00FE │ 0009 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 000C │ 05 │ 000D │ 00FE │ 0009 │
-│ M1 │ MREQ │      │ RD │    │ 000C │ C8 │ 000D │ 00FE │ 0009 │
-│ M1 │ MREQ │      │ RD │    │ 000C │ C8 │ 000D │ 00FE │ 0009 │
-│    │      │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
-│    │      │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
-│    │      │      │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │ <== one extra clock cycle
-│    │      │      │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 000C │ 05 │ 000C │ 00FE │ 0009 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 000C │ 05 │ 000D │ 00FE │ 0009 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 000C │ C8 │ 000D │ 00FE │ 0009 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 000C │ C8 │ 000D │ 00FE │ 0009 │
+│ 3/0 │    │      │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
+│ 4/1 │    │      │ RFSH │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
+│ 5/0 │    │      │      │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │ <== one extra clock cycle
+│ 5/1 │    │      │      │    │    │ 0004 │ C8 │ 000D │ 00FE │ 0009 │
 ```
 
 ```
 RET Z - condition true
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 2005 │ 05 │ 2005 │ 00FE │ 2000 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 2005 │ 05 │ 2006 │ 00FE │ 2000 │
-│ M1 │ MREQ │      │ RD │    │ 2005 │ C8 │ 2006 │ 00FE │ 2000 │
-│ M1 │ MREQ │      │ RD │    │ 2004 │ C8 │ 2006 │ 00FE │ 2000 │
-│    │      │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
-│    │ MREQ │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
-│    │ MREQ │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
-│    │      │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
-│    │      │      │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │ <== one extra clock cycle
-│    │      │      │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │ 
-│    │      │      │    │    │ 00FE │ C8 │ 2006 │ 00FE │ 2000 │ <== memory read
-│    │ MREQ │      │ RD │    │ 00FE │ C8 │ 2006 │ 00FE │ 2000 │
-│    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FE │ 2000 │
-│    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FF │ 2000 │
-│    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FF │ 2000 │
-│    │      │      │    │    │ 00FE │ 06 │ 2006 │ 00FF │ 2006 │
-│    │      │      │    │    │ 00FF │ 06 │ 2006 │ 00FF │ 2006 │ <== memory read 
-│    │ MREQ │      │ RD │    │ 00FF │ 06 │ 2006 │ 00FF │ 2006 │
-│    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 00FF │ 2006 │
-│    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 0100 │ 2006 │
-│    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 0100 │ 2006 │
-│    │      │      │    │    │ 0000 │ 00 │ 2006 │ 0100 │ 0006 │ <== ret addr in WZ
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 2005 │ 05 │ 2005 │ 00FE │ 2000 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 2005 │ 05 │ 2006 │ 00FE │ 2000 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 2005 │ C8 │ 2006 │ 00FE │ 2000 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 2004 │ C8 │ 2006 │ 00FE │ 2000 │
+│ 3/0 │    │      │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
+│ 4/1 │    │      │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
+│ 5/0 │    │      │      │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │ <== one extra clock cycle
+│ 5/1 │    │      │      │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │ 
+│ 6/0 │    │      │      │    │    │ 00FE │ C8 │ 2006 │ 00FE │ 2000 │ <== memory read
+│ 6/1 │    │ MREQ │      │ RD │    │ 00FE │ C8 │ 2006 │ 00FE │ 2000 │
+│ 7/0 │    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FE │ 2000 │
+│ 7/1 │    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FF │ 2000 │
+│ 8/0 │    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FF │ 2000 │
+│ 8/1 │    │      │      │    │    │ 00FE │ 06 │ 2006 │ 00FF │ 2006 │
+│ 9/0 │    │      │      │    │    │ 00FF │ 06 │ 2006 │ 00FF │ 2006 │ <== memory read 
+│ 9/1 │    │ MREQ │      │ RD │    │ 00FF │ 06 │ 2006 │ 00FF │ 2006 │
+│10/0 │    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 00FF │ 2006 │
+│10/1 │    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 0100 │ 2006 │
+│11/0 │    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 0100 │ 2006 │
+│11/1 │    │      │      │    │    │ 0000 │ 00 │ 2006 │ 0100 │ 0006 │ <== ret addr in WZ
 ```
 
 #### LD SP,HL
@@ -1223,21 +1214,21 @@ The **LD SP,HL** instruction just adds two clock cycles after the opcode fetch:
 
 ```
 LD SP,HL
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ HL   │ SP   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ 11 │ 0003 │ 1122 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 1122 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ F9 │ 0004 │ 1122 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ F9 │ 0004 │ 1122 │ 5555 │
-│    │      │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
-│    │      │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
-│    │      │      │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │ <== 2 extra clock cycles
-│    │      │      │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 1122 │
-│    │      │      │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 1122 │
-│    │      │      │    │    │ 0000 │ F9 │ 0004 │ 1122 │ 1122 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ HL   │ SP   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 11 │ 0003 │ 1122 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 1122 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ F9 │ 0004 │ 1122 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ F9 │ 0004 │ 1122 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 5555 │ <== 2 extra clock cycles
+│ 5/1 │    │      │      │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 1122 │
+│ 6/0 │    │      │      │    │    │ 0001 │ F9 │ 0004 │ 1122 │ 1122 │
+│ 6/1 │    │      │      │    │    │ 0000 │ F9 │ 0004 │ 1122 │ 1122 │
 ```
 
 #### EX (SP),HL
@@ -1249,47 +1240,47 @@ storage for the 16-bit value read from the stack:
 
 ```
 EX (SP),HL
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ HL   │ SP   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 000A │ D5 │ 000A │ 4321 │ 00FE │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 000A │ D5 │ 000B │ 4321 │ 00FE │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
-│    │      │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
-│    │      │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
-│    │      │      │    │    │ 00FE │ E3 │ 000B │ 4321 │ 00FE │ 5555 │ <== memory read
-│    │ MREQ │      │ RD │    │ 00FE │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
-│    │ MREQ │      │ RD │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 5555 │
-│    │ MREQ │      │ RD │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 00FF │
-│    │ MREQ │      │ RD │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 00FF │
-│    │      │      │    │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 0034 │ <== Z: low byte from stack
-│    │      │      │    │    │ 00FF │ 34 │ 000B │ 4321 │ 00FE │ 0034 │ <== memory read
-│    │ MREQ │      │ RD │    │ 00FF │ 34 │ 000B │ 4321 │ 00FE │ 0034 │
-│    │ MREQ │      │ RD │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 0034 │
-│    │ MREQ │      │ RD │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 0034 │
-│    │ MREQ │      │ RD │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 0034 │
-│    │      │      │    │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 1234 │ <== WZ: 16 bit value from stack
-│    │      │      │    │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 1234 │ <== extra clock cycle
-│    │      │      │    │    │ 00FE │ 12 │ 000B │ 4321 │ 00FF │ 1234 │ <== SP incremented
-│    │      │      │    │    │ 00FF │ 12 │ 000B │ 4321 │ 00FF │ 1234 │ <== memory write (L => stack)
-│    │ MREQ │      │    │    │ 00FF │ 43 │ 000B │ 4321 │ 00FF │ 1234 │
-│    │ MREQ │      │    │    │ 00FF │ 43 │ 000B │ 4321 │ 00FF │ 1234 │
-│    │ MREQ │      │    │ WR │ 00FF │ 43 │ 000B │ 4321 │ 00FE │ 1234 │ <== SP decremented again
-│    │ MREQ │      │    │ WR │ 00FF │ 43 │ 000B │ 4321 │ 00FE │ 1234 │
-│    │      │      │    │    │ 00FE │ 43 │ 000B │ 4321 │ 00FE │ 1234 │
-│    │      │      │    │    │ 00FE │ 12 │ 000B │ 4321 │ 00FE │ 1234 │ <== memory write (H => stack)
-│    │ MREQ │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
-│    │ MREQ │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
-│    │ MREQ │      │    │ WR │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
-│    │ MREQ │      │    │ WR │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
-│    │      │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
-│    │      │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │ <== two extra clock cycles
-│    │      │      │    │    │ 00FE │ 21 │ 000B │ 1234 │ 00FE │ 1234 │ <== WZ => HL
-│    │      │      │    │    │ 00FE │ 21 │ 000B │ 1234 │ 00FE │ 1234 │
-│    │      │      │    │    │ 0034 │ 21 │ 000B │ 1234 │ 00FE │ 1234 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ HL   │ SP   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 000A │ D5 │ 000A │ 4321 │ 00FE │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 000A │ D5 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 000A │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 000A │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0004 │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 5/0 │    │      │      │    │    │ 00FE │ E3 │ 000B │ 4321 │ 00FE │ 5555 │ <== memory read
+│ 5/1 │    │ MREQ │      │ RD │    │ 00FE │ E3 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 6/0 │    │ MREQ │      │ RD │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 5555 │
+│ 6/1 │    │ MREQ │      │ RD │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 00FF │
+│ 7/0 │    │ MREQ │      │ RD │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 00FF │
+│ 7/1 │    │      │      │    │    │ 00FE │ 34 │ 000B │ 4321 │ 00FE │ 0034 │ <== Z: low byte from stack
+│ 8/0 │    │      │      │    │    │ 00FF │ 34 │ 000B │ 4321 │ 00FE │ 0034 │ <== memory read
+│ 8/1 │    │ MREQ │      │ RD │    │ 00FF │ 34 │ 000B │ 4321 │ 00FE │ 0034 │
+│ 9/0 │    │ MREQ │      │ RD │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 0034 │
+│ 9/1 │    │ MREQ │      │ RD │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 0034 │
+│10/0 │    │ MREQ │      │ RD │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 0034 │
+│10/1 │    │      │      │    │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 1234 │ <== WZ: 16 bit value from stack
+│11/0 │    │      │      │    │    │ 00FF │ 12 │ 000B │ 4321 │ 00FE │ 1234 │ <== extra clock cycle
+│11/1 │    │      │      │    │    │ 00FE │ 12 │ 000B │ 4321 │ 00FF │ 1234 │ <== SP incremented
+│12/0 │    │      │      │    │    │ 00FF │ 12 │ 000B │ 4321 │ 00FF │ 1234 │ <== memory write (L => stack)
+│12/1 │    │ MREQ │      │    │    │ 00FF │ 43 │ 000B │ 4321 │ 00FF │ 1234 │
+│13/0 │    │ MREQ │      │    │    │ 00FF │ 43 │ 000B │ 4321 │ 00FF │ 1234 │
+│13/1 │    │ MREQ │      │    │ WR │ 00FF │ 43 │ 000B │ 4321 │ 00FE │ 1234 │ <== SP decremented again
+│14/0 │    │ MREQ │      │    │ WR │ 00FF │ 43 │ 000B │ 4321 │ 00FE │ 1234 │
+│14/1 │    │      │      │    │    │ 00FE │ 43 │ 000B │ 4321 │ 00FE │ 1234 │
+│15/0 │    │      │      │    │    │ 00FE │ 12 │ 000B │ 4321 │ 00FE │ 1234 │ <== memory write (H => stack)
+│15/1 │    │ MREQ │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
+│16/0 │    │ MREQ │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
+│16/1 │    │ MREQ │      │    │ WR │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
+│17/0 │    │ MREQ │      │    │ WR │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
+│17/1 │    │      │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │
+│18/0 │    │      │      │    │    │ 00FE │ 21 │ 000B │ 4321 │ 00FE │ 1234 │ <== two extra clock cycles
+│18/1 │    │      │      │    │    │ 00FE │ 21 │ 000B │ 1234 │ 00FE │ 1234 │ <== WZ => HL
+│19/0 │    │      │      │    │    │ 00FE │ 21 │ 000B │ 1234 │ 00FE │ 1234 │
+│19/1 │    │      │      │    │    │ 0034 │ 21 │ 000B │ 1234 │ 00FE │ 1234 │
 ```
 
 #### PUSH qq
@@ -1299,31 +1290,31 @@ and first memory write machine cycle:
 
 ```
 PUSH DE:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ DE   │ SP   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0006 │ 12 │ 0006 │ 1234 │ 0100 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0006 │ 12 │ 0007 │ 1234 │ 0100 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ D5 │ 0007 │ 1234 │ 0100 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ D5 │ 0007 │ 1234 │ 0100 │
-│    │      │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
-│    │      │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
-│    │      │      │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │ <== extra clock cycle
-│    │      │      │    │    │ 0000 │ D5 │ 0007 │ 1234 │ 00FF │ <== SP pre-decremented
-│    │      │      │    │    │ 00FF │ D5 │ 0007 │ 1234 │ 00FF │ <== memory write
-│    │ MREQ │      │    │    │ 00FF │ 12 │ 0007 │ 1234 │ 00FF │
-│    │ MREQ │      │    │    │ 00FF │ 12 │ 0007 │ 1234 │ 00FF │
-│    │ MREQ │      │    │ WR │ 00FF │ 12 │ 0007 │ 1234 │ 00FE │
-│    │ MREQ │      │    │ WR │ 00FF │ 12 │ 0007 │ 1234 │ 00FE │
-│    │      │      │    │    │ 00FE │ 12 │ 0007 │ 1234 │ 00FE │
-│    │      │      │    │    │ 00FE │ D5 │ 0007 │ 1234 │ 00FE │ <== memory write
-│    │ MREQ │      │    │    │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
-│    │ MREQ │      │    │    │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
-│    │ MREQ │      │    │ WR │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
-│    │ MREQ │      │    │ WR │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
-│    │      │      │    │    │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ DE   │ SP   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0006 │ 12 │ 0006 │ 1234 │ 0100 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ 12 │ 0007 │ 1234 │ 0100 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0006 │ D5 │ 0007 │ 1234 │ 0100 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ D5 │ 0007 │ 1234 │ 0100 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │
+│ 5/0 │    │      │      │    │    │ 0002 │ D5 │ 0007 │ 1234 │ 0100 │ <== extra clock cycle
+│ 5/1 │    │      │      │    │    │ 0000 │ D5 │ 0007 │ 1234 │ 00FF │ <== SP pre-decremented
+│ 6/0 │    │      │      │    │    │ 00FF │ D5 │ 0007 │ 1234 │ 00FF │ <== memory write
+│ 6/1 │    │ MREQ │      │    │    │ 00FF │ 12 │ 0007 │ 1234 │ 00FF │
+│ 7/0 │    │ MREQ │      │    │    │ 00FF │ 12 │ 0007 │ 1234 │ 00FF │
+│ 7/1 │    │ MREQ │      │    │ WR │ 00FF │ 12 │ 0007 │ 1234 │ 00FE │
+│ 8/0 │    │ MREQ │      │    │ WR │ 00FF │ 12 │ 0007 │ 1234 │ 00FE │
+│ 8/1 │    │      │      │    │    │ 00FE │ 12 │ 0007 │ 1234 │ 00FE │
+│ 9/0 │    │      │      │    │    │ 00FE │ D5 │ 0007 │ 1234 │ 00FE │ <== memory write
+│ 9/1 │    │ MREQ │      │    │    │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
+│10/0 │    │ MREQ │      │    │    │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
+│10/1 │    │ MREQ │      │    │ WR │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
+│11/0 │    │ MREQ │      │    │ WR │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
+│11/1 │    │      │      │    │    │ 00FE │ 34 │ 0007 │ 1234 │ 00FE │
 ```
 
 #### RST p
@@ -1334,31 +1325,31 @@ The WZ register is used as temporary storage of the destination address:
 
 ```
 RST 20h
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0003 │ 01 │ 0003 │ 0100 │ 5555 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 01 │ 0004 │ 0100 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ E7 │ 0004 │ 0100 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ E7 │ 0004 │ 0100 │ 5555 │
-│    │      │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
-│    │      │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
-│    │      │      │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │ <== extra clock cycle
-│    │      │      │    │    │ 0000 │ E7 │ 0004 │ 00FF │ 5555 │ <== SP pre-decremented
-│    │      │      │    │    │ 00FF │ E7 │ 0004 │ 00FF │ 5555 │ <== memory write
-│    │ MREQ │      │    │    │ 00FF │ 00 │ 0004 │ 00FF │ 5555 │
-│    │ MREQ │      │    │    │ 00FF │ 00 │ 0004 │ 00FF │ 5555 │
-│    │ MREQ │      │    │ WR │ 00FF │ 00 │ 0004 │ 00FE │ 5555 │
-│    │ MREQ │      │    │ WR │ 00FF │ 00 │ 0004 │ 00FE │ 5555 │
-│    │      │      │    │    │ 00FE │ 00 │ 0004 │ 00FE │ 5520 │
-│    │      │      │    │    │ 00FE │ E7 │ 0004 │ 00FE │ 5520 │ <== memory write
-│    │ MREQ │      │    │    │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
-│    │ MREQ │      │    │    │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
-│    │ MREQ │      │    │ WR │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
-│    │ MREQ │      │    │ WR │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
-│    │      │      │    │    │ 00FE │ 04 │ 0004 │ 00FE │ 0020 │ <== WZ dst addr
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 01 │ 0003 │ 0100 │ 5555 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 01 │ 0004 │ 0100 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ E7 │ 0004 │ 0100 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ E7 │ 0004 │ 0100 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │
+│ 5/0 │    │      │      │    │    │ 0001 │ E7 │ 0004 │ 0100 │ 5555 │ <== extra clock cycle
+│ 5/1 │    │      │      │    │    │ 0000 │ E7 │ 0004 │ 00FF │ 5555 │ <== SP pre-decremented
+│ 6/0 │    │      │      │    │    │ 00FF │ E7 │ 0004 │ 00FF │ 5555 │ <== memory write
+│ 6/1 │    │ MREQ │      │    │    │ 00FF │ 00 │ 0004 │ 00FF │ 5555 │
+│ 7/0 │    │ MREQ │      │    │    │ 00FF │ 00 │ 0004 │ 00FF │ 5555 │
+│ 7/1 │    │ MREQ │      │    │ WR │ 00FF │ 00 │ 0004 │ 00FE │ 5555 │
+│ 8/0 │    │ MREQ │      │    │ WR │ 00FF │ 00 │ 0004 │ 00FE │ 5555 │
+│ 8/1 │    │      │      │    │    │ 00FE │ 00 │ 0004 │ 00FE │ 5520 │
+│ 9/0 │    │      │      │    │    │ 00FE │ E7 │ 0004 │ 00FE │ 5520 │ <== memory write
+│ 9/1 │    │ MREQ │      │    │    │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
+│10/0 │    │ MREQ │      │    │    │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
+│10/1 │    │ MREQ │      │    │ WR │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
+│11/0 │    │ MREQ │      │    │ WR │ 00FE │ 04 │ 0004 │ 00FE │ 5520 │
+│11/1 │    │      │      │    │    │ 00FE │ 04 │ 0004 │ 00FE │ 0020 │ <== WZ dst addr
 ```
 
 Like in other branch instructions, **PC** isn't updated within the instruction, instead
@@ -1368,13 +1359,13 @@ subroutine opcode fetch:
 
 ```
 RST 20h - continued into subroutine
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0020 │ E7 │ 0004 │ 00FE │ 0020 │ <== opcode fetch, PC still at RST 20h + 1
-│ M1 │ MREQ │      │ RD │    │ 0020 │ E7 │ 0021 │ 00FE │ 0020 │ <== PC now at dst addr + 1
-│ M1 │ MREQ │      │ RD │    │ 0020 │ C9 │ 0021 │ 00FE │ 0020 │
-│ M1 │ MREQ │      │ RD │    │ 0020 │ C9 │ 0021 │ 00FE │ 0020 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ SP   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0020 │ E7 │ 0004 │ 00FE │ 0020 │ <== opcode fetch, PC still at RST 20h + 1
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0020 │ E7 │ 0021 │ 00FE │ 0020 │ <== PC now at dst addr + 1
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0020 │ C9 │ 0021 │ 00FE │ 0020 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0020 │ C9 │ 0021 │ 00FE │ 0020 │
 ```
 
 ## Prefix Instruction Overview
@@ -1436,47 +1427,47 @@ resulting address which will be stored in WZ:
 
 ```
 LD A,(IX+3)
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0004 │ 20 │ 0004 │ 2000 │ 5555 │ <== opcode fetch DD prefix
-│ M1 │ MREQ │      │ RD │    │ 0004 │ 20 │ 0005 │ 2000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 2000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 2000 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
-│ M1 │      │      │    │    │ 0005 │ DD │ 0005 │ 2000 │ 5555 │ <== ocode fetch LD A,(HL)
-│ M1 │ MREQ │      │ RD │    │ 0005 │ DD │ 0006 │ 2000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0005 │ 7E │ 0006 │ 2000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ 7E │ 0006 │ 2000 │ 5555 │
-│    │      │ RFSH │    │    │ 0003 │ 7E │ 0006 │ 2000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ 7E │ 0006 │ 2000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ 7E │ 0006 │ 2000 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ 7E │ 0006 │ 2000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 7E │ 0006 │ 2000 │ 5555 │ <== extra mem read machine cycle
-│    │ MREQ │      │ RD │    │ 0006 │ 7E │ 0007 │ 2000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │ <== 5 extra clock cycles for IX+d
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
-│    │      │      │    │    │ 0004 │ 03 │ 0007 │ 2000 │ 2003 │ <== address ready in WZ
-│    │      │      │    │    │ 2003 │ 03 │ 0007 │ 2000 │ 2003 │ <== LD A,(HL) continues
-│    │ MREQ │      │ RD │    │ 2003 │ 03 │ 0007 │ 2000 │ 2003 │
-│    │ MREQ │      │ RD │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
-│    │ MREQ │      │ RD │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
-│    │ MREQ │      │ RD │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
-│    │      │      │    │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0004 │ 20 │ 0004 │ 2000 │ 5555 │ <== opcode fetch DD prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ 20 │ 0005 │ 2000 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 2000 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 2000 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 2000 │ 5555 │
+│ 5/0 │ M1 │      │      │    │    │ 0005 │ DD │ 0005 │ 2000 │ 5555 │ <== ocode fetch LD A,(HL)
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0005 │ DD │ 0006 │ 2000 │ 5555 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0005 │ 7E │ 0006 │ 2000 │ 5555 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ 7E │ 0006 │ 2000 │ 5555 │
+│ 7/0 │    │      │ RFSH │    │    │ 0003 │ 7E │ 0006 │ 2000 │ 5555 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0003 │ 7E │ 0006 │ 2000 │ 5555 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0003 │ 7E │ 0006 │ 2000 │ 5555 │
+│ 8/1 │    │      │ RFSH │    │    │ 0000 │ 7E │ 0006 │ 2000 │ 5555 │
+│ 9/0 │    │      │      │    │    │ 0006 │ 7E │ 0006 │ 2000 │ 5555 │ <== extra mem read machine cycle
+│ 9/1 │    │ MREQ │      │ RD │    │ 0006 │ 7E │ 0007 │ 2000 │ 5555 │
+│10/0 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
+│10/1 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
+│11/0 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
+│11/1 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
+│12/0 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │ <== 5 extra clock cycles for IX+d
+│12/1 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
+│13/0 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5555 │
+│13/1 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
+│14/0 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
+│14/1 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
+│15/0 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
+│15/1 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
+│16/0 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 2000 │ 5503 │
+│16/1 │    │      │      │    │    │ 0004 │ 03 │ 0007 │ 2000 │ 2003 │ <== address ready in WZ
+│17/0 │    │      │      │    │    │ 2003 │ 03 │ 0007 │ 2000 │ 2003 │ <== LD A,(HL) continues
+│17/1 │    │ MREQ │      │ RD │    │ 2003 │ 03 │ 0007 │ 2000 │ 2003 │
+│18/0 │    │ MREQ │      │ RD │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
+│18/1 │    │ MREQ │      │ RD │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
+│19/0 │    │ MREQ │      │ RD │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
+│19/1 │    │      │      │    │    │ 2003 │ 00 │ 0007 │ 2000 │ 2003 │
 ```
 
 DD/FD prefixed instructions which don't involve loading from or storing to (HL)
@@ -1484,37 +1475,37 @@ don't have any surprises:
 
 ```
 LD IX,1111h
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0000 │ 00 │ 0000 │ 5555 │ <== opcode fetch DD prefix
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ DD │ 0001 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ DD │ 0001 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
-│ M1 │      │      │    │    │ 0001 │ DD │ 0001 │ 5555 │ <== opcode fetch LD HL,nnnn
-│ M1 │ MREQ │      │ RD │    │ 0001 │ DD │ 0002 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0001 │ 21 │ 0002 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 21 │ 0002 │ 5555 │
-│    │      │ RFSH │    │    │ 0001 │ 21 │ 0002 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ 21 │ 0002 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ 21 │ 0002 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ 21 │ 0002 │ 5555 │
-│    │      │      │    │    │ 0002 │ 21 │ 0002 │ 5555 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0002 │ 21 │ 0003 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 5555 │
-│    │      │      │    │    │ 0002 │ 11 │ 0003 │ 5511 │
-│    │      │      │    │    │ 0003 │ 11 │ 0003 │ 5511 │ <== memory read
-│    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
-│    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
-│    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
-│    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
-│    │      │      │    │    │ 0000 │ 11 │ 0004 │ 1111 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0000 │ 00 │ 0000 │ 5555 │ <== opcode fetch DD prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0001 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0000 │ DD │ 0001 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ DD │ 0001 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ DD │ 0001 │ 5555 │
+│ 5/0 │ M1 │      │      │    │    │ 0001 │ DD │ 0001 │ 5555 │ <== opcode fetch LD HL,nnnn
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0001 │ DD │ 0002 │ 5555 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0001 │ 21 │ 0002 │ 5555 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 21 │ 0002 │ 5555 │
+│ 7/0 │    │      │ RFSH │    │    │ 0001 │ 21 │ 0002 │ 5555 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0001 │ 21 │ 0002 │ 5555 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0001 │ 21 │ 0002 │ 5555 │
+│ 8/1 │    │      │ RFSH │    │    │ 0000 │ 21 │ 0002 │ 5555 │
+│ 9/0 │    │      │      │    │    │ 0002 │ 21 │ 0002 │ 5555 │ <== memory read
+│ 9/1 │    │ MREQ │      │ RD │    │ 0002 │ 21 │ 0003 │ 5555 │
+│10/0 │    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 5555 │
+│10/1 │    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 5555 │
+│11/0 │    │ MREQ │      │ RD │    │ 0002 │ 11 │ 0003 │ 5555 │
+│11/1 │    │      │      │    │    │ 0002 │ 11 │ 0003 │ 5511 │
+│12/0 │    │      │      │    │    │ 0003 │ 11 │ 0003 │ 5511 │ <== memory read
+│12/1 │    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
+│13/0 │    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
+│13/1 │    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
+│14/0 │    │ MREQ │      │ RD │    │ 0003 │ 11 │ 0004 │ 5511 │
+│14/1 │    │      │      │    │    │ 0000 │ 11 │ 0004 │ 1111 │
 ```
 
 ### Special Case: LD (IX+d),n
@@ -1527,47 +1518,47 @@ overlayed with the address computation cycles:
 
 ```
 LD (IX+3),11h
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0004 │ 10 │ 0004 │ 1000 │ 5555 │ <== opcode fetch DD prefix
-│ M1 │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│ M1 │      │      │    │    │ 0005 │ DD │ 0005 │ 1000 │ 5555 │ <== opcode fetch LD (HL),n
-│ M1 │ MREQ │      │ RD │    │ 0005 │ DD │ 0006 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0005 │ 36 │ 0006 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ 36 │ 0006 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0003 │ 36 │ 0006 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ 36 │ 0006 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ 36 │ 0006 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ 36 │ 0006 │ 1000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 36 │ 0006 │ 1000 │ 5555 │ <== memory read to load 'd'
-│    │ MREQ │      │ RD │    │ 0006 │ 36 │ 0007 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │      │      │    │    │ 0007 │ 03 │ 0007 │ 1000 │ 5555 │ <== memory read to load 'n'
-│    │ MREQ │      │ RD │    │ 0007 │ 03 │ 0008 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0007 │ 0B │ 0008 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
-│    │ MREQ │      │ RD │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │ <== 2 remaining extra clock cycles
-│    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0000 │ 0B │ 0008 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │ <== LD (HL),n continues
-│    │ MREQ │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │    │ WR │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │    │ WR │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0004 │ 10 │ 0004 │ 1000 │ 5555 │ <== opcode fetch DD prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 1000 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 5/0 │ M1 │      │      │    │    │ 0005 │ DD │ 0005 │ 1000 │ 5555 │ <== opcode fetch LD (HL),n
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0005 │ DD │ 0006 │ 1000 │ 5555 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0005 │ 36 │ 0006 │ 1000 │ 5555 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ 36 │ 0006 │ 1000 │ 5555 │
+│ 7/0 │    │      │ RFSH │    │    │ 0003 │ 36 │ 0006 │ 1000 │ 5555 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0003 │ 36 │ 0006 │ 1000 │ 5555 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0003 │ 36 │ 0006 │ 1000 │ 5555 │
+│ 8/1 │    │      │ RFSH │    │    │ 0000 │ 36 │ 0006 │ 1000 │ 5555 │
+│ 9/0 │    │      │      │    │    │ 0006 │ 36 │ 0006 │ 1000 │ 5555 │ <== memory read to load 'd'
+│ 9/1 │    │ MREQ │      │ RD │    │ 0006 │ 36 │ 0007 │ 1000 │ 5555 │
+│10/0 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│10/1 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│11/0 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│11/1 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│12/0 │    │      │      │    │    │ 0007 │ 03 │ 0007 │ 1000 │ 5555 │ <== memory read to load 'n'
+│12/1 │    │ MREQ │      │ RD │    │ 0007 │ 03 │ 0008 │ 1000 │ 5555 │
+│13/0 │    │ MREQ │      │ RD │    │ 0007 │ 0B │ 0008 │ 1000 │ 5555 │
+│13/1 │    │ MREQ │      │ RD │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
+│14/0 │    │ MREQ │      │ RD │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
+│14/1 │    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
+│15/0 │    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │ <== 2 remaining extra clock cycles
+│15/1 │    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
+│16/0 │    │      │      │    │    │ 0007 │ 0B │ 0008 │ 1000 │ 5503 │
+│16/1 │    │      │      │    │    │ 0000 │ 0B │ 0008 │ 1000 │ 1003 │
+│17/0 │    │      │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │ <== LD (HL),n continues
+│17/1 │    │ MREQ │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
+│18/0 │    │ MREQ │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
+│18/1 │    │ MREQ │      │    │ WR │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
+│19/0 │    │ MREQ │      │    │ WR │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
+│19/1 │    │      │      │    │    │ 1003 │ 0B │ 0008 │ 1000 │ 1003 │
 ```
 
 ## ED Prefix
@@ -1607,56 +1598,56 @@ but it doesn't hold the result, instead it is set to HL+1:
 
 ```
 ADC HL,DE
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┬──────────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ DE   │ HL   │ WZ   │ Flags    │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┼──────────┤
-│ M1 │      │      │    │    │ 0007 │ 11 │ 0007 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0007 │ 11 │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0007 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0000 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│ M1 │      │      │    │    │ 0008 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== opcode fetch 
-│ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== 7 extra clock cycles
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │ <== result low byte ready
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
-│    │      │      │    │    │ 0000 │ 5A │ 0009 │ 1111 │ 3333 │ 2223 │ sZyhxVnc │ <== result high byte ready
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┬──────────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ DE   │ HL   │ WZ   │ Flags    │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ 0007 │ 11 │ 0007 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0007 │ 11 │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0007 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 3/0 │    │      │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 5/0 │ M1 │      │      │    │    │ 0008 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== opcode fetch 
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0008 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 7/0 │    │      │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 8/1 │    │      │ RFSH │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│ 9/0 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== 7 extra clock cycles
+│ 9/1 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│10/0 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
+│10/1 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 2223 │ sZyhxVnc │
+│11/0 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2222 │ 2223 │ sZyhxVnc │
+│11/1 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │ <== result low byte ready
+│12/0 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
+│12/1 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
+│13/0 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
+│13/1 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
+│14/0 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
+│14/1 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
+│15/0 │    │      │      │    │    │ 0004 │ 5A │ 0009 │ 1111 │ 2233 │ 2223 │ sZyhxVnc │
+│15/1 │    │      │      │    │    │ 0000 │ 5A │ 0009 │ 1111 │ 3333 │ 2223 │ sZyhxVnc │ <== result high byte ready
 ```
 
 The flag bit update happens overlapped in the next opcode fetch:
 
 ```
 ADC HL,DE continued: following opcode fetch
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┬──────────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ DE   │ HL   │ WZ   │ Flags    │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┼──────────┤
-│ M1 │      │      │    │    │ 0009 │ 5A │ 0009 │ 1111 │ 3333 │ 2223 │ sZyhxVnc │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0009 │ 5A │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0005 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ szYhxvnc │ <== flags updated here
-│    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ szYhxvnc │
-│    │      │ RFSH │    │    │ 0004 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ szYhxvnc │
+┌─────┬────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┬──────────┐
+│  T  │ M1 │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ DE   │ HL   │ WZ   │ Flags    │
+├─────┼────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │ M1 │      │      │    │    │ 0009 │ 5A │ 0009 │ 1111 │ 3333 │ 2223 │ sZyhxVnc │ <== opcode fetch
+│ 1/1 │ M1 │ M1 │ MREQ │      │ RD │    │ 0009 │ 5A │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
+│ 2/0 │ M1 │ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
+│ 2/1 │ M1 │ M1 │ MREQ │      │ RD │    │ 0008 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
+│ 3/0 │    │    │      │ RFSH │    │    │ 0005 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ sZyhxVnc │
+│ 3/1 │    │    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ szYhxvnc │ <== flags updated here
+│ 4/0 │    │    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ szYhxvnc │
+│ 4/1 │    │    │      │ RFSH │    │    │ 0004 │ 00 │ 000A │ 1111 │ 3333 │ 2223 │ szYhxvnc │
 ```
 
 #### LD I,A and LD R,A
@@ -1667,52 +1658,52 @@ half cycle of the opcode fetch machine cycle.
 
 ```
 LD I,A
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ I  │ R  │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼────┼────┤
-│ M1 │      │      │    │    │ 0002 │ 01 │ 0002 │ 5555 │ 00 │ 01 │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0002 │ 01 │ 0003 │ 5555 │ 00 │ 01 │
-│ M1 │ MREQ │      │ RD │    │ 0002 │ ED │ 0003 │ 5555 │ 00 │ 01 │
-│ M1 │ MREQ │      │ RD │    │ 0002 │ ED │ 0003 │ 0155 │ 00 │ 01 │
-│    │      │ RFSH │    │    │ 0001 │ ED │ 0003 │ 0155 │ 00 │ 01 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0003 │ 0155 │ 00 │ 02 │
-│    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0003 │ 0155 │ 00 │ 02 │
-│    │      │ RFSH │    │    │ 0000 │ ED │ 0003 │ 0155 │ 00 │ 02 │
-│ M1 │      │      │    │    │ 0003 │ ED │ 0003 │ 0155 │ 00 │ 02 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0003 │ ED │ 0004 │ 0155 │ 00 │ 02 │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 47 │ 0004 │ 0155 │ 00 │ 02 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 47 │ 0004 │ 0155 │ 00 │ 02 │
-│    │      │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 00 │ 02 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 00 │ 03 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 00 │ 03 │
-│    │      │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 01 │ 03 │ <== I has been updated
-│    │      │      │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 01 │ 03 │ <== extra clock cycle
-│    │      │      │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 01 │ 03 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼────┼────┤
+│ 1/0 │ M1 │      │      │    │    │ 0002 │ 01 │ 0002 │ 5555 │ 00 │ 01 │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0002 │ 01 │ 0003 │ 5555 │ 00 │ 01 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0002 │ ED │ 0003 │ 5555 │ 00 │ 01 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0002 │ ED │ 0003 │ 0155 │ 00 │ 01 │
+│ 3/0 │    │      │ RFSH │    │    │ 0001 │ ED │ 0003 │ 0155 │ 00 │ 01 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0003 │ 0155 │ 00 │ 02 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0003 │ 0155 │ 00 │ 02 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 0003 │ 0155 │ 00 │ 02 │
+│ 5/0 │ M1 │      │      │    │    │ 0003 │ ED │ 0003 │ 0155 │ 00 │ 02 │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ ED │ 0004 │ 0155 │ 00 │ 02 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 47 │ 0004 │ 0155 │ 00 │ 02 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 47 │ 0004 │ 0155 │ 00 │ 02 │
+│ 7/0 │    │      │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 00 │ 02 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 00 │ 03 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 00 │ 03 │
+│ 8/1 │    │      │ RFSH │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 01 │ 03 │ <== I has been updated
+│ 9/0 │    │      │      │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 01 │ 03 │ <== extra clock cycle
+│ 9/1 │    │      │      │    │    │ 0002 │ 47 │ 0004 │ 0155 │ 01 │ 03 │
 ```
 
 ```
 LD R,A
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬────┬────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ I  │ R  │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼────┼────┤
-│ M1 │      │      │    │    │ 0005 │ 3C │ 0005 │ 0155 │ 01 │ 04 │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0005 │ 3C │ 0006 │ 0155 │ 01 │ 04 │
-│ M1 │ MREQ │      │ RD │    │ 0005 │ ED │ 0006 │ 0155 │ 01 │ 04 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ ED │ 0006 │ 0255 │ 01 │ 04 │
-│    │      │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0255 │ 01 │ 04 │
-│    │ MREQ │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0201 │ 01 │ 05 │
-│    │ MREQ │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0201 │ 01 │ 05 │
-│    │      │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0201 │ 01 │ 05 │
-│ M1 │      │      │    │    │ 0006 │ ED │ 0006 │ 0201 │ 01 │ 05 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0006 │ ED │ 0007 │ 0201 │ 01 │ 05 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ 4F │ 0007 │ 0201 │ 01 │ 05 │
-│ M1 │ MREQ │      │ RD │    │ 0006 │ 4F │ 0007 │ 0201 │ 01 │ 05 │
-│    │      │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 05 │
-│    │ MREQ │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 06 │
-│    │ MREQ │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 06 │
-│    │      │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 02 │ <== R has been updated
-│    │      │      │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 02 │ <== extra clock cycle
-│    │      │      │    │    │ 0100 │ 4F │ 0007 │ 0201 │ 01 │ 02 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬────┬────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ I  │ R  │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼────┼────┤
+│ 1/0 │ M1 │      │      │    │    │ 0005 │ 3C │ 0005 │ 0155 │ 01 │ 04 │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0005 │ 3C │ 0006 │ 0155 │ 01 │ 04 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0005 │ ED │ 0006 │ 0155 │ 01 │ 04 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ ED │ 0006 │ 0255 │ 01 │ 04 │
+│ 3/0 │    │      │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0255 │ 01 │ 04 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0201 │ 01 │ 05 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0201 │ 01 │ 05 │
+│ 4/1 │    │      │ RFSH │    │    │ 0104 │ ED │ 0006 │ 0201 │ 01 │ 05 │
+│ 5/0 │ M1 │      │      │    │    │ 0006 │ ED │ 0006 │ 0201 │ 01 │ 05 │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ ED │ 0007 │ 0201 │ 01 │ 05 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0006 │ 4F │ 0007 │ 0201 │ 01 │ 05 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0006 │ 4F │ 0007 │ 0201 │ 01 │ 05 │
+│ 7/0 │    │      │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 05 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 06 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 06 │
+│ 8/1 │    │      │ RFSH │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 02 │ <== R has been updated
+│ 9/0 │    │      │      │    │    │ 0105 │ 4F │ 0007 │ 0201 │ 01 │ 02 │ <== extra clock cycle
+│ 9/1 │    │      │      │    │    │ 0100 │ 4F │ 0007 │ 0201 │ 01 │ 02 │
 ```
 
 #### LD A,I and LD A,R
@@ -1722,38 +1713,36 @@ and flags are only updated during the opcode fetch of the next instruction:
 
 ```
 LD A,R
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬────┬────┬──────────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ I  │ R  │ Flags    │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼────┼────┼──────────┤
-│ M1 │      │      │    │    │ 0001 │ AF │ 0001 │ 5555 │ 00 │ 01 │ sZyHxVnC │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0001 │ AF │ 0002 │ 5555 │ 00 │ 01 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0001 │ ED │ 0002 │ 5555 │ 00 │ 01 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ ED │ 0002 │ 0055 │ 00 │ 01 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0001 │ ED │ 0002 │ 0055 │ 00 │ 01 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0000 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │
-│ M1 │      │      │    │    │ 0002 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0002 │ ED │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
-│    │      │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
-│    │      │      │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │ <== extra clock cycle
-│    │      │      │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
-
-...continued into next opcode fetch:
-
-│ M1 │      │      │    │    │ 0003 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 5F │ 0004 │ 0044 │ 00 │ 03 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0003 │ 00 │ 0004 │ 0044 │ 00 │ 03 │ sZyhxVnc │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0004 │ 0344 │ 00 │ 03 │ sZyhxVnc │ <== result in A
-│    │      │ RFSH │    │    │ 0003 │ 00 │ 0004 │ 0344 │ 00 │ 03 │ sZyhxVnc │
-│    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0004 │ 0300 │ 00 │ 04 │ szyhxvnc │ <== flag bits updated
-│    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0004 │ 0300 │ 00 │ 04 │ szyhxvnc │
-│    │      │ RFSH │    │    │ 0000 │ 00 │ 0004 │ 0300 │ 00 │ 04 │ szyhxvnc │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬────┬────┬──────────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ I  │ R  │ Flags    │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼────┼────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ 0001 │ AF │ 0001 │ 5555 │ 00 │ 01 │ sZyHxVnC │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0001 │ AF │ 0002 │ 5555 │ 00 │ 01 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0001 │ ED │ 0002 │ 5555 │ 00 │ 01 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ ED │ 0002 │ 0055 │ 00 │ 01 │ sZyHxVnC │
+│ 3/0 │    │      │ RFSH │    │    │ 0001 │ ED │ 0002 │ 0055 │ 00 │ 01 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0001 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │
+│ 5/0 │ M1 │      │      │    │    │ 0002 │ ED │ 0002 │ 0044 │ 00 │ 02 │ sZyhxVnc │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0002 │ ED │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
+│ 7/0 │    │      │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 02 │ sZyhxVnc │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
+│ 8/1 │    │      │ RFSH │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
+│ 9/0 │    │      │      │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │ <== extra clock cycle
+│ 9/1 │    │      │      │    │    │ 0002 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼────┼────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ 0003 │ 5F │ 0003 │ 0044 │ 00 │ 03 │ sZyhxVnc │ <== next opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0003 │ 5F │ 0004 │ 0044 │ 00 │ 03 │ sZyhxVnc │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0003 │ 00 │ 0004 │ 0044 │ 00 │ 03 │ sZyhxVnc │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0004 │ 0344 │ 00 │ 03 │ sZyhxVnc │ <== result in A
+│ 3/0 │    │      │ RFSH │    │    │ 0003 │ 00 │ 0004 │ 0344 │ 00 │ 03 │ sZyhxVnc │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0004 │ 0300 │ 00 │ 04 │ szyhxvnc │ <== flag bits updated
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ 00 │ 0004 │ 0300 │ 00 │ 04 │ szyhxvnc │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ 00 │ 0004 │ 0300 │ 00 │ 04 │ szyhxvnc │
 ```
 
 #### RRD and RLD
@@ -1764,56 +1753,54 @@ opcode fetch of the next instruction:
 
 ```
 RLD:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ HL   │ Flags    │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
-│ M1 │      │      │    │    │ 0007 │ 56 │ 0007 │ 5555 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0007 │ 56 │ 0008 │ 5555 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0007 │ ED │ 0008 │ 5555 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0003 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0000 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
-│ M1 │      │      │    │    │ 0008 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │ <== memory read
-│    │ MREQ │      │ RD │    │ 1000 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RD │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RD │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RD │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │ <== 4 extra clock cycles
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │ <== memory write
-│    │ MREQ │      │    │    │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │    │    │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │    │ WR │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │    │ WR │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-
-...continued into next opcode fetch:
-
-│ M1 │      │      │    │    │ 0009 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0009 │ 34 │ 000A │ 5655 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 5655 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ 00 │ 000A │ 5355 │ 1000 │ sZyHxVnC │ <== A register updated
-│    │      │ RFSH │    │    │ 0005 │ 00 │ 000A │ 5355 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 5305 │ 1000 │ szyhxVnC │ <== flag bits updated
-│    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 5305 │ 1000 │ szyhxVnC │
-│    │      │ RFSH │    │    │ 0004 │ 00 │ 000A │ 5305 │ 1000 │ szyhxVnC │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ HL   │ Flags    │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ 0007 │ 56 │ 0007 │ 5555 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0007 │ 56 │ 0008 │ 5555 │ 1000 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0007 │ ED │ 0008 │ 5555 │ 1000 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
+│ 3/0 │    │      │ RFSH │    │    │ 0003 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │
+│ 5/0 │ M1 │      │      │    │    │ 0008 │ ED │ 0008 │ 5655 │ 1000 │ sZyHxVnC │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0008 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│ 7/0 │    │      │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│ 8/1 │    │      │ RFSH │    │    │ 0004 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│ 9/0 │    │      │      │    │    │ 1000 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │ <== memory read
+│ 9/1 │    │ MREQ │      │ RD │    │ 1000 │ 6F │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│10/0 │    │ MREQ │      │ RD │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│10/1 │    │ MREQ │      │ RD │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│11/0 │    │ MREQ │      │ RD │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│11/1 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│12/0 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │ <== 4 extra clock cycles
+│12/1 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│13/0 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│13/1 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│14/0 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│14/1 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│15/0 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│15/1 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│16/0 │    │      │      │    │    │ 1000 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │ <== memory write
+│16/1 │    │ MREQ │      │    │    │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│17/0 │    │ MREQ │      │    │    │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│17/1 │    │ MREQ │      │    │ WR │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│18/0 │    │ MREQ │      │    │ WR │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+│18/1 │    │      │      │    │    │ 1000 │ 46 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ 0009 │ 34 │ 0009 │ 5655 │ 1000 │ sZyHxVnC │ <== next opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0009 │ 34 │ 000A │ 5655 │ 1000 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 5655 │ 1000 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ 00 │ 000A │ 5355 │ 1000 │ sZyHxVnC │ <== A register updated
+│ 3/0 │    │      │ RFSH │    │    │ 0005 │ 00 │ 000A │ 5355 │ 1000 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 5305 │ 1000 │ szyhxVnC │ <== flag bits updated
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000A │ 5305 │ 1000 │ szyhxVnC │
+│ 4/1 │    │      │ RFSH │    │    │ 0004 │ 00 │ 000A │ 5305 │ 1000 │ szyhxVnC │
 ```
 
 ### ED Quadrant 2 (x == 10)
@@ -1837,41 +1824,41 @@ The **LDI** and **LDD** instructions add two extra clock cycles after the memory
 
 ```
 LDI:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ DE   │ HL   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0009 │ 00 │ 0009 │ 0002 │ 2000 │ 1000 │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 0009 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0000 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│ M1 │      │      │    │    │ 000A │ ED │ 000A │ 0002 │ 2000 │ 1000 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │      │      │    │    │ 1000 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │ <== memory read
-│    │ MREQ │      │ RD │    │ 1000 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │ <== HL incremented
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │      │      │    │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │ <== memory write
-│    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │ <== DE incremented
-│    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │ <== 2 extra clock cycles
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │ <== BC decremented
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 0000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ DE   │ HL   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0009 │ 00 │ 0009 │ 0002 │ 2000 │ 1000 │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 0002 │ 2000 │ 1000 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0009 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 3/0 │    │      │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 5/0 │ M1 │      │      │    │    │ 000A │ ED │ 000A │ 0002 │ 2000 │ 1000 │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 0002 │ 2000 │ 1000 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 000A │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 000A │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 7/0 │    │      │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 8/1 │    │      │ RFSH │    │    │ 0004 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 9/0 │    │      │      │    │    │ 1000 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │ <== memory read
+│ 9/1 │    │ MREQ │      │ RD │    │ 1000 │ A0 │ 000B │ 0002 │ 2000 │ 1000 │
+│10/0 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1000 │
+│10/1 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │ <== HL incremented
+│11/0 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│11/1 │    │      │      │    │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│12/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │ <== memory write
+│12/1 │    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│13/0 │    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│13/1 │    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │ <== DE incremented
+│14/0 │    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
+│14/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
+│15/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │ <== 2 extra clock cycles
+│15/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │ <== BC decremented
+│16/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│16/1 │    │      │      │    │    │ 0000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
 ```
 
 #### LDIR and LDDR
@@ -1882,51 +1869,51 @@ back to the start of the instruction.
 
 ```
 LDIR - looping
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ DE   │ HL   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0009 │ 00 │ 0009 │ 0002 │ 2000 │ 1000 │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 0009 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0000 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
-│ M1 │      │      │    │    │ 000A │ ED │ 000A │ 0002 │ 2000 │ 1000 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │      │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │      │      │    │    │ 1000 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │ <== memory read (HL++)
-│    │ MREQ │      │ RD │    │ 1000 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1000 │
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │      │      │    │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │ <== memory write (DE++)
-│    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
-│    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
-│    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │ <== 2 clock cycles: BC--
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │ <== last half cycle if BC==0
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │ <== 5 extra clock cycles PC -= 2
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 2000 │ 00 │ 0009 │ 0001 │ 2001 │ 1001 │ <== PC ready
-│    │      │      │    │    │ 2000 │ 00 │ 0009 │ 0001 │ 2001 │ 1001 │
-│    │      │      │    │    │ 0000 │ 00 │ 0009 │ 0001 │ 2001 │ 1001 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ DE   │ HL   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0009 │ 00 │ 0009 │ 0002 │ 2000 │ 1000 │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0009 │ 00 │ 000A │ 0002 │ 2000 │ 1000 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0009 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 3/0 │    │      │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 000A │ 0002 │ 2000 │ 1000 │
+│ 5/0 │ M1 │      │      │    │    │ 000A │ ED │ 000A │ 0002 │ 2000 │ 1000 │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 0002 │ 2000 │ 1000 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 000A │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 000A │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 7/0 │    │      │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 8/1 │    │      │ RFSH │    │    │ 0004 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
+│ 9/0 │    │      │      │    │    │ 1000 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │ <== memory read (HL++)
+│ 9/1 │    │ MREQ │      │ RD │    │ 1000 │ B0 │ 000B │ 0002 │ 2000 │ 1000 │
+│10/0 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1000 │
+│10/1 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│11/0 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│11/1 │    │      │      │    │    │ 1000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│12/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │ <== memory write (DE++)
+│12/1 │    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│13/0 │    │ MREQ │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2000 │ 1001 │
+│13/1 │    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
+│14/0 │    │ MREQ │      │    │ WR │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
+│14/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │ <== 2 clock cycles: BC--
+│15/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0002 │ 2001 │ 1001 │
+│15/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│16/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │ <== last half cycle if BC==0
+│16/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │ <== 5 extra clock cycles PC -= 2
+│17/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│17/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│18/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│18/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│19/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│19/1 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│20/0 │    │      │      │    │    │ 2000 │ 00 │ 000B │ 0001 │ 2001 │ 1001 │
+│20/1 │    │      │      │    │    │ 2000 │ 00 │ 0009 │ 0001 │ 2001 │ 1001 │ <== PC ready
+│21/0 │    │      │      │    │    │ 2000 │ 00 │ 0009 │ 0001 │ 2001 │ 1001 │
+│21/1 │    │      │      │    │    │ 0000 │ 00 │ 0009 │ 0001 │ 2001 │ 1001 │
 ```
 
 #### CPI and CPD
@@ -1936,52 +1923,50 @@ are updated during the opcode fetch of the next instruction:
 
 ```
 CPI
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┬──────────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ BC   │ HL   │ Flags    │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┼──────────┤
-│ M1 │      │      │    │    │ 0008 │ 11 │ 0008 │ 5555 │ 0002 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 0008 │ 11 │ 0009 │ 5555 │ 0002 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 5555 │ 0002 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0003 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0000 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│ M1 │      │      │    │    │ 0009 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 0009 │ ED │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0009 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │ <== memory read
-│    │ MREQ │      │ RD │    │ 1000 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │ <== HL incremented
-│    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │ <== 5 extra clock cycles
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │ <== BC decremented
-│    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
-│    │      │      │    │    │ 0000 │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
-
-...continued into next opcode fetch:
-
-│ M1 │      │      │    │    │ 000A │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 000A │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 000A │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │ RD │    │ 000A │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
-│    │      │ RFSH │    │    │ 0005 │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
-│    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000B │ 1107 │ 0001 │ 1001 │ szyhxVNC │ <== flag bits updated
-│    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000B │ 1107 │ 0001 │ 1001 │ szyhxVNC │
-│    │      │ RFSH │    │    │ 0004 │ 00 │ 000B │ 1107 │ 0001 │ 1001 │ szyhxVNC │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┬──────────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ BC   │ HL   │ Flags    │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ 0008 │ 11 │ 0008 │ 5555 │ 0002 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ 11 │ 0009 │ 5555 │ 0002 │ 1000 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 5555 │ 0002 │ 1000 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 3/0 │    │      │ RFSH │    │    │ 0003 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 5/0 │ M1 │      │      │    │    │ 0009 │ ED │ 0009 │ 1155 │ 0002 │ 1000 │ sZyHxVnC │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0009 │ ED │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0009 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 7/0 │    │      │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 8/1 │    │      │ RFSH │    │    │ 0004 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│ 9/0 │    │      │      │    │    │ 1000 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │ <== memory read
+│ 9/1 │    │ MREQ │      │ RD │    │ 1000 │ A1 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│10/0 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1000 │ sZyHxVnC │
+│10/1 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │ <== HL incremented
+│11/0 │    │ MREQ │      │ RD │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│11/1 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│12/0 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │ <== 5 extra clock cycles
+│12/1 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│13/0 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│13/1 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│14/0 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│14/1 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│15/0 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0002 │ 1001 │ sZyHxVnC │
+│15/1 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │ <== BC decremented
+│16/0 │    │      │      │    │    │ 1000 │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
+│16/1 │    │      │      │    │    │ 0000 │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │    │    │ 000A │ 00 │ 000A │ 1155 │ 0001 │ 1001 │ sZyHxVnC │ <== next opcode fetch
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 000A │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 000A │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 000A │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
+│ 3/0 │    │      │ RFSH │    │    │ 0005 │ 00 │ 000B │ 1155 │ 0001 │ 1001 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000B │ 1107 │ 0001 │ 1001 │ szyhxVNC │ <== flag bits updated
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0005 │ 00 │ 000B │ 1107 │ 0001 │ 1001 │ szyhxVNC │
+│ 4/1 │    │      │ RFSH │    │    │ 0004 │ 00 │ 000B │ 1107 │ 0001 │ 1001 │ szyhxVNC │
 ```
 
 #### CPIR and CPDR
@@ -1992,51 +1977,51 @@ with **CPI** and **CPDR**, otherwise 5 additional clock cycles are added to rewi
 
 ```
 CPIR - looping:
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ BC   │ HL   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 000A │ 22 │ 000A │ 5555 │ 0002 │ 1000 │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │ RD │    │ 000A │ 22 │ 000B │ 5555 │ 0002 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 5555 │ 0002 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 2255 │ 0002 │ 1000 │
-│    │      │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
-│    │      │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
-│ M1 │      │      │    │    │ 000B │ ED │ 000B │ 2255 │ 0002 │ 1000 │ <== opcode fetch
-│ M1 │ MREQ │      │ RD │    │ 000B │ ED │ 000C │ 2255 │ 0002 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 000B │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
-│    │      │ RFSH │    │    │ 0005 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0005 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
-│    │ MREQ │ RFSH │    │    │ 0005 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
-│    │      │ RFSH │    │    │ 0004 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
-│    │      │      │    │    │ 1000 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │ <== memory read
-│    │ MREQ │      │ RD │    │ 1000 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
-│    │ MREQ │      │ RD │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1000 │
-│    │ MREQ │      │ RD │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │ <== HL incremented
-│    │ MREQ │      │ RD │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │ <== 5 extra clock cycles BC--
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │ <== BC decremented
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │ <== last half-cycle if BC==0 or A==(HL)
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │ <== 5 more clock cycles PC -= 2
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 1000 │ 11 │ 000A │ 2255 │ 0001 │ 1001 │ <== PC ready here
-│    │      │      │    │    │ 1000 │ 11 │ 000A │ 2255 │ 0001 │ 1001 │
-│    │      │      │    │    │ 0000 │ 11 │ 000A │ 2255 │ 0001 │ 1001 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ AF   │ BC   │ HL   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 000A │ 22 │ 000A │ 5555 │ 0002 │ 1000 │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 000A │ 22 │ 000B │ 5555 │ 0002 │ 1000 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 5555 │ 0002 │ 1000 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 000A │ ED │ 000B │ 2255 │ 0002 │ 1000 │
+│ 3/0 │    │      │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
+│ 4/1 │    │      │ RFSH │    │    │ 0004 │ ED │ 000B │ 2255 │ 0002 │ 1000 │
+│ 5/0 │ M1 │      │      │    │    │ 000B │ ED │ 000B │ 2255 │ 0002 │ 1000 │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 000B │ ED │ 000C │ 2255 │ 0002 │ 1000 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 000B │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
+│ 7/0 │    │      │ RFSH │    │    │ 0005 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0005 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0005 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
+│ 8/1 │    │      │ RFSH │    │    │ 0004 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
+│ 9/0 │    │      │      │    │    │ 1000 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │ <== memory read
+│ 9/1 │    │ MREQ │      │ RD │    │ 1000 │ B1 │ 000C │ 2255 │ 0002 │ 1000 │
+│10/0 │    │ MREQ │      │ RD │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1000 │
+│10/1 │    │ MREQ │      │ RD │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │ <== HL incremented
+│11/0 │    │ MREQ │      │ RD │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│11/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│12/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │ <== 5 extra clock cycles BC--
+│12/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│13/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│13/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│14/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│14/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│15/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0002 │ 1001 │
+│15/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │ <== BC decremented
+│16/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
+│16/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │ <== last half-cycle if BC==0 or A==(HL)
+│17/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │ <== 5 more clock cycles PC -= 2
+│17/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
+│18/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
+│18/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
+│19/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
+│19/1 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
+│20/0 │    │      │      │    │    │ 1000 │ 11 │ 000C │ 2255 │ 0001 │ 1001 │
+│20/1 │    │      │      │    │    │ 1000 │ 11 │ 000A │ 2255 │ 0001 │ 1001 │ <== PC ready here
+│21/0 │    │      │      │    │    │ 1000 │ 11 │ 000A │ 2255 │ 0001 │ 1001 │
+│21/1 │    │      │      │    │    │ 0000 │ 11 │ 000A │ 2255 │ 0001 │ 1001 │
 ```
 
 #### INI and IND
@@ -2047,52 +2032,50 @@ in the opcode fetch of the next instruction:
 
 ```
 INI
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ HL   │ Flags    │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
-│ M1 │      │      │      │    │    │ 0006 │ 02 │ 0006 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ 02 │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │      │      │      │    │    │ 0007 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │ 0007 │ ED │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0007 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │      │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== one extra clock cycle
-│    │      │      │      │    │    │ 0000 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │      │    │    │ 0280 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== IO read machine cycle
-│    │      │      │      │    │    │ 0280 │ A2 │ 0008 │ 0180 │ 1000 │ sZyHxVnC │ <== B decremented
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │      │      │      │    │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │ <== memory write machine cycle
-│    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== HL incremented
-│    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-
-...continued into opcode fetch of next instruction:
-
-│ M1 │      │      │      │    │    │ 0008 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0008 │ FF │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │ <== flag bits updated
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
-│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ HL   │ Flags    │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0006 │ 02 │ 0006 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ 02 │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 5/0 │ M1 │      │      │      │    │    │ 0007 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ ED │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 6/0 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 6/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 7/0 │    │      │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 7/1 │    │ MREQ │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 8/0 │    │ MREQ │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 8/1 │    │      │      │ RFSH │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 9/0 │    │      │      │      │    │    │ 0003 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== one extra clock cycle
+│ 9/1 │    │      │      │      │    │    │ 0000 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│10/0 │    │      │      │      │    │    │ 0280 │ A2 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== IO read
+│10/1 │    │      │      │      │    │    │ 0280 │ A2 │ 0008 │ 0180 │ 1000 │ sZyHxVnC │ <== B decremented
+│11/0 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│11/1 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│12/0 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│12/1 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│13/0 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│13/1 │    │      │      │      │    │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│14/0 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │ <== memory write
+│14/1 │    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│15/0 │    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│15/1 │    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== HL incremented
+│16/0 │    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│16/1 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0008 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== next opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0008 │ FF │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │ <== flag bits updated
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
 ```
 
 #### OUTI and OUTD
@@ -2103,52 +2086,50 @@ is replaced with an IO write machine cycle:
 
 ```
 OUTI
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ HL   │ Flags    │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
-│ M1 │      │      │      │    │    │ 0006 │ 02 │ 0006 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ 02 │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │      │      │      │    │    │ 0007 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │ 0007 │ ED │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0007 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │      │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== one extra clock cycle
-│    │      │      │      │    │    │ 0000 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
-│    │      │      │      │    │    │ 1000 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== memory read machine cycle
-│    │ MREQ │      │      │ RD │    │ 1000 │ A3 │ 0008 │ 0180 │ 1000 │ sZyHxVnC │ <== B decremented
-│    │ MREQ │      │      │ RD │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
-│    │ MREQ │      │      │ RD │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== HL incremented
-│    │ MREQ │      │      │ RD │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │      │      │    │    │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== IO write machine cycle
-│    │      │      │      │    │    │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │      │      │    │    │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-
-...continued into opcode fetch of next instruction:
-
-│ M1 │      │      │      │    │    │ 0008 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0008 │ FF │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │ <== flag bits updated here
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
-│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ HL   │ Flags    │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0006 │ 02 │ 0006 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ 02 │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │
+│ 5/0 │ M1 │      │      │      │    │    │ 0007 │ ED │ 0007 │ 0280 │ 1000 │ sZyHxVnC │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ ED │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 6/0 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 6/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 7/0 │    │      │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 7/1 │    │ MREQ │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 8/0 │    │ MREQ │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 8/1 │    │      │      │ RFSH │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│ 9/0 │    │      │      │      │    │    │ 0003 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== one extra clock cycle
+│ 9/1 │    │      │      │      │    │    │ 0000 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │
+│10/0 │    │      │      │      │    │    │ 1000 │ A3 │ 0008 │ 0280 │ 1000 │ sZyHxVnC │ <== memory read
+│10/1 │    │ MREQ │      │      │ RD │    │ 1000 │ A3 │ 0008 │ 0180 │ 1000 │ sZyHxVnC │ <== B decremented
+│11/0 │    │ MREQ │      │      │ RD │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ sZyHxVnC │
+│11/1 │    │ MREQ │      │      │ RD │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== HL incremented
+│12/0 │    │ MREQ │      │      │ RD │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│12/1 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│13/0 │    │      │      │      │    │    │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== IO write
+│13/1 │    │      │      │      │    │    │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│14/0 │    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│14/1 │    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│15/0 │    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│15/1 │    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│16/0 │    │      │ IORQ │      │    │ WR │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+│16/1 │    │      │      │      │    │    │ 0180 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0008 │ FF │ 0008 │ 0180 │ 1001 │ sZyHxVnC │ <== next opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0008 │ FF │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0008 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ sZyHxVnC │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │ <== flag bits updated here
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0009 │ 0180 │ 1001 │ szyHxvNC │
 ```
 
 #### INIR, INDR, OTIR and OTDR
@@ -2162,51 +2143,51 @@ back to the start of the instruction:
 ```
 INIR:
 
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ HL   │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │      │    │    │ 0006 │ 02 │ 0006 │ 0280 │ 1000 │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ 02 │ 0007 │ 0280 │ 1000 │
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │
-│ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
-│ M1 │      │      │      │    │    │ 0007 │ ED │ 0007 │ 0280 │ 1000 │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │ 0007 │ ED │ 0008 │ 0280 │ 1000 │
-│ M1 │ MREQ │      │      │ RD │    │ 0007 │ B2 │ 0008 │ 0280 │ 1000 │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ B2 │ 0008 │ 0280 │ 1000 │
-│    │      │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
-│    │      │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
-│    │      │      │      │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │ <== one extra clock cycle
-│    │      │      │      │    │    │ 0000 │ B2 │ 0008 │ 0280 │ 1000 │
-│    │      │      │      │    │    │ 0280 │ B2 │ 0008 │ 0280 │ 1000 │ <== IO read
-│    │      │      │      │    │    │ 0280 │ B2 │ 0008 │ 0180 │ 1000 │ <== B decremented
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
-│    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
-│    │      │      │      │    │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ <== memory write
-│    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │
-│    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │
-│    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ <== HL incremented
-│    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ <== 5 extra clock cycles for PC-=2
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 1000 │ FF │ 0006 │ 0180 │ 1001 │ <== PC ready
-│    │      │      │      │    │    │ 1000 │ FF │ 0006 │ 0180 │ 1001 │
-│    │      │      │      │    │    │ 0000 │ FF │ 0006 │ 0180 │ 1001 │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ HL   │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0006 │ 02 │ 0006 │ 0280 │ 1000 │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ 02 │ 0007 │ 0280 │ 1000 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0006 │ ED │ 0007 │ 0280 │ 1000 │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0007 │ 0280 │ 1000 │
+│ 5/0 │ M1 │      │      │      │    │    │ 0007 │ ED │ 0007 │ 0280 │ 1000 │ <== opcode fetch
+│ 5/1 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ ED │ 0008 │ 0280 │ 1000 │
+│ 6/0 │ M1 │ MREQ │      │      │ RD │    │ 0007 │ B2 │ 0008 │ 0280 │ 1000 │
+│ 6/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ B2 │ 0008 │ 0280 │ 1000 │
+│ 7/0 │    │      │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
+│ 7/1 │    │ MREQ │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
+│ 8/0 │    │ MREQ │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
+│ 8/1 │    │      │      │ RFSH │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │
+│ 9/0 │    │      │      │      │    │    │ 0003 │ B2 │ 0008 │ 0280 │ 1000 │ <== one extra clock cycle
+│ 9/1 │    │      │      │      │    │    │ 0000 │ B2 │ 0008 │ 0280 │ 1000 │
+│10/0 │    │      │      │      │    │    │ 0280 │ B2 │ 0008 │ 0280 │ 1000 │ <== IO read
+│10/1 │    │      │      │      │    │    │ 0280 │ B2 │ 0008 │ 0180 │ 1000 │ <== B decremented
+│11/0 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
+│11/1 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
+│12/0 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
+│12/1 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
+│13/0 │    │      │ IORQ │      │ RD │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
+│13/1 │    │      │      │      │    │    │ 0280 │ FF │ 0008 │ 0180 │ 1000 │
+│14/0 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │ <== memory write
+│14/1 │    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │
+│15/0 │    │ MREQ │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1000 │
+│15/1 │    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ <== HL incremented
+│16/0 │    │ MREQ │      │      │    │ WR │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│16/1 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│17/0 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │ <== 5 extra clock cycles PC-=2
+│17/1 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│18/0 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│18/1 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│19/0 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│19/1 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│20/0 │    │      │      │      │    │    │ 1000 │ FF │ 0008 │ 0180 │ 1001 │
+│20/1 │    │      │      │      │    │    │ 1000 │ FF │ 0006 │ 0180 │ 1001 │ <== PC ready
+│21/0 │    │      │      │      │    │    │ 1000 │ FF │ 0006 │ 0180 │ 1001 │
+│21/1 │    │      │      │      │    │    │ 0000 │ FF │ 0006 │ 0180 │ 1001 │
 ```
 
 ### CB Prefix
@@ -2318,55 +2299,55 @@ Let's first look at the timing of the documented **SET 1,(IX+d)** instruction (m
 
 ```
 SET 1,(IX+3):
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 0004 │ 10 │ 0004 │ 1000 │ 5555 │ <== opcode fetch DD prefix
-│ M1 │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
-│ M1 │      │      │    │    │ 0005 │ DD │ 0005 │ 1000 │ 5555 │ <== opcode fetch CB prefix
-│ M1 │ MREQ │      │ RD │    │ 0005 │ DD │ 0006 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0005 │ CB │ 0006 │ 1000 │ 5555 │
-│ M1 │ MREQ │      │ RD │    │ 0004 │ CB │ 0006 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
-│    │ MREQ │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
-│    │      │ RFSH │    │    │ 0000 │ CB │ 0006 │ 1000 │ 5555 │
-│    │      │      │    │    │ 0006 │ CB │ 0006 │ 1000 │ 5555 │ <== memory read d-offset
-│    │ MREQ │      │ RD │    │ 0006 │ CB │ 0007 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │      │      │    │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
-│    │      │      │    │    │ 0007 │ 03 │ 0007 │ 1000 │ 5555 │ <== memory read (pseudo opcode fetch)
-│    │ MREQ │      │ RD │    │ 0007 │ 03 │ 0008 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5555 │
-│    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
-│    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │ <== 2 extra clock cycles
-│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
-│    │      │      │    │    │ 0000 │ CE │ 0008 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ CE │ 0008 │ 1000 │ 1003 │ <== memory read (operand)
-│    │ MREQ │      │ RD │    │ 1003 │ CE │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │ <== 1 extra clock cycle
-│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │ <== memory write (operand)
-│    │ MREQ │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
-│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IX   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 0004 │ 10 │ 0004 │ 1000 │ 5555 │ <== opcode fetch DD prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 1000 │ 5555 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ DD │ 0005 │ 1000 │ 5555 │
+│ 3/0 │    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 4/1 │    │      │ RFSH │    │    │ 0002 │ DD │ 0005 │ 1000 │ 5555 │
+│ 5/0 │ M1 │      │      │    │    │ 0005 │ DD │ 0005 │ 1000 │ 5555 │ <== opcode fetch CB prefix
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 0005 │ DD │ 0006 │ 1000 │ 5555 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 0005 │ CB │ 0006 │ 1000 │ 5555 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 0004 │ CB │ 0006 │ 1000 │ 5555 │
+│ 7/0 │    │      │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0003 │ CB │ 0006 │ 1000 │ 5555 │
+│ 8/1 │    │      │ RFSH │    │    │ 0000 │ CB │ 0006 │ 1000 │ 5555 │
+│ 9/0 │    │      │      │    │    │ 0006 │ CB │ 0006 │ 1000 │ 5555 │ <== memory read d-offset
+│ 9/1 │    │ MREQ │      │ RD │    │ 0006 │ CB │ 0007 │ 1000 │ 5555 │
+│10/0 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│10/1 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│11/0 │    │ MREQ │      │ RD │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│11/1 │    │      │      │    │    │ 0006 │ 03 │ 0007 │ 1000 │ 5555 │
+│12/0 │    │      │      │    │    │ 0007 │ 03 │ 0007 │ 1000 │ 5555 │ <== memory read (pseudo opcode fetch)
+│12/1 │    │ MREQ │      │ RD │    │ 0007 │ 03 │ 0008 │ 1000 │ 5555 │
+│13/0 │    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5555 │
+│13/1 │    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│14/0 │    │ MREQ │      │ RD │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│14/1 │    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│15/0 │    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │ <== 2 extra clock cycles
+│15/1 │    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│16/0 │    │      │      │    │    │ 0007 │ CE │ 0008 │ 1000 │ 5503 │
+│16/1 │    │      │      │    │    │ 0000 │ CE │ 0008 │ 1000 │ 1003 │
+│17/0 │    │      │      │    │    │ 1003 │ CE │ 0008 │ 1000 │ 1003 │ <== memory read (operand)
+│17/1 │    │ MREQ │      │ RD │    │ 1003 │ CE │ 0008 │ 1000 │ 1003 │
+│18/0 │    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│18/1 │    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│19/0 │    │ MREQ │      │ RD │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│19/1 │    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│20/0 │    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │ <== 1 extra clock cycle
+│20/1 │    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │
+│21/0 │    │      │      │    │    │ 1003 │ 00 │ 0008 │ 1000 │ 1003 │ <== memory write (operand)
+│21/1 │    │ MREQ │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│22/0 │    │ MREQ │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│22/1 │    │ MREQ │      │    │ WR │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│23/0 │    │ MREQ │      │    │ WR │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
+│23/1 │    │      │      │    │    │ 1003 │ 02 │ 0008 │ 1000 │ 1003 │
 ```
 
 It all starts as expected:
@@ -2385,55 +2366,55 @@ byte sequence **DD CB 03 C8**):
 
 ```
 SET 1,(IX+d),B
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ IX   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 000B │ 00 │ 000B │ 0000 │ 1000 │ 1003 │ <== opcode fetch DD prefix
-│ M1 │ MREQ │      │ RD │    │ 000B │ 00 │ 000C │ 0000 │ 1000 │ 1003 │
-│ M1 │ MREQ │      │ RD │    │ 000B │ DD │ 000C │ 0000 │ 1000 │ 1003 │
-│ M1 │ MREQ │      │ RD │    │ 0008 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
-│    │      │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
-│    │      │ RFSH │    │    │ 0004 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
-│ M1 │      │      │    │    │ 000C │ DD │ 000C │ 0000 │ 1000 │ 1003 │ <== opcode fetch CB prefix
-│ M1 │ MREQ │      │ RD │    │ 000C │ DD │ 000D │ 0000 │ 1000 │ 1003 │
-│ M1 │ MREQ │      │ RD │    │ 000C │ CB │ 000D │ 0000 │ 1000 │ 1003 │
-│ M1 │ MREQ │      │ RD │    │ 000C │ CB │ 000D │ 0000 │ 1000 │ 1003 │
-│    │      │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
-│    │      │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 000D │ CB │ 000D │ 0000 │ 1000 │ 1003 │ <== memory read (d-offset)
-│    │ MREQ │      │ RD │    │ 000D │ CB │ 000E │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 000C │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 000E │ 03 │ 000E │ 0000 │ 1000 │ 1003 │ <== memory read (pseudo opcode fetch)
-│    │ MREQ │      │ RD │    │ 000E │ 03 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │ <== 2 extra clock cycles
-│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ C8 │ 000F │ 0000 │ 1000 │ 1003 │ <== memory read (operand)
-│    │ MREQ │      │ RD │    │ 1003 │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │ <== 1 extra clock cycle
-│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │ <== memory write (operand)
-│    │ MREQ │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │ MREQ │      │    │ WR │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
-│    │      │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ IX   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 000B │ 00 │ 000B │ 0000 │ 1000 │ 1003 │ <== opcode fetch DD prefix
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 000B │ 00 │ 000C │ 0000 │ 1000 │ 1003 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 000B │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ 3/0 │    │      │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0005 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ 4/1 │    │      │ RFSH │    │    │ 0004 │ DD │ 000C │ 0000 │ 1000 │ 1003 │
+│ 5/0 │ M1 │      │      │    │    │ 000C │ DD │ 000C │ 0000 │ 1000 │ 1003 │ <== opcode fetch CB prefix
+│ 5/1 │ M1 │ MREQ │      │ RD │    │ 000C │ DD │ 000D │ 0000 │ 1000 │ 1003 │
+│ 6/0 │ M1 │ MREQ │      │ RD │    │ 000C │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│ 6/1 │ M1 │ MREQ │      │ RD │    │ 000C │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│ 7/0 │    │      │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│ 7/1 │    │ MREQ │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│ 8/0 │    │ MREQ │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│ 8/1 │    │      │ RFSH │    │    │ 0006 │ CB │ 000D │ 0000 │ 1000 │ 1003 │
+│ 9/0 │    │      │      │    │    │ 000D │ CB │ 000D │ 0000 │ 1000 │ 1003 │ <== memory read (d-offset)
+│ 9/1 │    │ MREQ │      │ RD │    │ 000D │ CB │ 000E │ 0000 │ 1000 │ 1003 │
+│10/0 │    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│10/1 │    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│11/0 │    │ MREQ │      │ RD │    │ 000D │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│11/1 │    │      │      │    │    │ 000C │ 03 │ 000E │ 0000 │ 1000 │ 1003 │
+│12/0 │    │      │      │    │    │ 000E │ 03 │ 000E │ 0000 │ 1000 │ 1003 │ <== memory read (pseudo opcode fetch)
+│12/1 │    │ MREQ │      │ RD │    │ 000E │ 03 │ 000F │ 0000 │ 1000 │ 1003 │
+│13/0 │    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│13/1 │    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│14/0 │    │ MREQ │      │ RD │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│14/1 │    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│15/0 │    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │ <== 2 extra clock cycles
+│15/1 │    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│16/0 │    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│16/1 │    │      │      │    │    │ 000E │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│17/0 │    │      │      │    │    │ 1003 │ C8 │ 000F │ 0000 │ 1000 │ 1003 │ <== memory read (operand)
+│17/1 │    │ MREQ │      │ RD │    │ 1003 │ C8 │ 000F │ 0000 │ 1000 │ 1003 │
+│18/0 │    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│18/1 │    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│19/0 │    │ MREQ │      │ RD │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│19/1 │    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│20/0 │    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │ <== 1 extra clock cycle
+│20/1 │    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│21/0 │    │      │      │    │    │ 1003 │ 00 │ 000F │ 0000 │ 1000 │ 1003 │ <== memory write (operand)
+│21/1 │    │ MREQ │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│22/0 │    │ MREQ │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│22/1 │    │ MREQ │      │    │ WR │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│23/0 │    │ MREQ │      │    │ WR │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
+│23/1 │    │      │      │    │    │ 1003 │ 02 │ 000F │ 0000 │ 1000 │ 1003 │
 ```
 
 ...it looks *identical* to the documented **SET 1,(IX+3)** instruction!
@@ -2442,17 +2423,17 @@ But so far, the B register hasn't been updated, this happens overlapped
 in the opcode fetch of the next instruction:
 ```
 SET 1,(IX+d),B - continued into next opcode fetch
-┌────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
-│ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ IX   │ WZ   │
-├────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
-│ M1 │      │      │    │    │ 000F │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
-│ M1 │ MREQ │      │ RD │    │ 000F │ 00 │ 0010 │ 0000 │ 1000 │ 1003 │
-│ M1 │ MREQ │      │ RD │    │ 000F │ 00 │ 0010 │ 0000 │ 1000 │ 1003 │
-│ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │ <== B register updated
-│    │      │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
-│    │ MREQ │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
-│    │ MREQ │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
-│    │      │ RFSH │    │    │ 0000 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+┌─────┬────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ BC   │ IX   │ WZ   │
+├─────┼────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │    │    │ 000F │ 00 │ 000F │ 0000 │ 1000 │ 1003 │
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ 000F │ 00 │ 0010 │ 0000 │ 1000 │ 1003 │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ 000F │ 00 │ 0010 │ 0000 │ 1000 │ 1003 │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ 0000 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │ <== B register updated
+│ 3/0 │    │      │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0007 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
+│ 4/1 │    │      │ RFSH │    │    │ 0000 │ 00 │ 0010 │ 0200 │ 1000 │ 1003 │
 ```
 
 ## Interrupt Behaviour
@@ -2471,23 +2452,23 @@ be enabled):
 
 ```
 LD A,03h:
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
-│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0000 │ 3E │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
-│    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │ <== memory read
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ INT │ 0004 │ 03 │ IFF1 │ <== INT detection happens here!
-│    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== interrupt has been detected
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0000 │ 3E │ IFF1 │
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
+│ 5/0 │    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │ <== memory read
+│ 5/1 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
+│ 6/0 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│ 6/1 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│ 7/0 │    │ MREQ │      │      │ RD │    │ INT │ 0004 │ 03 │ IFF1 │ <== INT detection happens here!
+│ 7/1 │    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== interrupt has been detected
 ```
 
 Non-maskable interrupts are edge-triggered (meaning that the CPU will remember
@@ -2498,23 +2479,23 @@ instruction by disabling interrupts (same as maskable interrupts):
 
 ```
 LD A,03h:
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
-│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │ NMI │ 0000 │ 3E │ IFF1 │ <== NMI pin active for at least one half cycle
-│    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
-│    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
-│    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== interrupt has been detected
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ NMI │ 0000 │ 3E │ IFF1 │ <== NMI pin active for at least one half cycle
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
+│ 5/0 │    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │
+│ 5/1 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
+│ 6/0 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│ 6/1 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│ 7/0 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│ 7/1 │    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== interrupt has been detected
 ```
 
 The last moment an NMI is detected is the first half cycle of the
@@ -2523,23 +2504,23 @@ INT pin is sampled):
 
 ```
 LD A,03h
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
-│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0000 │ 3E │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
-│    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │ <== memory read
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ NMI │ 0004 │ 03 │ IFF1 │ <== NMI active for 1 half-cycle
-│    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== NMI has been detected
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 3E │ IFF1 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0000 │ 3E │ IFF1 │
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ 3E │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0000 │ 3E │ IFF1 │
+│ 5/0 │    │      │      │      │    │    │     │ 0004 │ 3E │ IFF1 │ <== memory read
+│ 5/1 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 3E │ IFF1 │
+│ 6/0 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│ 6/1 │    │ MREQ │      │      │ RD │    │     │ 0004 │ 03 │ IFF1 │
+│ 7/0 │    │ MREQ │      │      │ RD │    │ NMI │ 0004 │ 03 │ IFF1 │ <== NMI active for 1 half-cycle
+│ 7/1 │    │      │      │      │    │    │     │ 0004 │ 03 │      │ <== NMI has been detected
 ```
 
 If the NMI pin is active one half-cycle later, the interrupt handling
@@ -2554,53 +2535,55 @@ interrupts will not trigger during long sequenced of DD or FD prefix bytes:
 
 ```
 2x DD followed by LD IX,1000h
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
-│ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch DD prefix
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ DD │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │ NMI │ 0000 │ DD │ IFF1 │ <== NMI pin active for 1 half cycle
-│    │      │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0000 │ DD │ IFF1 │ <== no interrupt triggered
-│ M1 │      │      │      │    │    │     │ 0004 │ DD │ IFF1 │ <== opcode fetch DD prefix
-│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
-│ M1 │      │      │      │    │    │     │ 0005 │ DD │ IFF1 │ <== opcode fetch DD prefix (LD IX,nnnn)
-│ M1 │ MREQ │      │      │ RD │    │     │ 0005 │ DD │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0005 │ DD │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
-│ M1 │      │      │      │    │    │     │ 0006 │ DD │ IFF1 │ <== opcode fetch (21)
-│ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ DD │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ 21 │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ 21 │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
-│    │      │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
-│    │      │      │      │    │    │     │ 0007 │ 21 │ IFF1 │ <== memory read
-│    │ MREQ │      │      │ RD │    │     │ 0007 │ 21 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
-│    │      │      │      │    │    │     │ 0000 │ 00 │ IFF1 │
-│    │      │      │      │    │    │     │ 0008 │ 00 │ IFF1 │ <== memory read
-│    │ MREQ │      │      │ RD │    │     │ 0008 │ 00 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
-│    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
-│    │      │      │      │    │    │     │ 0008 │ 10 │      │ <== NMI triggered here
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ NMI │ AB   │ DB │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0003 │ 56 │ IFF1 │ <== opcode fetch DD prefix
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ 56 │ IFF1 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0003 │ DD │ IFF1 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ NMI │ 0000 │ DD │ IFF1 │ <== NMI pin active for 1 half cycle
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0003 │ DD │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0000 │ DD │ IFF1 │ <== no interrupt triggered
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0004 │ DD │ IFF1 │ <== opcode fetch DD prefix
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │ <== no interrupt triggered
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0005 │ DD │ IFF1 │ <== opcode fetch DD prefix (LD IX,nnnn)
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0005 │ DD │ IFF1 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0005 │ DD │ IFF1 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0004 │ DD │ IFF1 │
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0005 │ DD │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0004 │ DD │ IFF1 │
+│ 5/0 │ M1 │      │      │      │    │    │     │ 0006 │ DD │ IFF1 │ <== opcode fetch (21)
+│ 5/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ DD │ IFF1 │
+│ 6/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ 21 │ IFF1 │
+│ 6/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0006 │ 21 │ IFF1 │
+│ 7/0 │    │      │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│ 7/1 │    │ MREQ │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│ 8/0 │    │ MREQ │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│ 8/1 │    │      │      │ RFSH │    │    │     │ 0006 │ 21 │ IFF1 │
+│ 9/0 │    │      │      │      │    │    │     │ 0007 │ 21 │ IFF1 │ <== memory read
+│ 9/1 │    │ MREQ │      │      │ RD │    │     │ 0007 │ 21 │ IFF1 │
+│10/0 │    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
+│10/1 │    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
+│11/0 │    │ MREQ │      │      │ RD │    │     │ 0007 │ 00 │ IFF1 │
+│11/1 │    │      │      │      │    │    │     │ 0000 │ 00 │ IFF1 │
+│12/0 │    │      │      │      │    │    │     │ 0008 │ 00 │ IFF1 │ <== memory read
+│12/1 │    │ MREQ │      │      │ RD │    │     │ 0008 │ 00 │ IFF1 │
+│13/0 │    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
+│13/1 │    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
+│14/0 │    │ MREQ │      │      │ RD │    │     │ 0008 │ 10 │ IFF1 │
+│14/1 │    │      │      │      │    │    │     │ 0008 │ 10 │      │ <== NMI triggered here
 ```
 
 ### EI, DI and interrupts
@@ -2610,28 +2593,26 @@ of the *next* instruction:
 
 ```
 EI
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │      │    │    │ 0000 │ 00 │ 0000 │      │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0001 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
-│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-
-...continued, opcode fetch of next instruction:
-
-│ M1 │      │      │      │    │    │ 0001 │ FB │ 0001 │      │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0002 │ IFF1 │ <== interrupts enabled here
-│    │      │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
-│    │      │      │ RFSH │    │    │ 0000 │ 00 │ 0002 │ IFF1 │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0000 │ 00 │ 0000 │      │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0001 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0001 │ FB │ 0001 │      │ <== next opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0002 │ IFF1 │ <== interrupts enabled here
+│ 3/0 │    │      │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0001 │ 00 │ 0002 │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0000 │ 00 │ 0002 │ IFF1 │
 ```
 
 This is the reason why maskable interrupts are only handled at the end of the instruction that
@@ -2643,40 +2624,35 @@ machine cycle. This is why masked interrupts are not triggered during a sequence
 
 ```
 2x EI + NOP
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │      │    │    │ 0000 │ 00 │ 0000 │      │ <== opcode fetch 1st EI
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0001 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
-│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
-
-...continued, 2nd EI:
-
-│ M1 │      │      │      │    │    │ 0001 │ FB │ 0001 │      │ <== opcode fetch 2nd EI
-│ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0002 │ IFF1 │ <== int enabled for 1 half cycle
-│    │      │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │ <== int disabled right away
-│    │ MREQ │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │
-│    │      │      │ RFSH │    │    │ 0000 │ FB │ 0002 │      │
-
-...continued, NOP:
-
-│ M1 │      │      │      │    │    │ 0002 │ FB │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ FB │ 0003 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │ <== interrupts enabled
-│    │      │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
-│    │      │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
-│ M1 │      │      │      │    │    │ 0003 │ 00 │ 0003 │ IFF1 │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0000 │ 00 │ 0000 │      │ <== opcode fetch: 1st EI
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0001 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0001 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0000 │ FB │ 0001 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0001 │ FB │ 0001 │      │ <== next opcode fetch: 2nd EI
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0001 │ FB │ 0002 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ FB │ 0002 │ IFF1 │ <== int enabled for 1 half cycle
+│ 3/0 │    │      │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │ <== int disabled right away
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0001 │ FB │ 0002 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0000 │ FB │ 0002 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0002 │ FB │ 0002 │      │ <== next opcode fetch: NOP
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ FB │ 0003 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │ <== interrupts enabled
+│ 3/0 │    │      │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0002 │ 00 │ 0003 │ IFF1 │
 ```
 
 Since maskable interrupts are checked in the fist half-cycle of the last clock
@@ -2688,71 +2664,69 @@ fetch machine cycle:
 
 ```
 DI:
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │      │    │    │ 0002 │ 00 │ 0002 │ IFF1 │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ F3 │ 0003 │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ F3 │ 0003 │ IFF1 │
-│    │      │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │ <== interrupts disabled
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
-│    │      │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0002 │ 00 │ 0002 │ IFF1 │ <== opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ F3 │ 0003 │ IFF1 │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ F3 │ 0003 │ IFF1 │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │ <== interrupts disabled
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0002 │ F3 │ 0003 │      │
 ```
 
 ### RETI and RETN
 
 **RETI** and **RETN** behave identical, both copy the IFF2 bit (so far unidentified in the
-netlist) back into IFF1 in the following opcode fetch machine cycle.
+netlist) back into IFF1 in the following opcode fetch machine cycle).
 
 For instance this is what an NMI interrupt service routine looks like that only consists
 of a **RETI** instruction. Maskable interrupts had been enabled when the NMI was triggered:
 
 ```
 RETI/RETN after NMI while interrupts were enabled
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │      │    │    │ 0066 │ 00 │ 0002 │      │ <= opcode fetch ED prefix
-│ M1 │ MREQ │      │      │ RD │    │ 0066 │ 00 │ 0067 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
-│    │      │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
-│    │      │      │ RFSH │    │    │ 0000 │ ED │ 0067 │      │
-│ M1 │      │      │      │    │    │ 0067 │ ED │ 0067 │      │ <== opcode fetch RETI
-│ M1 │ MREQ │      │      │ RD │    │ 0067 │ ED │ 0068 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0067 │ 4D │ 0068 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0060 │ 4D │ 0068 │      │
-│    │      │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
-│    │      │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
-│    │      │      │      │    │    │ 5553 │ 4D │ 0068 │      │ <== memory read (return addr)
-│    │ MREQ │      │      │ RD │    │ 5553 │ 4D │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
-│    │      │      │      │    │    │ 5550 │ 02 │ 0068 │      │
-│    │      │      │      │    │    │ 5554 │ 02 │ 0068 │      │ <== memory read (return addr)
-│    │ MREQ │      │      │ RD │    │ 5554 │ 02 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
-│    │      │      │      │    │    │ 5554 │ 00 │ 0068 │      │
-
-...NOP following RETI:
-
-│ M1 │      │      │      │    │    │ 0002 │ 00 │ 0068 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │ <== IFF1 restored
-│    │      │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
-│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0003 │ IFF1 │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0066 │ 00 │ 0002 │      │ <= opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0066 │ 00 │ 0067 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0003 │ ED │ 0067 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0000 │ ED │ 0067 │      │
+│ 5/0 │ M1 │      │      │      │    │    │ 0067 │ ED │ 0067 │      │ <== opcode fetch RETI
+│ 5/1 │ M1 │ MREQ │      │      │ RD │    │ 0067 │ ED │ 0068 │      │
+│ 6/0 │ M1 │ MREQ │      │      │ RD │    │ 0067 │ 4D │ 0068 │      │
+│ 6/1 │ M1 │ MREQ │      │      │ RD │    │ 0060 │ 4D │ 0068 │      │
+│ 7/0 │    │      │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│ 7/1 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│ 8/0 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│ 8/1 │    │      │      │ RFSH │    │    │ 0004 │ 4D │ 0068 │      │
+│ 9/0 │    │      │      │      │    │    │ 5553 │ 4D │ 0068 │      │ <== memory read (return addr)
+│ 9/1 │    │ MREQ │      │      │ RD │    │ 5553 │ 4D │ 0068 │      │
+│10/0 │    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
+│10/1 │    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
+│11/0 │    │ MREQ │      │      │ RD │    │ 5553 │ 02 │ 0068 │      │
+│11/1 │    │      │      │      │    │    │ 5550 │ 02 │ 0068 │      │
+│12/0 │    │      │      │      │    │    │ 5554 │ 02 │ 0068 │      │ <== memory read (return addr)
+│12/1 │    │ MREQ │      │      │ RD │    │ 5554 │ 02 │ 0068 │      │
+│13/0 │    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│13/1 │    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│14/0 │    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│14/1 │    │      │      │      │    │    │ 5554 │ 00 │ 0068 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0002 │ 00 │ 0068 │      │ <== next opcode fetch (NOP)
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0002 │ 00 │ 0003 │ IFF1 │ <== IFF1 restored
+│ 3/0 │    │      │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0005 │ 00 │ 0003 │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0003 │ IFF1 │
 ```
 
 If interrupts had not been enabled when the NMI was triggered,
@@ -2762,48 +2736,46 @@ IFF2).
 ```
 RETI/RETN after NMI while interrupts were disabled:
 
-┌────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │      │    │    │ 0066 │ 00 │ 0001 │      │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │      │ RD │    │ 0066 │ 00 │ 0067 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
-│    │      │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
-│ M1 │      │      │      │    │    │ 0067 │ ED │ 0067 │      │ <== opcode fetch RETN
-│ M1 │ MREQ │      │      │ RD │    │ 0067 │ ED │ 0068 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0067 │ 45 │ 0068 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0060 │ 45 │ 0068 │      │
-│    │      │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
-│    │      │      │ RFSH │    │    │ 0000 │ 45 │ 0068 │      │
-│    │      │      │      │    │    │ 5553 │ 45 │ 0068 │      │ <== memory read (return addr)
-│    │ MREQ │      │      │ RD │    │ 5553 │ 45 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
-│    │      │      │      │    │    │ 5550 │ 01 │ 0068 │      │
-│    │      │      │      │    │    │ 5554 │ 01 │ 0068 │      │ <== memory read (return addr)
-│    │ MREQ │      │      │ RD │    │ 5554 │ 01 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
-│    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
-│    │      │      │      │    │    │ 5554 │ 00 │ 0068 │      │
-
-...NOP following RETN:
-
-│ M1 │      │      │      │    │    │ 0001 │ 00 │ 0068 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0002 │      │ <== interrupts not enabled
-│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
-│    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
-│    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+┌─────┬────┬──────┬──────┬──────┬────┬────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0066 │ 00 │ 0001 │      │ <== opcode fetch ED prefix
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0066 │ 00 │ 0067 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0066 │ ED │ 0067 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0002 │ ED │ 0067 │      │
+│ 5/0 │ M1 │      │      │      │    │    │ 0067 │ ED │ 0067 │      │ <== opcode fetch RETN
+│ 5/1 │ M1 │ MREQ │      │      │ RD │    │ 0067 │ ED │ 0068 │      │
+│ 6/0 │ M1 │ MREQ │      │      │ RD │    │ 0067 │ 45 │ 0068 │      │
+│ 6/1 │ M1 │ MREQ │      │      │ RD │    │ 0060 │ 45 │ 0068 │      │
+│ 7/0 │    │      │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
+│ 7/1 │    │ MREQ │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
+│ 8/0 │    │ MREQ │      │ RFSH │    │    │ 0003 │ 45 │ 0068 │      │
+│ 8/1 │    │      │      │ RFSH │    │    │ 0000 │ 45 │ 0068 │      │
+│ 9/0 │    │      │      │      │    │    │ 5553 │ 45 │ 0068 │      │ <== memory read (return addr)
+│ 9/1 │    │ MREQ │      │      │ RD │    │ 5553 │ 45 │ 0068 │      │
+│10/0 │    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
+│10/1 │    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
+│11/0 │    │ MREQ │      │      │ RD │    │ 5553 │ 01 │ 0068 │      │
+│11/1 │    │      │      │      │    │    │ 5550 │ 01 │ 0068 │      │
+│12/0 │    │      │      │      │    │    │ 5554 │ 01 │ 0068 │      │ <== memory read (return addr)
+│12/1 │    │ MREQ │      │      │ RD │    │ 5554 │ 01 │ 0068 │      │
+│13/0 │    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│13/1 │    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│14/0 │    │ MREQ │      │      │ RD │    │ 5554 │ 00 │ 0068 │      │
+│14/1 │    │      │      │      │    │    │ 5554 │ 00 │ 0068 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ 0001 │ 00 │ 0068 │      │ <== next opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ 0001 │ 00 │ 0002 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ 0000 │ 00 │ 0002 │      │ <== interrupts not enabled
+│ 3/0 │    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ 0004 │ 00 │ 0002 │      │
 ```
 
 With the typical **EI+RETI** sequence at the end of maskable interrupt service
@@ -2813,48 +2785,46 @@ at the end of RETI (note how the INT pin is active here all the time):
 
 ```
 EI + RETI (maskable interrupt)
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
-│ M1 │      │      │      │    │    │ INT │ 0038 │ E0 │ 0004 │      │ <== opcode fetch EI
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ E0 │ 0039 │      │
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ FB │ 0039 │      │
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ FB │ 0039 │      │
-│    │      │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
-│    │      │      │ RFSH │    │    │ INT │ 0004 │ FB │ 0039 │      │
-
-...continued: RETI
-
-│ M1 │      │      │      │    │    │ INT │ 0039 │ FB │ 0039 │      │ <== opcode fetch ED prefix
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 0039 │ FB │ 003A │      │
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 0039 │ ED │ 003A │      │
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ ED │ 003A │ IFF1 │ <== interrupts enabled (by EI)
-│    │      │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
-│    │      │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
-│ M1 │      │      │      │    │    │ INT │ 003A │ ED │ 003A │ IFF1 │ <== opcode fetch RETI
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ ED │ 003B │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ 4D │ 003B │ IFF1 │
-│ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ 4D │ 003B │ IFF1 │
-│    │      │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
-│    │      │      │ RFSH │    │    │ INT │ 0000 │ 4D │ 003B │ IFF1 │
-│    │      │      │      │    │    │ INT │ 5553 │ 4D │ 003B │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 4D │ 003B │ IFF1 │ <== memory read (return addr)
-│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
-│    │      │      │      │    │    │ INT │ 5550 │ 04 │ 003B │ IFF1 │
-│    │      │      │      │    │    │ INT │ 5554 │ 04 │ 003B │ IFF1 │ <== memory read (return addr)
-│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 04 │ 003B │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
-│    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
-│    │      │      │      │    │    │ INT │ 5554 │ 00 │ 003B │      │ <== interrupt handling starts!
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ INT │ 0038 │ E0 │ 0004 │      │ <== opcode fetch EI
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ E0 │ 0039 │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ FB │ 0039 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ FB │ 0039 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ INT │ 0005 │ FB │ 0039 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │ INT │ 0004 │ FB │ 0039 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │ INT │ 0039 │ FB │ 0039 │      │ <== opcode fetch ED prefix (RETI)
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │ INT │ 0039 │ FB │ 003A │      │
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │ INT │ 0039 │ ED │ 003A │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │ INT │ 0038 │ ED │ 003A │ IFF1 │ <== interrupts enabled (by EI)
+│ 3/0 │    │      │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│ 4/1 │    │      │      │ RFSH │    │    │ INT │ 0006 │ ED │ 003A │ IFF1 │
+│ 5/0 │ M1 │      │      │      │    │    │ INT │ 003A │ ED │ 003A │ IFF1 │ <== opcode fetch RETI
+│ 5/1 │ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ ED │ 003B │ IFF1 │
+│ 6/0 │ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ 4D │ 003B │ IFF1 │
+│ 6/1 │ M1 │ MREQ │      │      │ RD │    │ INT │ 003A │ 4D │ 003B │ IFF1 │
+│ 7/0 │    │      │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
+│ 7/1 │    │ MREQ │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
+│ 8/0 │    │ MREQ │      │ RFSH │    │    │ INT │ 0007 │ 4D │ 003B │ IFF1 │
+│ 8/1 │    │      │      │ RFSH │    │    │ INT │ 0000 │ 4D │ 003B │ IFF1 │
+│ 9/0 │    │      │      │      │    │    │ INT │ 5553 │ 4D │ 003B │ IFF1 │
+│ 9/1 │    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 4D │ 003B │ IFF1 │ <== memory read (return addr)
+│10/0 │    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
+│10/1 │    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
+│11/0 │    │ MREQ │      │      │ RD │    │ INT │ 5553 │ 04 │ 003B │ IFF1 │
+│11/1 │    │      │      │      │    │    │ INT │ 5550 │ 04 │ 003B │ IFF1 │
+│12/0 │    │      │      │      │    │    │ INT │ 5554 │ 04 │ 003B │ IFF1 │ <== memory read (return addr)
+│12/1 │    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 04 │ 003B │ IFF1 │
+│13/0 │    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
+│13/1 │    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
+│14/0 │    │ MREQ │      │      │ RD │    │ INT │ 5554 │ 00 │ 003B │ IFF1 │
+│14/1 │    │      │      │      │    │    │ INT │ 5554 │ 00 │ 003B │      │ <== interrupt handling starts!
 ```
 
 ### NMI Timing
@@ -2875,51 +2845,45 @@ Execution then continues at the first instruction of the interrupt service
 routine at 
 
 ```
-NMI timing
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ HALT │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼──────┼────┼──────┼──────┤
-
-...last clock cycle of instruction where NMI was detected:
-
-│    │ MREQ │      │ RFSH │    │    │     │ HALT │ 0002 │ 00 │ 0002 │ IFF1 │ <== NMI detected
-│    │      │      │ RFSH │    │    │     │      │ 0002 │ 00 │ 0002 │      │ <== IFF1 and HALT cleared
-
-...NMI handling:
-
-│ M1 │      │      │      │    │    │     │      │ 0002 │ 00 │ 0002 │      │ <== opcode fetch (ignored)
-│ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │ <== PC not incremenred!
-│ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │
-│ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │
-│    │      │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
-│    │ MREQ │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
-│    │ MREQ │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
-│    │      │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
-│    │      │      │      │    │    │     │      │ 0003 │ 00 │ 0002 │      │ <== extra clock cycle
-│    │      │      │      │    │    │     │      │ 0001 │ 00 │ 0002 │      │
-│    │      │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │
-│    │ MREQ │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │
-│    │ MREQ │      │      │    │ WR │     │      │ 5554 │ 00 │ 0002 │      │
-│    │ MREQ │      │      │    │ WR │     │      │ 5554 │ 00 │ 0002 │      │
-│    │      │      │      │    │    │     │      │ 5550 │ 00 │ 0002 │      │
-│    │      │      │      │    │    │     │      │ 5553 │ 00 │ 0002 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
-│    │ MREQ │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
-│    │ MREQ │      │      │    │ WR │     │      │ 5553 │ 02 │ 0002 │      │
-│    │ MREQ │      │      │    │ WR │     │      │ 5553 │ 02 │ 0002 │      │
-│    │      │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
-
-...interrupt service routine is entered at address 0066h:
-
-│ M1 │      │      │      │    │    │     │      │ 0066 │ 00 │ 0002 │      │ <== opcode fetch at 0066h
-│ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │ <== PC updated to ISR + 1
-│ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │
-│ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │
-│    │      │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
-│    │ MREQ │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
-│    │ MREQ │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
-│    │      │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+NMI timing (starting with last clock cycle of instruction
+where NMI was detected):
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ HALT │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼──────┼────┼──────┼──────┤
+│ X/0 │    │ MREQ │      │ RFSH │    │    │     │ HALT │ 0002 │ 00 │ 0002 │ IFF1 │ <== NMI detected
+│ X/1 │    │      │      │ RFSH │    │    │     │      │ 0002 │ 00 │ 0002 │      │ <== IFF1 and HALT cleared
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │      │ 0002 │ 00 │ 0002 │      │ <== NMI 'opcode fetch' (ignored)
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │ <== PC not incremenred!
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │      │ 0002 │ 00 │ 0002 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │     │      │ 0003 │ 00 │ 0002 │      │
+│ 5/0 │    │      │      │      │    │    │     │      │ 0003 │ 00 │ 0002 │      │ <== extra clock cycle
+│ 5/1 │    │      │      │      │    │    │     │      │ 0001 │ 00 │ 0002 │      │
+│ 6/0 │    │      │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │ <== memory write (PC => stack)
+│ 6/1 │    │ MREQ │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │
+│ 7/0 │    │ MREQ │      │      │    │    │     │      │ 5554 │ 00 │ 0002 │      │
+│ 7/1 │    │ MREQ │      │      │    │ WR │     │      │ 5554 │ 00 │ 0002 │      │
+│ 8/0 │    │ MREQ │      │      │    │ WR │     │      │ 5554 │ 00 │ 0002 │      │
+│ 8/1 │    │      │      │      │    │    │     │      │ 5550 │ 00 │ 0002 │      │
+│ 9/0 │    │      │      │      │    │    │     │      │ 5553 │ 00 │ 0002 │      │ <== memory write (PC => stack)
+│ 9/1 │    │ MREQ │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
+│10/0 │    │ MREQ │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
+│10/1 │    │ MREQ │      │      │    │ WR │     │      │ 5553 │ 02 │ 0002 │      │
+│11/0 │    │ MREQ │      │      │    │ WR │     │      │ 5553 │ 02 │ 0002 │      │
+│11/1 │    │      │      │      │    │    │     │      │ 5553 │ 02 │ 0002 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │      │ 0066 │ 00 │ 0002 │      │ <== ISR: opcode fetch at 0066h
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │ <== PC updated to ISR + 1
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │      │ 0066 │ 00 │ 0067 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │     │      │ 0004 │ 00 │ 0067 │      │
 ```
 
 ### Mode 0 Interrupt Timing
@@ -2938,55 +2902,49 @@ subroutine call into one of eight hardwired destination addresses.
 Here's an IM0 interrupt which executes an **RST 20h** instruction:
 
 ```
-Mode 0 Interrupt with RST 20h:
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
-
-...last clock cycle of instruction where INT was detected:
-
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0003 │ 00 │ 0004 │ IFF1 │ <== interrupt detected
-│    │      │      │ RFSH │    │    │     │ 0000 │ 00 │ 0004 │      │ <== IFF1 and HALT cleared
-
-...interrupt handling starts:
-
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge machine cycle
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │ IORQ │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== opcode E7 (RST 20) on data bus
-│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== RST 20 starts executing
-│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5554 │ E7 │ 0004 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
-│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5550 │ 00 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5553 │ E7 │ 0004 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
-│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
-
-...interrupt service routine at address 0020h entered:
-
-│ M1 │      │      │      │    │    │     │ 0020 │ E7 │ 0004 │      │ <== opcode fetch at 0020h
-│ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ E7 │ 0021 │      │ <== PC updated (ISR + 1)
-│ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ 00 │ 0021 │      │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ 00 │ 0021 │      │
-│    │      │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
-│    │      │      │ RFSH │    │    │     │ 0004 │ 00 │ 0021 │      │
+Mode 0 Interrupt with RST 20h (starting with last clock cycle
+of instruction where INT was detected):
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ X/0 │    │ MREQ │      │ RFSH │    │    │ INT │ 0003 │ 00 │ 0004 │ IFF1 │ <== interrupt detected
+│ X/1 │    │      │      │ RFSH │    │    │     │ 0000 │ 00 │ 0004 │      │ <== IFF1 and HALT cleared
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge 
+│ 1/1 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 2/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 2/1 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 3/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 3/1 │ M1 │      │ IORQ │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 4/0 │ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== opcode E7 (RST 20) on data bus
+│ 4/1 │ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 5/0 │    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 5/1 │    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 6/0 │    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 6/1 │    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 7/0 │    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== RST 20 starts executing
+│ 7/1 │    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 8/0 │    │      │      │      │    │    │     │ 5554 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│ 8/1 │    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│ 9/0 │    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│ 9/1 │    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│10/0 │    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│10/1 │    │      │      │      │    │    │     │ 5550 │ 00 │ 0004 │      │
+│11/0 │    │      │      │      │    │    │     │ 5553 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│11/1 │    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│12/0 │    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│12/1 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│13/0 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│13/1 │    │      │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0020 │ E7 │ 0004 │      │ <== ISR: opcode fetch at 0020h
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ E7 │ 0021 │      │ <== PC updated (ISR + 1)
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ 00 │ 0021 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0020 │ 00 │ 0021 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0021 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0004 │ 00 │ 0021 │      │
 ```
 
 ### Mode 1 Interrupt Timing
@@ -2995,62 +2953,56 @@ In interrupt mode 1 the Z80 first clears the HALT and IFF1 state in the last
 half cycle of the current instruction and then executes an interrupt acknowledge
 machine cycle, but the value on the data bus will be ignored. Next an extra clock
 cycle is executed, followed by two memory write machine cycles to place the PC
-as return address on the stack. Next, execution will continue at the hardwired
-address 0038h:
+as return address on the stack. Next, execution will continue in the interrupt
+service routine at the hardwired address 0038h:
 
 ```
-Mode 1 Interrupt
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
-
-...last clock cycle of instruction where INT was detected:
-
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0003 │ 00 │ 0004 │ IFF1 │ <== INT detected
-│    │      │      │ RFSH │    │    │     │ 0000 │ 00 │ 0004 │      │ <== IFF1 and HALT cleared
-
-...interrupt handling starts:
-
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge machine cycle
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │ IORQ │      │    │    │     │ 0004 │ 00 │ 0004 │      │
-│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== data bus value ignored
-│ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== one extra clock cycle
-│    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5554 │ E7 │ 0004 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
-│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5550 │ 00 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5553 │ E7 │ 0004 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
-│    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
-│    │      │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
-
-...interrupt service routine at address 0038h entered:
-
-│ M1 │      │      │      │    │    │     │ 0038 │ E7 │ 0004 │      │ <== opcode fetch at 0038h
-│ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ E7 │ 0039 │      │ <== PC updated to ISR + 1
-│ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ 00 │ 0039 │      │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ 00 │ 0039 │      │
-│    │      │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
-│    │      │      │ RFSH │    │    │     │ 0004 │ 00 │ 0039 │      │
+Mode 1 Interrupt (starting with last clock cycle of instruction where 
+INT was detected):
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ X/0 │    │ MREQ │      │ RFSH │    │    │ INT │ 0003 │ 00 │ 0004 │ IFF1 │ <== INT detected
+│ X/1 │    │      │      │ RFSH │    │    │     │ 0000 │ 00 │ 0004 │      │ <== IFF1 and HALT cleared
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge
+│ 1/1 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 2/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 2/1 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 3/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 3/1 │ M1 │      │ IORQ │      │    │    │     │ 0004 │ 00 │ 0004 │      │
+│ 4/0 │ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== data bus value ignored
+│ 4/1 │ M1 │      │ IORQ │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 5/0 │    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 5/1 │    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 6/0 │    │ MREQ │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 6/1 │    │      │      │ RFSH │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 7/0 │    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │ <== one extra clock cycle
+│ 7/1 │    │      │      │      │    │    │     │ 0004 │ E7 │ 0004 │      │
+│ 8/0 │    │      │      │      │    │    │     │ 5554 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│ 8/1 │    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│ 9/0 │    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0004 │      │
+│ 9/1 │    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│10/0 │    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0004 │      │
+│10/1 │    │      │      │      │    │    │     │ 5550 │ 00 │ 0004 │      │
+│11/0 │    │      │      │      │    │    │     │ 5553 │ E7 │ 0004 │      │ <== memory write (PC => stack)
+│11/1 │    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│12/0 │    │ MREQ │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+│12/1 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│13/0 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 04 │ 0004 │      │
+│13/1 │    │      │      │      │    │    │     │ 5553 │ 04 │ 0004 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0038 │ E7 │ 0004 │      │ <== ISR: opcode fetch at 0038h
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ E7 │ 0039 │      │ <== PC updated to ISR + 1
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ 00 │ 0039 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0038 │ 00 │ 0039 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0005 │ 00 │ 0039 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0004 │ 00 │ 0039 │      │
 ```
 
-## Mode 2 Interrupt Timing
+### Mode 2 Interrupt Timing
 
 Mode 2 interrupts are the most complex:
 
@@ -3075,65 +3027,59 @@ value **0300** is stored, which is the entry address of the interrupt
 service routine:
 
 ```
-Mode 2 Interrupt
-┌────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
-│ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
-├────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
-
-...last clock cycle of instruction where INT was detected:
-
-│    │ MREQ │      │ RFSH │    │    │ INT │ 0106 │ 00 │ 0008 │ IFF1 │ <== interrupt detected
-│    │      │      │ RFSH │    │    │     │ 0106 │ 00 │ 0008 │      │ <== IFF1 and HALT cleared
-
-...interrupt handling starts:
-
-│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │ <== interrupt acknowledge machine cycle
-│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
-│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
-│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
-│ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
-│ M1 │      │ IORQ │      │    │    │     │ 0008 │ 00 │ 0008 │      │
-│ M1 │      │ IORQ │      │    │    │     │ 0008 │ E0 │ 0008 │      │ <== int vector low byte (E0) on data bus
-│ M1 │      │ IORQ │      │    │    │     │ 0000 │ E0 │ 0008 │      │
-│    │      │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
-│    │      │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
-│    │      │      │      │    │    │     │ 0107 │ E0 │ 0008 │      │ <== one extra clock cycle
-│    │      │      │      │    │    │     │ 0105 │ E0 │ 0008 │      │
-│    │      │      │      │    │    │     │ 5554 │ E0 │ 0008 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0008 │      │
-│    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0008 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0008 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0008 │      │
-│    │      │      │      │    │    │     │ 5550 │ 00 │ 0008 │      │
-│    │      │      │      │    │    │     │ 5553 │ E0 │ 0008 │      │ <== memory write (PC => stack)
-│    │ MREQ │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
-│    │ MREQ │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
-│    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
-│    │      │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
-│    │      │      │      │    │    │     │ 01E0 │ E0 │ 0008 │      │ <== memory read from 01E0 (I<<8)|(E0)
-│    │ MREQ │      │      │ RD │    │     │ 01E0 │ E0 │ 0008 │      │
-│    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │ <== data bus: ISR address low byte (00)
-│    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
-│    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
-│    │      │      │      │    │    │     │ 01E0 │ 00 │ 0008 │      │
-│    │      │      │      │    │    │     │ 01E1 │ 00 │ 0008 │      │ <== memory read from 01E1
-│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 00 │ 0008 │      │
-│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │ <==> data bus: ISR address high byte (03)
-│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
-│    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
-│    │      │      │      │    │    │     │ 01E1 │ 03 │ 0008 │      │
-
-...ISR entered at address 0300h
-
-│ M1 │      │      │      │    │    │     │ 0300 │ 03 │ 0008 │      │ <== opcode fetch
-│ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 03 │ 0301 │      │ <== PC updated to ISR + 1
-│ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 00 │ 0301 │      │
-│ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 00 │ 0301 │      │
-│    │      │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
-│    │ MREQ │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
-│    │      │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+Mode 2 Interrupt (starting with last clock cycle of instruction where 
+INT was detected):
+┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
+│  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ X/0 │    │ MREQ │      │ RFSH │    │    │ INT │ 0106 │ 00 │ 0008 │ IFF1 │ <== interrupt detected
+│ X/1 │    │      │      │ RFSH │    │    │     │ 0106 │ 00 │ 0008 │      │ <== IFF1 and HALT cleared
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │ <== interrupt acknowledge
+│ 1/1 │ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ 2/0 │ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ 2/1 │ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ 3/0 │ M1 │      │      │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ 3/1 │ M1 │      │ IORQ │      │    │    │     │ 0008 │ 00 │ 0008 │      │
+│ 4/0 │ M1 │      │ IORQ │      │    │    │     │ 0008 │ E0 │ 0008 │      │ <== int vector low byte (E0) on data bus
+│ 4/1 │ M1 │      │ IORQ │      │    │    │     │ 0000 │ E0 │ 0008 │      │
+│ 5/0 │    │      │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│ 5/1 │    │ MREQ │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│ 6/0 │    │ MREQ │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│ 6/1 │    │      │      │ RFSH │    │    │     │ 0107 │ E0 │ 0008 │      │
+│ 7/0 │    │      │      │      │    │    │     │ 0107 │ E0 │ 0008 │      │ <== one extra clock cycle
+│ 7/1 │    │      │      │      │    │    │     │ 0105 │ E0 │ 0008 │      │
+│ 8/0 │    │      │      │      │    │    │     │ 5554 │ E0 │ 0008 │      │ <== memory write (PC => stack)
+│ 8/1 │    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0008 │      │
+│ 9/0 │    │ MREQ │      │      │    │    │     │ 5554 │ 00 │ 0008 │      │
+│ 9/1 │    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0008 │      │
+│10/0 │    │ MREQ │      │      │    │ WR │     │ 5554 │ 00 │ 0008 │      │
+│10/1 │    │      │      │      │    │    │     │ 5550 │ 00 │ 0008 │      │
+│11/0 │    │      │      │      │    │    │     │ 5553 │ E0 │ 0008 │      │ <== memory write (PC => stack)
+│11/1 │    │ MREQ │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
+│12/0 │    │ MREQ │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
+│12/1 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
+│13/0 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
+│13/1 │    │      │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
+│10/0 │    │      │      │      │    │    │     │ 01E0 │ E0 │ 0008 │      │ <== memory read from 01E0 (I<<8)|(E0)
+│10/1 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ E0 │ 0008 │      │
+│11/0 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │ <== data bus: ISR address low byte (00)
+│11/1 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
+│12/0 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
+│12/1 │    │      │      │      │    │    │     │ 01E0 │ 00 │ 0008 │      │
+│13/0 │    │      │      │      │    │    │     │ 01E1 │ 00 │ 0008 │      │ <== memory read from 01E1
+│13/1 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 00 │ 0008 │      │
+│12/0 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │ <==> data bus: ISR address high byte (03)
+│12/1 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
+│13/0 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
+│13/1 │    │      │      │      │    │    │     │ 01E1 │ 03 │ 0008 │      │
+├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0300 │ 03 │ 0008 │      │ <== ISR: opcode fetch
+│ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 03 │ 0301 │      │ <== PC updated to ISR + 1
+│ 2/0 │ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 00 │ 0301 │      │
+│ 2/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 00 │ 0301 │      │
+│ 3/0 │    │      │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+│ 3/1 │    │ MREQ │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+│ 4/0 │    │ MREQ │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
+│ 4/1 │    │      │      │ RFSH │    │    │     │ 0108 │ 00 │ 0301 │      │
 ```
