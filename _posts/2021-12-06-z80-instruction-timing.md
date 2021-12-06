@@ -180,7 +180,7 @@ and visualizes CPU state (chip pins and register values) for each "half-clock-cy
 
 To simplify integration into blog posts like this, I added a function to dump the trace log into a text file.
 
-### Opcode Fetch Machine Cycle
+### Opcode Fetch Machine Cycles
 
 An **Opcode Fetch** looks like this in the tracelog (with all the relevant CPU state visible):
 
