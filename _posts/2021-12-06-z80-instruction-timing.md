@@ -994,7 +994,7 @@ DJNZ d - branch not taken:
 In the conditional relative jump instruction **JR cc,d**, the memory read
 directly follows the opcode fetch. If the branch is taken, 5 clock cycles
 are added, otherwise the instruction ends with the memory read machine
-cycle (so the branch behaviour is identical swith DJNZ and JR):
+cycle (so the branch behaviour is identical with DJNZ and JR):
 
 ```
 JR cc,d - branch taken
