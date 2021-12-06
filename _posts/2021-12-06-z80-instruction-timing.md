@@ -3019,7 +3019,7 @@ are performed to read another 16-bit address which is the start of the interrupt
 service routine
 - execution continues at the interrupt service routine
 
-In the following Mode 2 timing diagram the the I register has already been
+In the following Mode 2 timing diagram the I register has already been
 loaded with **01** and the byte **E0** will be placed on the address bus during
 the interrupt acknowledge machine cycle. Those two values are combined to
 the 16-bit interrupt vector address **01E0**. At address **01E0** the 16-bit
