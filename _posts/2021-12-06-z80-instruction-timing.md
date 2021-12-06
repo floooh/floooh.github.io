@@ -306,8 +306,8 @@ MEM WRITE:
 │ 3/1 │      │    │ 1122 │ 33 │ 3355 │ 1122 │
 ```
 Note how the MREQ pin, address and data bus already contain the required values in
-the second half cycle (T1 +), but the WR (write) pin is only set active in the
-4th half cycle (T2 +).
+the second half cycle (T1/1), but the WR (write) pin is only set active in the
+4th half cycle (T2/1).
 
 ### IO Read and Write Machine Cycles
 
