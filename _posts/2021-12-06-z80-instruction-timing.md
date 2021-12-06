@@ -263,11 +263,11 @@ half of the opcode fetch machine cycle.
 │ 4/1 │    │      │ RFSH │    │ 2200 │ 00 │ 0005 │ 00 │ 22 │ 04 │
 ```
 The remaining 4 half-cycles (2 clock cycles) are spent with the Z80-specific
-'memory refresh'. A 16-bit value made from the registers I and R is put on
-the address bus, and the R register is incremented. I haven't figured
-out so far why the lower 8 bits on the address bus are cleared in the very last
-half-clock-cycle (this also happens in the last half-cycle of some other
-instructions).
+'memory refresh'. A 16-bit value made from the registers I and R is put on the
+address bus, the M1 pin is set to inactive, the MREQ|RFSH pins to active and
+the R register is incremented. I haven't figured out so far why the lower 8
+bits on the address bus are cleared in the very last half-clock-cycle (this
+also happens in the last half-cycle of some other instructions).
 
 Let's quickly go over the remaining machine cycle types for completeness:
 
