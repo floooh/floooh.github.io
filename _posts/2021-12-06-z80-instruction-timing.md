@@ -1378,7 +1378,7 @@ All prefix bytes (**CB**, **DD**, **ED**, **FD**) execute as regular 4-cycle ins
     - the DD and FD prefix select the main instruction subset but replace usage of
       HL with IX or IY (highly simplified, see the DD/FD section for details)
     - the ED prefix cancels any "active effects" of the DD and FD prefixes (for instance 
-      the byte sequence **DD EB D0** doesn't cause the LDIR instruction to use
+      the byte sequence **DD ED B0** doesn't cause the LDIR instruction to use
       IX instead of HL)
 
 Sequences of the same prefix byte sometimes behave unexpected:
