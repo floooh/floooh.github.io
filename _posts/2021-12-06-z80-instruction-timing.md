@@ -2842,7 +2842,7 @@ Next, two regular memory write machine cycles are performed to put the current
 PC on the stack. 
 
 Execution then continues at the first instruction of the interrupt service
-routine at 
+routine at address 0066h.
 
 ```
 NMI timing (starting with last clock cycle of instruction
