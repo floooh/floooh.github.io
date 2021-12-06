@@ -2618,8 +2618,8 @@ EI
 This is the reason why maskable interrupts are delayed until the end of the instruction that
 follows **EI**.
 
-**EI** also explicitely supresses masked interrupts in the second half of its opcode fetch
-machine cycle. This is why masked interrupts are not triggered during a sequence of
+**EI** also explicitely supresses maskable interrupts in the second half of its opcode fetch
+machine cycle. This is why maskable interrupts are not triggered during a sequence of
 **EI** instructions:
 
 ```
