@@ -164,7 +164,7 @@ cycle in an instruction and takes 4 clock cycles
 - **Memory Write**: write a byte to memory (3 clock cycles)
 - **IO Read**: read a byte from an IO port (4 clock cycles)
 - **IO Write**: write a byte to an IO port (4 clock cycles)
-- **Interrupt Acknowledge**: these are special machine cycles which are execyted at the start
+- **Interrupt Acknowledge**: these are special machine cycles which are executed at the start
 of maskable interrupt handling, they will be handled in detail in the last section of this blog post
 - **Extra**: many instructions contain extra clock cycles necessary for computations, in the official
 CPU documentation these are sometimes identified as separate machine cycles, and sometimes just
