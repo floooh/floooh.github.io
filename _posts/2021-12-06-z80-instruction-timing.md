@@ -2531,7 +2531,7 @@ will be delayed to the end of the following instruction.
 Interrupts are not handled at the end of prefix opcode fetches. If the NMI pin
 is active during a prefix fetch the interrupt will be triggered at the end of the
 instruction following the prefix byte. This means that even non-maskable
-interrupts will not trigger during long sequenced of DD or FD prefix bytes:
+interrupts will not trigger during long sequences of DD or FD prefix bytes:
 
 ```
 2x DD followed by LD IX,1000h
