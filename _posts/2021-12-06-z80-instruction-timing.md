@@ -124,7 +124,7 @@ the d-offset and 'actual' opcode have switched places:
     DD        CB       03       CE      => SET 1,(IX+3)
 ```
 
-More on that later in the dedicated section section about **DD CB** and **FD CB** double-prefixes.
+More on that later in the dedicated section about **DD CB** and **FD CB** double-prefixes.
 
 ## General Instruction Timing
 
