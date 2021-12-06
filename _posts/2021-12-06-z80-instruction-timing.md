@@ -219,7 +219,7 @@ Let's go through each half-cycle of an opcode-fetch machine cycle:
 ```
 The M1 pin is set to active, and the address bus has been loaded with
 the current program counter (PC). The data bus and instruction register
-still have their values from the last instruction set (which happened
+still have their values from the last instruction (which happened
 to an **LD I,A** instruction (byte sequence: ED 47).
 
 ```
