@@ -2290,7 +2290,7 @@ But there are more oddities:
 - The d-offset sits between the CB prefix and 'actual' opcode, while in all other DD/FD prefixed
 instructions, the d-offset follows the opcode byte.
 
-- The d-offset always exists, also for instructions that involve (HL).
+- The d-offset always exists, also for instructions that don't involve (HL).
 
 - The R register is only incremented twice, but for two prefix bytes and an additional opcode
 it would be expected that it is incremented three times.
