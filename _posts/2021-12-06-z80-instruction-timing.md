@@ -273,7 +273,7 @@ Let's quickly go over the remaining machine cycle types for completeness:
 
 ### Memory Read Machine Cycles
 
-A **memory read** machine cycle looks like (in this case to load the byte value 22 from
+A **memory read** machine cycle looks like this (in this case to load the byte value 22 from
 address 0001 into the register L):
 ```
 MEM READ:
