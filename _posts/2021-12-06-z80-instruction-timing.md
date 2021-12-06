@@ -2615,7 +2615,7 @@ EI
 │ 4/1 │    │      │      │ RFSH │    │    │ 0000 │ 00 │ 0002 │ IFF1 │
 ```
 
-This is the reason why maskable interrupts are only handled at the end of the instruction that
+This is the reason why maskable interrupts are delayed until the end of the instruction that
 follows **EI**.
 
 **EI** also explicitely supresses masked interrupts in the second half of its opcode fetch
