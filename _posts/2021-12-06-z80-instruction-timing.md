@@ -2195,7 +2195,7 @@ INIR:
 The CB instruction subset is the most 'orderly' and contains bit-manipulation and -testing instructions
 Timing is as expected (2 opcode fetch machine cycles, 8 clock cycles), except for the read-modify-write instructions
 involving (HL) which insert an extra clock cycle between the memory read and memory write machine cycle
-and are thus take 15 clock cycles:
+and take 15 clock cycles:
 
 - opcode fetch CB prefix: 4 clock cycles
 - opcode fetch: 4 clock cycles
