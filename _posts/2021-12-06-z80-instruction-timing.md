@@ -2832,7 +2832,7 @@ EI + RETI (maskable interrupt)
 When an NMI is triggered, the IFF1 bit and the HALT state (if active) will be cleared 
 in the last half-cycle of the current instruction.
 
-Next, a opcode fetch machine cycle is performed (NOT an interrupt acknowledge
+Next, an opcode fetch machine cycle is performed (NOT an interrupt acknowledge
 cycle identified with M1|IORQ). The PC is *not* incremented during the opcode fetch and
 the resulting opcode byte will be ignored.
 
