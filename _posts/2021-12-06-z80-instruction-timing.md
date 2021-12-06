@@ -178,7 +178,6 @@ and visualizes CPU state (chip pins and register values) for each "half-clock-cy
 
 ![z80_tracelog]({{ site.url }}/images/z80_tracelog.jpg)
 
-To simplify integration into blog posts like this, I added a function to dump the trace log into a text file.
 
 ### Opcode Fetch Machine Cycles
 
