@@ -2896,7 +2896,7 @@ Next, an "interrupt acknowledge" machine cycle is executed. The hardware
 which requested the interrupt is expected to place an opcode byte on the
 data bus which is executed after the interrupt acknowledge machine cycle.
 
-Usually this will be the single-byte **RST p** instruction which is a hardwire
+Usually this will be the single-byte **RST p** instruction which is a
 subroutine call into one of eight hardwired destination addresses.
 
 Here's an IM0 interrupt which executes an **RST 20h** instruction:
