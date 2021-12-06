@@ -1392,7 +1392,7 @@ Sequences of the same prefix byte sometimes behave unexpected:
   **IY** register is loaded with the value.
 
 - Sequences of **ED** prefixes will be interpreted as pairs of **ED ED** opcode bytes
-  (which simply acts as a 8-cycle NOP)
+  (which simply acts as an 8-cycle NOP)
 
 - Sequences of **CB** prefixes will be interpreted as pairs of **CB CB** which is the
   regular **SET 1,E** instruction
@@ -1412,7 +1412,7 @@ opcode byte as follows:
 All uses of the **L**, **H**, **HL** and **(HL)** will be replaced with 
 **IXL**, **IXH**, **IX** and **(IX+d)** (for the **DD** prefix), or **IYL**,
 **IYH**, **IY** and **(IY+d)** (for the **FD** prefix), with the following
-*exceptions:
+exceptions:
 
 - If **(HL)** and **L** or **H** are used in the same instruction, **L** and **H**
   are not replaced with **IXL** or **IXH**, for instance **LD L,(IX+d)** stores
@@ -1511,7 +1511,7 @@ LD IX,1111h
 ### Special Case: LD (IX+d),n
 
 The only timing-oddity in the DD/FD-modified instruction subset is the timing of
-the **LD (IX+d),n** instruction. This is the only instruction with indexed
+the **LD (IX/IY+d),n** instruction. This is the only instruction with indexed
 addressing which doesn't simply insert 8 extra clock cycles to load the d-offset
 and compute the effective address. Instead loading the immediate value **n** is
 overlayed with the address computation cycles:
