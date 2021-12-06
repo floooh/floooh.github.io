@@ -2358,7 +2358,7 @@ It all starts as expected:
 
 But now it gets weird. The next byte that must be loaded is the 'regular' opcode **CE**,
 but this doesn't happen with an opcode fetch machine cycle, but instead with a
-memory read machine cycle. The M1 pin isn't set, and there's are also no RFSH clock
+memory read machine cycle. The M1 pin isn't set, and there are also no RFSH clock
 cycles (which also explains why the R register isn't incremented).
 
 Now let's have a look at the undocumented instruction **SET 1,(IX+d),B** (machine code
