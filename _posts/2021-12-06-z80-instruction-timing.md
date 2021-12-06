@@ -566,7 +566,7 @@ In some instructions, execution 'leaks' into the opcode fetch machine cycle
 of the next instruction.
 
 For instance when inspecting the instruction 'XOR A' (which clears the A register
-and sets flags accordingly the instruction doesn't seem to have any effect:
+and sets flags accordingly) the instruction doesn't seem to have any effect:
 
 ```
 XOR A:
