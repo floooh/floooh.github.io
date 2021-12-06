@@ -2231,7 +2231,7 @@ The first CB quadrant contains rotate and shift instructions:
 
 #### CB Quadrant 1
 
-CB Quadrant one contains the bit testing instructions in all 64 possible combination:
+CB Quadrant one contains the bit testing instructions in all 64 possible combinations:
 
 <style>
 .z80t { border:1px solid black;border-collapse:collapse;padding:5px; }
