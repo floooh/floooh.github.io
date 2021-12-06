@@ -62,7 +62,7 @@ harder for emulator authors :)
 
 ## The shape of Z80 instructions
 
-Like on the Intel 8080, instruction are made up of one or multiple bytes, where
+Like on the Intel 8080, instructions are made up of one or multiple bytes, where
 the first byte is always the opcode byte.
 
 This simple rule is also true for the Z80-specific 'prefixed instructions', which
