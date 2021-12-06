@@ -700,7 +700,7 @@ the Z80 register bank, index 6 would actually address the F (status flags)
 register, but this isn't directly accessible in the instruction set (and
 'wasting' one index for the F register in most instructions also wouldn't make
 much sense). Instead index 6 is used as special case to load or store the 8-bit
-values addressed by the register pair HL.
+value in memory addressed by the register pair HL.
 
 And another oddity is the HALT instruction at bit pattern **|01|110|110|** (==
 76 hex). Following the 'table logic' this instruction slot *should* be occupied by
