@@ -100,7 +100,7 @@ An opcode byte followed by a 16-bit immediate value (in little endian order):
 Instructions that have been 'modified' by the DD or FD prefix may come in two additional
 shapes where an offset byte is inserted after the opcode and up to one immediate value byte
 (this is the 'd' in **(IX+d)** or **(IY+d)**). There is no instruction where the d-offset byte
-is followed by an 16-bit immediate value (why that's the case will become clear later in the
+is followed by a 16-bit immediate value (why that's the case will become clear later in the
 section about the DD/FD prefixes):
 ```
 ┏━━━━━━━━┓┏━━━━━━━━┳━━━━━━━┓
