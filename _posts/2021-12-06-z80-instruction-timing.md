@@ -3012,7 +3012,7 @@ requesting device is expected to place an 'interrupt vector low byte' on the dat
 - an extra clock cycle is executed
 - next, 2 memory write machine cycles are executed to place the PC on the stack
 as return address
-- next a 16-bit interrupt vector is constructed by putting the I register (as high byte)
+- next a 16-bit interrupt vector is constructed from the I register (as high byte)
 and the 'interrupt vector low byte'
 - the 16-bit interrupt vector is placed on the data bus and two memory read machine cycles
 are performed to read another 16-bit address which is the start of the interrupt
