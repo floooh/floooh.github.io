@@ -14,7 +14,7 @@ Z80 netlist simulation.
 ## Intro
 
 This is part one of a two-part series about a new cycle-stepped Z80 emulator
-I wrote recently. In the first post I'll mainly take a lot at the oddities and
+I wrote recently. In the first post I'll mainly take a look at the oddities and
 irregularities in the Z80 instruction set with the help of the Z80 netlist
 simulation from [visual6502.org](http://www.visual6502.org/JSSim/expert-z80.html)
 which I integrated into my own 'remix' before starting to work on the actual
