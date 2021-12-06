@@ -2282,8 +2282,8 @@ instructions of the subset just provide the "expected" (IX+d) and (IY+d) version
 * RES n,(HL) => RES n,(IX+d)
 * RLC (H) => RLC (IX+d)
 
-But the much larger undocumented instructions have the strange behaviour that they store the
-result both in (IX+d) *and* a register (except the BIT instructions, which only read the value).
+But the much larger set of undocumented instructions have the strange behaviour that they store the
+result both in (IX+d) *and* a register (except the BIT instructions, which are 'read-only').
 
 But there are more oddities:
 
