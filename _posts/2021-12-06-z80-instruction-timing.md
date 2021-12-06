@@ -1385,7 +1385,7 @@ Sequences of the same prefix byte sometimes behave unexpected:
 
 - Sequences of **DD** or **FD**, or a mix of them inhibit interrupt handling
   until the end of the instruction following the DD/FD sequence. The following
-  insstruction will be modified depending on the last prefix byte in the sequence.
+  instruction will be modified depending on the last prefix byte in the sequence.
   **DD** and **FD** prefixes don't 'stack', e.g. it's not possible to load the 16-bit 
   value 3333h into both IX and IY with the following byte sequence: **DD FD 21 33 33**,
   instead the **FD** prefix cancels the effect of the **DD** prefix, and only the
