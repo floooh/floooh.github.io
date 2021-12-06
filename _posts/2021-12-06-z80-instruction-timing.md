@@ -20,7 +20,7 @@ simulation from [visual6502.org](http://www.visual6502.org/JSSim/expert-z80.html
 which I integrated into my own 'remix' before starting to work on the actual
 CPU emulator:
 
-[https://floooh.github.io/visualz80remix/](http://www.visual6502.org/JSSim/expert-z80.html)
+[https://floooh.github.io/visualz80remix/](https://floooh.github.io/visualz80remix/)
 
 The 'remix' has some usability advantages over the original:
 
