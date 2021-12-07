@@ -3013,7 +3013,7 @@ requesting device is expected to place an 'interrupt vector low byte' on the dat
 as return address
 - next a 16-bit interrupt vector is constructed from the I register (as high byte)
 and the 'interrupt vector low byte'
-- the 16-bit interrupt vector is placed on the data bus and two memory read machine cycles
+- the 16-bit interrupt vector is placed on the address bus and two memory read machine cycles
 are performed to read another 16-bit address which is the start of the interrupt
 service routine
 - execution continues at the interrupt service routine
