@@ -1157,7 +1157,7 @@ CALL NZ,nn - branch not taken
 #### RET cc
 
 The conditional return instructions **RET cc** adds or inserts one clock cycle after the
-opcode fetch. If the condition is true the instruction ends here, otherwise two more 
+opcode fetch. If the condition is false the instruction ends here, otherwise two more 
 memory read machine cycles are added to load the return address from the stack into
 WZ. 
 
