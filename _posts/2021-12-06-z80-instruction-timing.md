@@ -1651,7 +1651,7 @@ ADC HL,DE continued: following opcode fetch
 
 #### LD I,A and LD R,A
 
-The **LD I,A** and **LD R,A** add an extra clock cycle after the opcode fetch.
+The **LD I,A** and **LD R,A** instructions add an extra clock cycle after the opcode fetch.
 It's interesting though that the data transfer already happens in the last
 half cycle of the opcode fetch machine cycle.
 
