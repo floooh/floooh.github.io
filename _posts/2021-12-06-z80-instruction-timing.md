@@ -3019,7 +3019,7 @@ service routine
 - execution continues at the interrupt service routine
 
 In the following Mode 2 timing diagram the I register has already been
-loaded with **01** and the byte **E0** will be placed on the address bus during
+loaded with **01** and the byte **E0** will be placed on the data bus during
 the interrupt acknowledge machine cycle. Those two values are combined to
 the 16-bit interrupt vector address **01E0**. At address **01E0** the 16-bit
 value **0300** is stored, which is the entry address of the interrupt
