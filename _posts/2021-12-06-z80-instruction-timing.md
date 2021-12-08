@@ -1062,7 +1062,7 @@ JR cc,d - branch not taken
 #### CALL nn
 
 The **CALL nn** instruction inserts one clock cycle between the last memory read machine
-cycle (to load the destination addres) and the first memory write machine cycle
+cycle (to load the destination address) and the first memory write machine cycle
 (to store the return address on the stack). The destination address is stored in WZ:
 
 ```
