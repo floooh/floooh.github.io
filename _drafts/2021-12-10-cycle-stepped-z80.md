@@ -66,7 +66,6 @@ The emulator only has two important API functions:
 
 ```uint64_t z80_init(z80_t* cpu)```
 
-
 ...this initializes an emulator instance and returns an 'ignition' pin mask which must into the first call of the tick function:
 
 ```uint64_t z80_tick(z80_t* cpu, uint64_t pins)```
@@ -82,3 +81,46 @@ from inside the CPU emulation, which also means that the CPU emulation now no
 longer plays a special 'controller role' in a system emulation, instead the
 CPU is now a chip like any other in the system.
 
+
+TODO:
+
+
+Basic implementation ideas:
+
+    - switch-case state machine:
+    - sequence
+    - branches
+    - loops
+    - prolog and epilog
+    - multiple epilogs
+
+Code generation:
+
+    - YAML desc file
+    - python script
+    - C header template
+
+Implementation details:
+
+    - shared opcode fetch machine cycle
+    - opcode lookup table
+    - overlapped exec/fetch cycle
+    - wait cycles
+    - instructions with variable timing
+    - DD/FD opcode fetch
+    - DD/FD HL/IX/IY renaming
+    - ED instruction block
+    - CB instruction block
+    - interrupt detection & handling
+    - differences to real CPU
+        - pins only active for 1 clock cycle
+        - wait vs read vs write
+        - overlapped execution only 1 clock cycle
+        - 
+
+
+Roads not taken:
+
+    - fixed opcode slot ranges (like in 6502 emu)
+    - 'execution bit pipeline'
+    - 
