@@ -352,21 +352,260 @@ to the ```z80_tick()``` function.
 
 The only thing to figure out now is how to 'draw the rest of the f*cking owl'.
 
+## Code Generation
+
+Like in my previous CPU emulators, I'm using a Python script to generate the instruction decoder
+C source code. But this time I tried another idea that was rolling around in the back of my head
+for a long time: instead of hardwiring the instruction behaviour and timing entirely in the
+Python script, instead describe instructions in a data file, and crunch that data file
+which a much smaller and more generic Python script.
+
+I have selected YAML as file format for this data file. YAML isn't perfect because it requires 
+the separately installed PyYAML dependency, but apart from that it's quite alright.
+
+The YAML file contains generic instruction descriptions like this:
+
+```yaml
+LD $RY,$RZ:
+  cond: (x == 1) and (y != 6) and (z != 6)
+  mcycles:
+    - { type: overlapped,  action: $RY=$RZ }
+```
+This describes all 49 instruction for loading an 8-bit register into another. The ```cond```: line
+is a python expression which must evaluate to true for this description block to be selected
+(using the xx-yyy-zzz opcode bit pattern described here in here:
+
+[Decoding Z80 opcodes](http://www.z80.info/decoding.htm)
+
+Names starting with **$** are placeholders that will be replaced with concrete strings during code generation.
+
+Machine cycles with default behaviour are implicit and don't need to be listed (for instance
+in this case the opcode fetch machine cycles).
+
+The generated code will look like this (for the **LD A,B** instruction):
+
+```c++
+        //  78: LD A,B (M:1 T:4)
+        // -- overlapped
+        case  399: cpu->a=cpu->b;goto fetch_next;
+```
+
+Another more interesting example is the **LD dd,nn** instruction group (where *dd* is: BC, DE, HL or SP):
+
+The YAML description looks like this:
+
+```yaml
+# 16-bit load immediate/add
+LD $RP,nn:
+  cond: (x == 0) and (z == 1) and (q == 0)
+  mcycles:
+    - { type: mread,  ab: $PC++, dst: $RPL }
+    - { type: mread,  ab: $PC++, dst: $RPH }
+```
+
+Again, the opcode fetch machine cycle has default behaviour and isn't listed, and this
+instruction also doesn't overlap execution with the next instruction. What remains are
+two memory read machine cycles to load a 16-bit immediate value into the destination
+register pair.
+
+The stamped out C code for **LD DE,nn** looks like this:
+
+```c++
+        //  11: LD DE,nn (M:3 T:10)
+        // -- mread
+        case   83: goto step_next;
+        case   84: _wait();_mread(cpu->pc++);goto step_next;
+        case   85: cpu->e=_gd();goto step_next;
+        // -- mread
+        case   86: goto step_next;
+        case   87: _wait();_mread(cpu->pc++);goto step_next;
+        case   88: cpu->d=_gd();goto step_next;
+        // -- overlapped
+        case   89: goto fetch_next;
+```
+
+The macro ```_mread()``` sets the CPU pins for a memory read machine cycle (MREQ|RD and address
+bus pins). 
+
+The macro ```_gd()```  extracts the data bus pins into an ```uint8_t```. The ```_wait()``` macro
+samples the WAIT pin and will be explained later.
+
+The code generation Python script is now just around 364 lines of code,
+compared to about 987 lines for the old script. However, when counting lines
+for all involved files (a C header template file, the Python script, and the
+YAML file) the old and new approach is nearly identical (1691 C+YAML+Python for the new
+approach, and 1633 lines C+Python for the old approach).
+
+One clear advantage of the new approach is that the same YAML description file can be used
+for different code generation scripts (for instance the [instruction
+tables](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#main-quadrant-1-xx--01)
+in my last blog post have been generated from the same data with a differen
+generator script.
+
+It will also be much easier trying out different decoder ideas in the future.
+
+You can take a peek at all involved source files for code generation here:
+
+- [z80_desc.yml](https://github.com/floooh/chips/blob/z80-ticked/codegen/z80_desc.yml)
+- [z80_gen.py](https://github.com/floooh/chips/blob/z80-ticked/codegen/z80_gen.py)
+- [z80.template.h](https://github.com/floooh/chips/blob/z80-ticked/codegen/z80.template.h)
+
+...and the resulting code-generated header:
+
+- [z80.h](https://github.com/floooh/chips/blob/z80-ticked/chips/z80.h)
+
+## Implementation Details
+
+### The Shared Opcode Fetch Machine Cycle
+
+The last 3 clock cycles of an opcode fetch machine cycle are shared for all non-prefixed instructions:
+
+```c++
+        // M1/T2: load opcode from data bus
+        case 0: _wait(); cpu->opcode = _gd(); goto step_next;
+        // M1/T3: refresh cycle
+        case 1: pins = _z80_refresh(cpu, pins); goto step_next;
+        // M1/T4: branch to instruction 'payload'
+        case 2: {
+            cpu->step = _z80_optable[cpu->opcode];
+            // preload effective address for (HL) ops
+            cpu->addr = cpu->hl;
+        } goto step_next;
+```
+
+As explained earlier, the 'missing' first clock cycle is overlapped with the last 'instruction payload cycle'.
+
+In the first step, the WAIT pin is sampled (and if is set the remaining code in the step will be skipped,
+more on this later). Otherwise the opcode byte is loaded from the data bus.
+
+The ```_z80_refresh()``` function sets the pins for a refresh cycle (MREQ|RFSH) and the address bus
+to a 16-bit value made from the register pair formed by the I and R registers. The lower 7 bits in the
+R register are increments, while the topmost bit stays unchanged.
+
+The last clock cycle in the opcode fetch machine cycle branches to the 'instruction payload' by doing
+a table lookup with the previously loaded opcode byte as index. Finally the 'effective address' is preloaded
+with the content of the HL register (which is only needed if this is an instruction involving **(HL)**).
+
+### The Opcode Lookup Table(s)
+
+Apart from the big switch-case decoder, three lookup tables are code-generated
+which are indexed with the opcode byte (so each table has 256 entries). The
+lookup converts the opcode value into the switch-case step where the 'payload
+cycles' of the opcode's instruction are located.
+
+The three opcode tables are:
+
+- The main instruction block table for unprefixed instructions.
+- A variation of the main instruction block table for DD/FD prefixed instructions,
+  this table is identical with the first table, except for instructions that involve 
+  **(HL)**, those are modified into **(IX+d)** or **(IY+d)** and need to branch to an 
+  'interlude decoder block' which loads the d-offset and computes the effective address.
+- And finally a separate opcode lookup table for the **ED** prefixed instructions.
+
+One would expect a fourth table for the CB-prefixed instruction block, but since this
+instruction block can easily be decoded algorithmically I decided to handle this as a special
+case.
+
+Opcode tables are just simple uint16_t arrays:
+
+```c++
+static const uint16_t _z80_optable[256] = {
+      27,  // 00: NOP (M:1 T:4 steps:1)
+      28,  // 01: LD BC,nn (M:3 T:10 steps:7)
+      35,  // 02: LD (BC),A (M:2 T:7 steps:4)
+      39,  // 03: INC BC (M:2 T:6 steps:3)
+      42,  // 04: INC B (M:1 T:4 steps:1)
+      43,  // 05: DEC B (M:1 T:4 steps:1)
+      44,  // 06: LD B,n (M:2 T:7 steps:4)
+      48,  // 07: RLCA (M:1 T:4 steps:1)
+      ...
+     930,  // FC: CALL M,nn (M:6 T:17 steps:14)
+     944,  // FD: FD prefix (M:1 T:4 steps:1)
+     945,  // FE: CP n (M:2 T:7 steps:4)
+     949,  // FF: RST 38h (M:4 T:11 steps:8)
+ };      
+```
+
+The stored step index is the actual decoder step - 1, because the decoder step is 'post-incremented'
+in the tick function epilogue. For instance the **LD BC,nn** instruction has the opcode **0x01**, the 
+opcode table lookup yields **28** which incremented by 1 points to the decoder step **29**:
+
+```c++
+        //  01: LD BC,nn (M:3 T:10)
+        // -- mread
+        case   29: goto step_next;
+        case   30: _wait();_mread(cpu->pc++);goto step_next;
+        case   31: cpu->c=_gd();goto step_next;
+        // -- mread
+        case   32: goto step_next;
+        case   33: _wait();_mread(cpu->pc++);goto step_next;
+        case   34: cpu->b=_gd();goto step_next;
+        // -- overlapped
+        case   35: goto fetch_next;
+```
+
+### The Tick Function Epilogue(s)
+
+...about those **gotos**: the epilogue at the end of the z80_tick() function looks like this:
+
+```c++
+fetch_next: pins = _z80_fetch(cpu, pins);
+step_next:  cpu->step += 1;
+track_int_bits: {
+        // track NMI 0 => 1 edge and current INT pin state, this will track the
+        // relevant interrupt status up to the last instruction cycle and will
+        // be checked in the first M1 cycle (during _fetch)
+        const uint64_t rising_nmi = (pins ^ cpu->pins) & pins; // NMI 0 => 1
+        cpu->pins = pins;
+        cpu->int_bits = ((cpu->int_bits | rising_nmi) & Z80_NMI) | (pins & Z80_INT);
+    }
+    return pins;
+```
+
+There are 3 'cascaded' labels which fall through to the next label. Let's start at the
+last label:
+
+The main job of the code block behind **track_int_bits:** is to track the NMI and
+INT pins for interrupt detection. More on this later in a dedicated section about
+interrupt handling. The NMI and INT tracking needs to happen for every clock cycle,
+that's why it is in the last fallthrough position.
+
+Next up is the **step_next:** label. This simply increments the step counter by 1.
+and needs to happen in each clock cycle, **unless** the CPU is currently in WAIT mode.
+
+And finally the **fetch_next:** label initiates an opcode fetch for the next instruction,
+this is the same for (almost) all instructions and thus has been put into the shared
+epilogue block instead of duplicating the code in the last decoder step of each instruction.
+
+This 'deduplication' of actions that need to happen after each decoder step is
+the whole reason why the epilogue block exists, and why the decoder steps end
+with a goto instead of a break. It would of course also work to add those actions to each
+decoder step, but at the cost of a lot of duplicated code.
 
 
-Code generation:
+## More on Wait Cycles
 
-    - YAML desc file
-    - python script
-    - C header template
+- wait macro
+- "pre- vs post-wait"
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Implementation details:
 
-    - shared opcode fetch machine cycle
-    - opcode lookup table
-    - overlapped exec/fetch cycle
     - wait cycles
     - instructions with variable timing
+    - instruction fetch actions
     - DD/FD opcode fetch
     - DD/FD HL/IX/IY renaming
     - ED instruction block
