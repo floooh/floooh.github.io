@@ -571,28 +571,125 @@ interrupt handling. The NMI and INT tracking needs to happen for every clock cyc
 that's why it is in the last fallthrough position.
 
 Next up is the **step_next:** label. This simply increments the step counter by 1.
-and needs to happen in each clock cycle, **unless** the CPU is currently in WAIT mode.
+and needs to happen in each clock cycle, **unless** the CPU is executing WAIT cycles.
 
-And finally the **fetch_next:** label initiates an opcode fetch for the next instruction,
-this is the same for (almost) all instructions and thus has been put into the shared
-epilogue block instead of duplicating the code in the last decoder step of each instruction.
+And finally the **fetch_next:** label initiates an opcode fetch for the next instruction.
 
 This 'deduplication' of actions that need to happen after each decoder step is
 the whole reason why the epilogue block exists, and why the decoder steps end
 with a goto instead of a break. It would of course also work to add those actions to each
 decoder step, but at the cost of a lot of duplicated code.
 
-
 ## More on Wait Cycles
 
-- wait macro
-- "pre- vs post-wait"
+At certain clock cycles in machine cycles that access memory or IO ports the CPU samples
+the WAIT pin. If the WAIT pin is active, the CPU stops regular execution until the WAIT pin
+goes inactive again. Usually this is used to allow slow memory or peripheral device to
+react to the memory or IO request, but in some computer systems this is also used to
+synchronize memory access between the CPU and video hardware, which is why it is important
+to get WAIT timing exactly right.
 
+In the emulation, a **_wait()** macro is inserted at the start of case branches where the
+WAIT pin needs to be sampled. In regular memory read and writes this is the second clock
+cycle, and in IO read or write cycles in the third clock cycle (wait sampling also needs
+to happen during opcode fetch, and in interrupt acknowledge cycles).
 
+Here's for example a typical memory read machine cycle:
 
+```c++
+        case 17: goto step_next;
+        case 18: _wait();_mread(cpu->pc++); goto step_next;
+        case 19: cpu->dlatch=_gd(); goto step_next;
+```
 
+The **_wait()** macro simply expands to:
 
+```c++
+if (pins & Z80_WAIT) {
+    goto track_int_bits;
+}
+```
 
+Jumping to the ```track_int_bits:``` label doesn't increment the decoder step, so the next time
+the ```z80_tick()``` function is called, execution continues at the same decoder step which first
+checks the WAIT pin state. Only when the WAIT pin is no longer active, regular execution continues.
+
+## Instructions with Variable Timing
+
+Some conditional branch instructions take less cycles to execute if the branch is
+not taken, for instance the conditional relative branch instruction **JR cc,d**.
+
+If the condition is true (branch taken) the instruction takes 12 clock cycles, but
+if the branch is not taken only 7 clock cycles.
+
+In the emulation this is implemented by skipping decoder steps:
+
+```c++
+        //  28: JR Z,d (M:3 T:12)
+        // -- mread
+        case  174: goto step_next;
+        case  175: _wait();_mread(cpu->pc++);goto step_next;
+        case  176: cpu->dlatch=_gd();if(!(_cc_z)){_skip(5);};goto step_next;
+        // -- generic
+        case  177: cpu->pc+=(int8_t)cpu->dlatch;cpu->wz=cpu->pc;goto step_next;
+        case  178: goto step_next;
+        case  179: goto step_next;
+        case  180: goto step_next;
+        case  181: goto step_next;
+        // -- overlapped
+        case  182: goto fetch_next;
+```
+
+Not the **_skip(5)** macro in step 176. This macro simply expands to:
+
+```c++
+    cpu->step+=5;
+```
+
+This skips the next 5 decoder steps and ends up in step 182 which initiates
+the next opcode fetch.
+
+## The 'Overlapped Clock Cycle' in more Detail
+
+The last clock cycle in an instruction decoder block (which is also the first clock
+cycle of the next opcode fetch machine cycle) mainly sets the CPU pins to load the
+next opcode byte:
+
+- M1|MREQ|RD pins are set.
+- The address bus is set to the program counter and the program counter is incremented.
+- The decoder step is set to 0xFFFF, which will overflow to 0 when the 
+  step counter is incrmemented at the end of the tick function (which resets execution
+  to the start of the shared opcode fetch decoder block).
+
+The other important thing that needs to happen in the overlapped clock cycle is
+interrupt detection. On a real Z80, interrupt detection happens in the last - not first -
+clock cycle of an instruction, but in the emulator it made more sense to move the interrupt
+detection code out of the instruction-specific 'payload block' and into the shared opcode
+fetch preparation code to get rid of a lot of duplicate code.
+
+Even though the interrupt detection code is one cycle late, interrupt timing is
+still correct because the state of the INT pin and the NMI edge detection state
+had been captured in the last clock cycle's tick function epilogue:
+
+```c++
+track_int_bits: {
+        // track NMI 0 => 1 edge and current INT pin state, this will track the
+        // relevant interrupt status up to the last instruction cycle and will
+        // be checked in the first M1 cycle (during _fetch)
+        const uint64_t rising_nmi = (pins ^ cpu->pins) & pins; // NMI 0 => 1
+        cpu->pins = pins;
+        cpu->int_bits = ((cpu->int_bits | rising_nmi) & Z80_NMI) | (pins & Z80_INT);
+    }
+```
+
+## DD/FD Prefix Handling
+
+    - DD/FD opcode fetch
+    - DD/FD HL/IX/IY renaming
+    
+## ED Prefix Handling
+
+## CB Prefix Handling
 
 
 
@@ -603,14 +700,13 @@ decoder step, but at the cost of a lot of duplicated code.
 
 Implementation details:
 
-    - wait cycles
-    - instructions with variable timing
     - instruction fetch actions
-    - DD/FD opcode fetch
-    - DD/FD HL/IX/IY renaming
     - ED instruction block
     - CB instruction block
     - interrupt detection & handling
+        - EI/DI instruction
+        - RETI/RETN instruction
+        - interrupt decoder blocks
     - differences to real CPU
         - pins only active for 1 clock cycle
         - wait vs read vs write
