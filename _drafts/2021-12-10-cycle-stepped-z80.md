@@ -684,29 +684,478 @@ track_int_bits: {
 
 ## DD/FD Prefix Handling
 
-    - DD/FD opcode fetch
-    - DD/FD HL/IX/IY renaming
+The **DD** and **FD** opcodes execute as regular 4-cycle instructions, but with a slightly
+modified overlapped clock cycle: Instead of jumping to the common ```fetch_next:``` label
+a special opcode fetch is initiated:
+
+```c++
+        //  DD: DD prefix (M:1 T:4)
+        // -- overlapped
+        case  726: _fetch_dd();goto step_next;
+        ...
+        //  FD: FD prefix (M:1 T:4)
+        // -- overlapped
+        case  945: _fetch_fd();goto step_next;        
+```
+
+The macros _fetch_dd() and _fetch_fd() expand to functions calls:
+
+```c++
+#define _fetch_dd()     pins=_z80_fetch_dd(cpu,pins);
+#define _fetch_fd()     pins=_z80_fetch_fd(cpu,pins);
+```
+
+...which in turn look like this:
+
+```c++
+static inline uint64_t _z80_fetch_dd(z80_t* cpu, uint64_t pins) {
+    cpu->step = 2;   // => step 3: opcode fetch for DD/FD prefixed instructions
+    cpu->hlx_idx = 1;
+    cpu->prefix_active = true;
+    return _z80_set_ab_x(pins, cpu->pc++, Z80_M1|Z80_MREQ|Z80_RD);
+}
+
+static inline uint64_t _z80_fetch_fd(z80_t* cpu, uint64_t pins) {
+    cpu->step = 2;   // => step 3: opcode fetch for DD/FD prefixed instructions
+    cpu->hlx_idx = 2;
+    cpu->prefix_active = true;
+    return _z80_set_ab_x(pins, cpu->pc++, Z80_M1|Z80_MREQ|Z80_RD);
+}
+```
+
+One important difference to the regular _z80_fetch() function is that no
+interrupt detection happens. This is because interrupts are not handled at the end of prefix
+instructions.
+
+The ```cpu->prefix_active = true``` is only used by the ```z80_opdone()``` helper function
+to test when an instruction has finished executing (because testing for the 
+M1|MREQ|RD pin mask isn't enough). It's not used in the actual emulation code.
+
+The returned pinmask is identical with a regular opcode fetch: The pins M1|MREQ|RD
+are set to active, and the program counter is put on the address bus and incremented.
+
+The **hlx_idx** is used for the HL vs IX vs IY register renaming through the following
+somewhat scary nested union in struct **z80_t**:
+
+```c++
+    union {
+        struct {
+            union { struct { uint8_t l; uint8_t h; }; uint16_t hl; };
+            union { struct { uint8_t ixl; uint8_t ixh; }; uint16_t ix; };
+            union { struct { uint8_t iyl; uint8_t iyh; }; uint16_t iy; };
+        };
+        struct { union { struct { uint8_t l; uint8_t h; }; uint16_t hl; }; } hlx[3];
+    };
+```
+
+The upper part allows to directly access the 8-bit registers L, H, IXL, IXH, IYL and IYH, or the
+16-bit register pairs HL, IX and IY.
+
+The **hlx[3]** array allows to access the same registers through an index:
+
+```c++
+    cpu->hlx[0].l => L
+    cpu->hlx[0].h => H
+    cpu->hlz[0].hl => HL
+
+    cpu->hlx[1].l => IXL
+    cpu->hlx[1].h => IXH
+    cpu->hlz[1].hl => IX
+
+    cpu->hlx[2].l => IYL
+    cpu->hlx[2].h => IYH
+    cpu->hlz[2].hl => IY
+```
+
+For regular, unprefixed instructions the access index (**hlx_idx**) is set to 0, so that HL is accessed.
+
+For DD-prefixed instruction the index is set to 1, which accesses IX, and for FD-prefixed instructions
+the index is set to 2, which accesses IY.
+
+Instructions which ignore the HL/IX/IY register renaming (such as **EX HL,DE**) simply accesses the
+member **cpu->hl** directly without going through the **cpu->hlx\[cpu->hlx_idx\]** indirection. 
+
+The last and most important difference to a regular opcode fetch is that the decoder step is set to **2** instead of **0xFFFF**. This means that on the next call to the tick function execution continues not at the regular shared opcode fetch decoder block, but at a special decoder block at step **3**:
+
+```c++
+        //=== shared fetch machine cycle for DD/FD-prefixed ops
+        // M1/T2: load opcode from data bus
+        case 3: _wait(); cpu->opcode = _gd(); goto step_next;
+        // M1/T3: refresh cycle
+        case 4: pins = _z80_refresh(cpu, pins); goto step_next;
+        // M1/T4: branch to instruction 'payload'
+        case 5: {
+            cpu->step = _z80_ddfd_optable[cpu->opcode];
+            cpu->addr = cpu->hlx[cpu->hlx_idx].hl;
+        } goto step_next;
+```
+
+For comparison, a regular opcode fetch looks like this:
+
+```c++
+        //=== shared fetch machine cycle for non-DD/FD-prefixed ops
+        // M1/T2: load opcode from data bus
+        case 0: _wait(); cpu->opcode = _gd(); goto step_next;
+        // M1/T3: refresh cycle
+        case 1: pins = _z80_refresh(cpu, pins); goto step_next;
+        // M1/T4: branch to instruction 'payload'
+        case 2: {
+            cpu->step = _z80_optable[cpu->opcode];
+            // preload effective address for (HL) ops
+            cpu->addr = cpu->hl;
+        } goto step_next;
+```
+
+The first two steps are identical, but the last step behaves differently:
+
+Instead of loading the effective address **addr** with HL, the register renaming 
+index **hlx_idx** is used, which causes either the IX or IY register to be loaded
+into **addr**
+
+```c++
+    cpu->addr = cpu->hlx[cpu->hlx_idx].hl;
+```
+
+And the next difference is that the instruction payload step is looked up from
+a different table: **_z80_ddfd_optable[]** instead of **_z80_optable[]**. The
+**_z80_ddfd_optable[]** is identical to the regular optable, except for instructions
+that involve **(HL)** and which need to be modified to **(IX+d)** or **(IY+d)**.
+Those instruction need to insert a decoder block which loads the **d** offset,
+adds it to the 'effective address', and then continues to the original 
+instruction decoder block:
+
+```c++
+        //=== optional d-loading cycle for (IX+d), (IY+d)
+        //--- mread
+        case 6: goto step_next;
+        case 7: _wait();_mread(cpu->pc++); goto step_next;
+        case 8: cpu->addr += (int8_t)_gd(); cpu->wz = cpu->addr; goto step_next;
+        //--- filler ticks
+        case 9: goto step_next;
+        case 10: goto step_next;
+        case 11: goto step_next;
+        case 12: goto step_next;
+        case 13: {
+            // branch to actual instruction
+            cpu->step = _z80_optable[cpu->opcode];
+        } goto step_next;
+```
+
+All taken together this means that the instruction **LD A,(IX+3)** executes the
+following decoder step sequence (starting with the opcode fetch for the DD prefix):
+
+```c++
+        //=== shared fetch machine cycle for non-DD/FD-prefixed ops
+        // M1/T2: load opcode from data bus
+        case 0: _wait(); cpu->opcode = _gd(); goto step_next;
+        // M1/T3: refresh cycle
+        case 1: pins = _z80_refresh(cpu, pins); goto step_next;
+        // M1/T4: branch to instruction 'payload'
+        case 2: {
+            cpu->step = _z80_optable[cpu->opcode];
+            // preload effective address for (HL) ops
+            cpu->addr = cpu->hl;
+        } goto step_next;
+
+        //  DD: DD prefix (M:1 T:4)
+        // -- overlapped
+        case  726: _fetch_dd();goto step_next;
+
+        //=== shared fetch machine cycle for DD/FD-prefixed ops
+        // M1/T2: load opcode from data bus
+        case 3: _wait(); cpu->opcode = _gd(); goto step_next;
+        // M1/T3: refresh cycle
+        case 4: pins = _z80_refresh(cpu, pins); goto step_next;
+        // M1/T4: branch to instruction 'payload'
+        case 5: {
+            cpu->step = _z80_ddfd_optable[cpu->opcode];
+            cpu->addr = cpu->hlx[cpu->hlx_idx].hl;
+        } goto step_next;        
+
+        //=== optional d-loading cycle for (IX+d), (IY+d)
+        //--- mread
+        case 6: goto step_next;
+        case 7: _wait();_mread(cpu->pc++); goto step_next;
+        case 8: cpu->addr += (int8_t)_gd(); cpu->wz = cpu->addr; goto step_next;
+        //--- filler ticks
+        case 9: goto step_next;
+        case 10: goto step_next;
+        case 11: goto step_next;
+        case 12: goto step_next;
+        case 13: {
+            // branch to actual instruction
+            cpu->step = _z80_optable[cpu->opcode];
+        } goto step_next;
+
+        //  7E: LD A,(HL) (M:2 T:7)
+        // -- mread
+        case  405: goto step_next;
+        case  406: _wait();_mread(cpu->addr);goto step_next;
+        case  407: cpu->a=_gd();goto step_next;
+        // -- overlapped
+        case  408: goto fetch_next;        
+```
+
+This adds up to 19 steps, equivalent with 19 clock cycles, and that's indeed the
+durations of the **LD A,(IX+d)** instruction
+
+There is one special case in the **_z80_ddfd_optable[]** and that is the **LD (HL),n** instruction
+which is modified to **LD (IX+d),n** or **LD (IY+d),n**. This is the only instruction which doesn't
+simply insert 8 clock cycles for loading the d-offset and computing the effective address, instead
+it overlays the memory read machine cycle for loading the immediate value **n** over those 8 extra
+clock cycles.
+
+This is handled with a special d-loading cycle, which then jumps into the middle of the
+original **LD (HL),n** payload.
+
+The special d/n-loading decoder block looks like this:
+
+```c++
+        //=== special case d-loading cycle for (IX+d),n where the immediate load
+        //    is hidden in the d-cycle load
+        //--- mread for d offset
+        case 14: goto step_next;
+        case 15: _wait();_mread(cpu->pc++); goto step_next;
+        case 16: cpu->addr += (int8_t)_gd(); cpu->wz = cpu->addr; goto step_next;
+        //--- mread for n
+        case 17: goto step_next;
+        case 18: _wait();_mread(cpu->pc++); goto step_next;
+        case 19: cpu->dlatch=_gd(); goto step_next;
+        //--- filler tick
+        case 20: goto step_next;
+        case 21: {
+            // branch to ld (hl),n and skip the original mread cycle for loading 'n'
+            cpu->step = _z80_optable[cpu->opcode] + 3;
+        } goto step_next;
+```
+
+...execution then continues to the last step of **LD (HL),n**:
+
+```c++
+        //  36: LD (HL),n (M:3 T:10)
+        ...
+        // -- mwrite
+        case  262: goto step_next;
+        case  263: _wait();_mwrite(cpu->addr,cpu->dlatch);goto step_next;
+        case  264: goto step_next;
+        // -- overlapped
+        case  265: goto fetch_next;
+```
     
 ## ED Prefix Handling
 
+Just as the other prefix instructions, the **ED** instruction executes as regular 
+4-clock-cycle instruction but calls into a special opcode fetch function in the overlapped
+clock cycle:
+
+```c++
+        //  ED: ED prefix (M:1 T:4)
+        // -- overlapped
+        case  842: _fetch_ed();goto step_next;
+```
+
+The **_fetch_ed()** macro expands to:
+
+```c++
+static inline uint64_t _z80_fetch_ed(z80_t* cpu, uint64_t pins) {
+    cpu->step = 24; // => step 25: opcode fetch for ED prefixed instructions
+    cpu->hlx_idx = 0;
+    cpu->prefix_active = true;
+    return _z80_set_ab_x(pins, cpu->pc++, Z80_M1|Z80_MREQ|Z80_RD);
+}
+```
+This looks very much like the **_z80_fetch_ddfd()** function above. No interrupts
+are handled, the decoder step is set to a special opcode fetch machine cycle and
+the returned pin mask initiates a standard opcode fetch.
+
+The **hlx_idx** register renaming index is reset to zero. This means that the **ED**
+prefix cancels the effect of the **DD** and **FD** prefixes (e.g. HL is *never* renamed to
+IX or IY).
+
+The special **ED** opcode fetch machine cycle uses a different opcode lookup table
+**_z80_ed_optable[]**, this points to all the ED-prefixed instruction payload steps:
+
+```c++
+        //=== special opcode fetch machine cycle for ED-prefixed instructions
+        // M1/T2: load opcode from data bus
+        case 25: _wait(); cpu->opcode = _gd(); goto step_next;
+        // M1/T3: refresh cycle
+        case 26: pins = _z80_refresh(cpu, pins); goto step_next;
+        // M1/T4: branch to instruction 'payload'
+        case 27: cpu->step = _z80_ed_optable[cpu->opcode]; goto step_next;
+```
+
 ## CB Prefix Handling
 
+The **CB** prefix is at first more of the same: a separate fetch macro in the overlapped
+step:
+
+```c++
+        //  CB: CB prefix (M:1 T:4)
+        // -- overlapped
+        case  583: _fetch_cb();goto step_next;
+```
+
+The macro **_fetch_cb()** wraps this function:
+
+```c++
+static inline uint64_t _z80_fetch_cb(z80_t* cpu, uint64_t pins) {
+    cpu->prefix_active = true;
+    if (cpu->hlx_idx > 0) {
+        // this is a DD+CB / FD+CB instruction, continue
+        // execution on the special DDCB/FDCB decoder block which
+        // loads the d-offset first and then the opcode in a 
+        // regular memory read machine cycle
+        cpu->step = _z80_special_optable[_Z80_OPSTATE_SLOT_DDFDCB];
+    }
+    else {
+        // this is a regular CB-prefixed instruction, continue
+        // execution on a special fetch machine cycle which doesn't
+        // handle DD/FD prefix and then branches either to the
+        // special CB or CBHL decoder block
+        cpu->step = 21; // => step 22: opcode fetch for CB prefixed instructions
+        pins = _z80_set_ab_x(pins, cpu->pc++, Z80_M1|Z80_MREQ|Z80_RD);
+    }
+    return pins;
+}
+```
+
+...this however looks quite a bit different than the both the **DD/FD** or **ED** prefix!
+
+Long story short: since the CB-prefixed instruction block is highly regular (see my previous
+[blog post for details](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#cb-prefix))
+I decided to decode the entire CB instruction block in a single function and a handful
+of shared instruction decoder blocks.
+
+For instance all CB-prefixed instructions that don't involve **(HL)** execute the following
+sequence of decoder steps:
+
+```c++
+        //=== special opcode fetch machine cycle for CB-prefixed instructions
+        case 22: _wait(); cpu->opcode = _gd(); goto step_next;
+        case 23: pins = _z80_refresh(cpu, pins); goto step_next;
+        case 24: {
+            if ((cpu->opcode & 7) == 6) {
+                // not taken:
+                // this is a (HL) instruction
+                ...
+            }
+            else {
+                cpu->step = _z80_special_optable[_Z80_OPSTATE_SLOT_CB];
+            }
+        } goto step_next;
+
+        ...
+
+        // CB 00: cb (M:1 T:4)
+        // -- overlapped
+        case 1437: {uint8_t z=cpu->opcode&7;_z80_cb_action(cpu,z,z);};goto fetch_next;
+```
+
+**_z80_cb_action()** is the magic function which decodes and implements all Z80 instructions
+behind the CB prefix (here's the [implementation](https://github.com/floooh/chips/blob/b46addd0461fa26fb91037ac431f5316748ab060/chips/z80.h#L771-L838)).
+
+CB-prefixed instructions which involve **(HL)** have a more complex payload to read and
+(optionally) write back the operand:
+
+```c++
+        //=== special opcode fetch machine cycle for CB-prefixed instructions
+        case 22: _wait(); cpu->opcode = _gd(); goto step_next;
+        case 23: pins = _z80_refresh(cpu, pins); goto step_next;
+        case 24: {
+            if ((cpu->opcode & 7) == 6) {
+                // this is a (HL) instruction
+                cpu->addr = cpu->hl;
+                cpu->step = _z80_special_optable[_Z80_OPSTATE_SLOT_CBHL];
+            }
+            else {
+                // not taken
+                ...
+            }
+        } goto step_next;
+
+        ...
+
+        // CB 00: cbhl (M:3 T:11)
+        // -- mread
+        case 1438: goto step_next;
+        case 1439: _wait();_mread(cpu->hl);goto step_next;
+        case 1440: cpu->dlatch=_gd();if(!_z80_cb_action(cpu,6,6)){_skip(3);};goto step_next;
+        case 1441: goto step_next;
+        // -- mwrite
+        case 1442: goto step_next;
+        case 1443: _wait();_mwrite(cpu->hl,cpu->dlatch);goto step_next;
+        case 1444: goto step_next;
+        // -- overlapped
+        case 1445: goto fetch_next;        
+```
+
+The memory write machine cycle which writes back the result is skipped if the **_z80_cb_action()**
+function returns true (which happens if this is a bit-testing instruction).
+
+Finally, the weird **DD/FD + CB** [double-prefixed instructions](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#dd-cb-and-fd-cb-prefix) are handled through a completely
+custom decoder block which looks like this:
+
+```c++
+        // CB 00: ddfdcb (M:6 T:18)
+        // -- generic
+        case 1446: _wait();_mread(cpu->pc++);goto step_next;
+        // -- generic
+        case 1447: _z80_ddfdcb_addr(cpu,pins);goto step_next;
+        // -- mread
+        case 1448: goto step_next;
+        case 1449: _wait();_mread(cpu->pc++);goto step_next;
+        case 1450: cpu->opcode=_gd();goto step_next;
+        case 1451: goto step_next;
+        case 1452: goto step_next;
+        // -- mread
+        case 1453: goto step_next;
+        case 1454: _wait();_mread(cpu->addr);goto step_next;
+        case 1455: cpu->dlatch=_gd();if(!_z80_cb_action(cpu,6,cpu->opcode&7)){_skip(3);};goto step_next;
+        case 1456: goto step_next;
+        // -- mwrite
+        case 1457: goto step_next;
+        case 1458: _wait();_mwrite(cpu->addr,cpu->dlatch);goto step_next;
+        case 1459: goto step_next;
+        // -- overlapped
+        case 1460: goto fetch_next;
+```
+
+This needs some explanation:
+
+Instead of a regular opcode fetch machine cycle, execution starts with a memory read machine
+cycle (just the last two cycles because the previous step was the usual overlapped clock cycle).
+This memory read machine cycle loads the d-offset and then computes the effective address
+**(IX+d)** or **(IY+d)** in the helper function **_z80_ddfdcb_addr()**:
+
+```c++
+// compute the effective memory address for DD+CB/FD+CB instructions
+static inline void _z80_ddfdcb_addr(z80_t* cpu, uint64_t pins) {
+    uint8_t d = _z80_get_db(pins);
+    cpu->addr = cpu->hlx[cpu->hlx_idx].hl + (int8_t)d;
+    cpu->wz = cpu->addr;
+}
+```
+
+Next in step 1450, a regular memory read machine cycle loads the actual opcode byte into
+```cpu->opcode```.
+
+The next memory read machine cycle loads the operand byte from the effective address (IX+d or IY+d),
+and performs the actual 'action' of the instruction in the **_z80_cb_action()** function, which will
+also write the result into a register if needed (this is the case for the undocumented instructions
+which write the result both into a register and to memory). If the instruction was a bit-testing
+instruction, the following memory write machine cycle is skipped.
 
 
+## Interrupt Implementation Details
 
-
-
-
-
-Implementation details:
-
-    - instruction fetch actions
-    - ED instruction block
-    - CB instruction block
+TODO:
     - interrupt detection & handling
         - EI/DI instruction
         - RETI/RETN instruction
         - interrupt decoder blocks
+        
+
     - differences to real CPU
         - pins only active for 1 clock cycle
         - wait vs read vs write
