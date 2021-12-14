@@ -1149,12 +1149,305 @@ instruction, the following memory write machine cycle is skipped.
 
 ## Interrupt Implementation Details
 
-TODO:
-    - interrupt detection & handling
-        - EI/DI instruction
-        - RETI/RETN instruction
-        - interrupt decoder blocks
-        
+Interrupt handling involves proper behaviour of:
+
+- interrupt detection 
+- the EI, DI and RETI/RETN instructions
+- the decoder steps to 'realize' the interrupt (the clock cycles
+  between detecting the interrupt and entering the interrupt
+  service routine)
+  
+### Interrupt Detection
+
+On a real Z80, interrupts are detected in the last clock cycle of an instruction
+([details are explained here](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#interrupt-detection-timing)).
+
+In the emulation, the tick function epilogue tracks the interrupt pins in each clock cycle
+(check the state of the NMI pin in each clock cycle is necessary for correct edge-triggered
+NMI detection):
+
+```c++
+track_int_bits: {
+        // track NMI 0 => 1 edge and current INT pin state, this will track the
+        // relevant interrupt status up to the last instruction cycle and will
+        // be checked in the first M1 cycle (during _fetch)
+        const uint64_t rising_nmi = (pins ^ cpu->pins) & pins; // NMI 0 => 1
+        cpu->pins = pins;
+        cpu->int_bits = ((cpu->int_bits | rising_nmi) & Z80_NMI) | (pins & Z80_INT);
+    }
+```
+
+The ```cpu->int_bits``` state is then checked in the overlapped clock cycle in the **_z80_fetch()** function. Technically this is one clock cycle too late, but since the interrupt state has
+been stored in the last clock cycle at the end of the tick function, interrupt timing is
+correct nonetheless.
+
+The **_z80_fetch()** function looks like this:
+
+```c++
+// initiate a fetch machine cycle for regular (non-prefixed) instructions, or initiate interrupt handling
+static inline uint64_t _z80_fetch(z80_t* cpu, uint64_t pins) {
+    cpu->hlx_idx = 0;
+    cpu->prefix_active = false;
+    // shortcut no interrupts requested
+    if (cpu->int_bits == 0) {
+        cpu->step = 0xFFFF;
+        return _z80_set_ab_x(pins, cpu->pc++, Z80_M1|Z80_MREQ|Z80_RD);
+    }
+    else if (cpu->int_bits & Z80_NMI) {
+        // non-maskable interrupt starts with a regular M1 machine cycle
+        cpu->step = _z80_special_optable[_Z80_OPSTATE_SLOT_NMI];
+        cpu->int_bits = 0;
+        if (pins & Z80_HALT) {
+            pins &= ~Z80_HALT;
+            cpu->pc++;
+        }
+        // NOTE: PC is *not* incremented!
+        return _z80_set_ab_x(pins, cpu->pc, Z80_M1|Z80_MREQ|Z80_RD);
+    }
+    else if (cpu->int_bits & Z80_INT) {
+        if (cpu->iff1) {
+            // maskable interrupts start with a special M1 machine cycle which
+            // doesn't fetch the next opcode, but instead activate the
+            // pins M1|IOQR to request a special byte which is handled differently
+            // depending on interrupt mode
+            cpu->step = _z80_special_optable[_Z80_OPSTATE_SLOT_INT_IM0 + cpu->im];
+            cpu->int_bits = 0;
+            if (pins & Z80_HALT) {
+                pins &= ~Z80_HALT;
+                cpu->pc++;
+            }
+            // NOTE: PC is not incremented, and no pins are activated here
+            return pins;
+        }
+        else {
+            // oops, maskable interrupt requested but disabled
+            cpu->step = 0xFFFF;
+            return _z80_set_ab_x(pins, cpu->pc++, Z80_M1|Z80_MREQ|Z80_RD);
+        }
+    }
+    else {
+        _Z80_UNREACHABLE;
+        return pins;
+    }
+}
+```
+
+If ```cpu->int_bits == 0``` then no interrupts need to be handled, and execution continues
+with the next opcode fetch.
+
+If an NMI is detected, execution branches to a special decoder block which implements the
+extra decoder steps to 'realize' a non-maskable interrupt and the returned pin mask
+is set to what looks like a regular opcode fetch (M1|MREQ|RD and PC on the address bus),
+but *without* incrementing the PC.
+
+If a maskable interrupt is detected *and* interrupts are currently enabled, decoder
+execution branches to one of three special decoder blocks depending on the current
+interrupt mode (0, 1 or 2). The returned pin mask doesn't set any memory or IO request pins.
+
+If any type of interrupt is detected (and accepted), and the CPU is stopped at a HALT
+instruction, the CPU will exit the HALT state.
+
+### NMI interrupt behaviour
+
+The special decoder block for non-maskable interrupts looks like this:
+
+```c++
+        //  00: nmi (M:5 T:14)
+        case 1499: _wait();cpu->iff1=false;goto step_next;        
+        case 1500: pins=_z80_refresh(cpu,pins);goto step_next;
+        case 1501: goto step_next;
+        case 1502: goto step_next;
+        // -- mwrite
+        case 1503: goto step_next;
+        case 1504: _wait();_mwrite(--cpu->sp,cpu->pch);goto step_next;
+        case 1505: goto step_next;
+        // -- mwrite
+        case 1506: goto step_next;
+        case 1507: _wait();_mwrite(--cpu->sp,cpu->pcl);cpu->wz=cpu->pc=0x0066;goto step_next;
+        case 1508: goto step_next;
+        // -- overlapped
+        case 1509: goto fetch_next;
+```
+
+Decoder execution continues with a regular opcode fetch machine cycle with the
+resulting opcode on the data bus being ignored. The IFF1 flag (but not IFF2) is
+cleared.
+
+An extra clock cycle is inserted at step 1502.
+
+Next two memory write machine cycles are executed to store the current program counter
+on the stack as return address, and once that has happened, both PC and the internal WZ
+register are set to the hardwired interrupt service routine address 0x0066.
+
+At the end of the 'NMI interlude', a regular opcode fetch happens which causes execution
+to continue at the first instruction of the interrupt service routine.
+
+### Mode 0 Interrupt Behaviour
+
+In interrupt mode 0 the CPU expects an opcode byte to be placed on the data
+bus which is then directly executed. The decoder block looks like this:
+
+```c++
+        //  00: int_im0 (M:6 T:9)
+        // -- generic
+        case 1461: cpu->iff1=cpu->iff2=false;goto step_next;
+        // -- generic
+        case 1462: pins|=(Z80_M1|Z80_IORQ);goto step_next;
+        // -- generic
+        case 1463: _wait();cpu->opcode=_z80_get_db(pins);goto step_next;
+        // -- generic
+        case 1464: pins=_z80_refresh(cpu,pins);goto step_next;
+        // -- generic
+        case 1465: cpu->step=_z80_optable[cpu->opcode];goto step_next;
+        // -- overlapped
+        case 1466: goto fetch_next;
+```
+
+Instead of an opcode fetch machine cycle, an interrupt acknowledge machine cycle
+is executed. First both IFF1 and IFF2 are cleared, then the CPU pins M1|IORQ are
+set which causes the device which requested the interrupt to place an opcode
+byte on the data bus which is loaded from the data bus in the next clock cycle.
+
+Next a regular refresh cycle happens, and finally the decoder directly branches
+to the opcode's instruction payload decoder block.
+
+The final 'overlapped' step is never executed, this is just an artefact of
+the code generation.
+
+Note how the interrupt handling doesn't place a return address on the stack. Instead
+the instruction that's placed on the data bus is expected to take care of this
+(usually this will be one of the RST instructions, which are one-byte subroutine
+calls to one of 8 hardwired locations).
+
+### Mode 1 Interrupt Behaviour
+
+In interrupt mode 1 the CPU simply jumps to address 0x0038. A regular interrupt
+acknowledge machine cycle is executed, but the result on the data bus will
+be ignored. Two memory write machine cycles push the current program
+counter on the stack as return address. Except for the initial interrupt
+acknowledge machine cycle, and the destination address (0x0036 instead of
+0x0066), interrupt mode 1 behaviour is similar to a non-maskable interrupt.
+
+```c++
+        //  00: int_im1 (M:7 T:16)
+        case 1467: cpu->iff1=cpu->iff2=false;goto step_next;
+        case 1468: pins|=(Z80_M1|Z80_IORQ);goto step_next;
+        case 1469: _wait();goto step_next;
+        case 1470: pins=_z80_refresh(cpu,pins);goto step_next;
+        case 1471: goto step_next;
+        case 1472: goto step_next;
+        // -- mwrite
+        case 1473: goto step_next;
+        case 1474: _wait();_mwrite(--cpu->sp,cpu->pch);goto step_next;
+        case 1475: goto step_next;
+        // -- mwrite
+        case 1476: goto step_next;
+        case 1477: _wait();_mwrite(--cpu->sp,cpu->pcl);cpu->wz=cpu->pc=0x0038;goto step_next;
+        case 1478: goto step_next;
+        // -- overlapped
+        case 1479: goto fetch_next;
+```
+
+### Mode 2 Interrupt Behaviour
+
+In mode 2 interrupts, the interrupt requesting device is expected to put the
+low-byte of the 'interrupt vector' on the data bus during the regular interrupt
+acknowledge machine cycle. This low-byte will be combined with the I register
+as high-byte into the full 16-bit interrupt vector.
+
+Next two memory write machines cycles are executed to store the current PC
+on the stack as return address.
+
+Next the interrupt vector is placed on the data bus, and two memory read machine
+cycles are executed to read the 16-bit interrupt service routine entry address,
+which is finally placed into the PC and WZ register.
+
+Finally the overlapped step initiates a regular opcode fetch which loads
+the first opcode of the interrupt service routine.
+
+```c++
+        //  00: int_im2 (M:9 T:22)
+        case 1480: cpu->iff1=cpu->iff2=false;goto step_next;
+        case 1481: pins|=(Z80_M1|Z80_IORQ);goto step_next;
+        case 1482: _wait();cpu->dlatch=_z80_get_db(pins);goto step_next;
+        case 1483: pins=_z80_refresh(cpu,pins);goto step_next;
+        case 1484: goto step_next;
+        case 1485: goto step_next;
+        // -- mwrite
+        case 1486: goto step_next;
+        case 1487: _wait();_mwrite(--cpu->sp,cpu->pch);goto step_next;
+        case 1488: goto step_next;
+        // -- mwrite
+        case 1489: goto step_next;
+        case 1490: _wait();_mwrite(--cpu->sp,cpu->pcl);cpu->wzl=cpu->dlatch;cpu->wzh=cpu->i;goto step_next;
+        case 1491: goto step_next;
+        // -- mread
+        case 1492: goto step_next;
+        case 1493: _wait();_mread(cpu->wz++);goto step_next;
+        case 1494: cpu->dlatch=_gd();goto step_next;
+        // -- mread
+        case 1495: goto step_next;
+        case 1496: _wait();_mread(cpu->wz);goto step_next;
+        case 1497: cpu->wzh=_gd();cpu->wzl=cpu->dlatch;cpu->pc=cpu->wz;goto step_next;
+        // -- overlapped
+        case 1498: goto fetch_next;
+```
+  
+### The EI, DI and RETI/RETN instructions
+
+On a real Z80, the **EI** instruction disables interrupts from the middle of the
+EI instruction's opcode fetch machine cycle until the middle of the next opcode
+fetch machine cycle. This has the effect that any pending interrupt are delayed until
+the end of the next instruction, and that interrupts are never triggered during
+long sequences of EI instructions.
+
+In the emulator this behaviour is simply achieved by temorarily disabling interrupts
+during the overlapped decoder step:
+
+```c++
+        //  FB: EI (M:1 T:4)
+        // -- overlapped
+        case  930: cpu->iff1=cpu->iff2=false;pins=_z80_fetch(cpu,pins);cpu->iff1=cpu->iff2=true;goto step_next;
+```
+
+The **DI** instruction on a real Z80 disables interrupts already in the middle of the
+opcode fetch machine cycle, in the emulator this happens in the overlapped cycle:
+
+```c++
+        //  F3: DI (M:1 T:4)
+        // -- overlapped
+        case  877: cpu->iff1=cpu->iff2=false;goto fetch_next;
+```
+
+The only thing that's important here is that IFF1 and IFF2 flags are cleared before interrupt
+detection happens in the **_z80_fetch()** function at the destination of ```goto fetch_next```
+
+The **RETI/RETN** instruction have identical behaviour. On a real CPU, the IFF2 flag is copied
+into IFF1 in the middle of the *next* opcode fetch, this means that at the end of an NMI service
+routine, the earliest moment a maskable interrupt will be triggered is at the end of the
+instruction following RETN.
+
+The instruction payload decoder block for RETI/RETN looks as follows:
+
+```c++
+        // ED 45: RETI/RETN (M:3 T:10)
+        // -- mread
+        case  991: goto step_next;
+        case  992: _wait();_mread(cpu->sp++);goto step_next;
+        case  993: cpu->wzl=_gd();pins|=Z80_RETI;goto step_next;
+        // -- mread
+        case  994: goto step_next;
+        case  995: _wait();_mread(cpu->sp++);goto step_next;
+        case  996: cpu->wzh=_gd();cpu->pc=cpu->wz;goto step_next;
+        // -- overlapped
+        case  997: pins=_z80_fetch(cpu,pins);cpu->iff1=cpu->iff2;goto step_next;
+```
+
+...two memory read machine cycles to load the return address from the stack and
+restore the program counter, and in the overlapped cycle the **_z80_fetch()**
+function (where interrupt detection happens) is 'manually invoked' before the
+IFF1 flag is restored.
+
 
     - differences to real CPU
         - pins only active for 1 clock cycle
