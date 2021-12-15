@@ -3,6 +3,13 @@ layout: post
 title: A new cycle-stepped Z80 emulator
 ---
 
+## Table of Content
+
+* TOC
+{:toc}
+
+## Intro
+
 I finally got around rewriting the [Chips Project](https://github.com/floooh/chips) Z80 emulator to a
 'cycle-stepped' execution model. The idea has been rolling around in my head
 since at least 2019 when I gave the
@@ -1449,15 +1456,86 @@ function (where interrupt detection happens) is 'manually invoked' before the
 IFF1 flag is restored.
 
 
-    - differences to real CPU
-        - pins only active for 1 clock cycle
-        - wait vs read vs write
-        - overlapped execution only 1 clock cycle
-        - 
+## Differences to a real Z80
 
+The emulator has one important behaviour difference to a real Z80:
 
-Roads not taken:
+In the emulator, the various CPU pin combinations are only active for a single clock
+cycle, while on a real Z80 the pins are usually active for multiple clock cycles.
 
-    - fixed opcode slot ranges (like in 6502 emu)
-    - 'execution bit pipeline'
-    - 
+I made this compromise to make the system tick function (which needs to check
+for certain pin combinations) more efficient: for instance if the memory read
+and write machine cycles would be active over multiple clock cycles, the system
+tick function would end up reading and writing memory multiple times.
+
+For memory access this would just mean more work, but for communication with
+other chips this could also result in buggy behaviour because IO accesses to
+and from the chip which trigger some action in the chip would be triggered
+multiple times.
+
+I'm not quite happy yet with the relationship between WAIT states and
+memory and IO reads/writes, and I may have made some unintended compromises for the 
+Amstrad CPC there. Memory and IO reads are delayed by WAIT states,
+e.g. the CPU reads the data bus value after WAIT goes back to inactive.
+
+For IO writes, the IORQ|WR pins are active in the clock cycle before the 
+WAIT pin is sampled, so that the write is not delayed by the WAIT states, 
+which also seems right. However, for memory writes I had to put the
+WAIT pin sampling and MREQ|WR pin activation into the same decoder step.
+This means that memory writes are delayed by the WAIT pin. For systems
+which don't use memory mapped IO this isn't a problem though.
+
+Long story short: there may be more changes in the relationship between wait
+states and read/write accesses in the future. Maybe I will also experiment with
+making the CPU pins behave exactly as a real Z80 (e.g. being active for
+multiple clock cycles), and put the burden of edge-detection on the system- or
+chip-emulation. 
+
+## Testing
+
+The emulator clears a number of standard Z80 tests as well as custom tests:
+
+- [**z80-zexall.c**](https://github.com/floooh/chips-test/blob/z80-ticked/tests/z80-zex.c):
+  This tests the behaviour (but not the timing) of all documented and
+  undocumented instructions including the XF and YF flags which 'leak' from the
+  internal WZ register ([see
+  here](https://raw.githubusercontent.com/floooh/emu-info/master/z80/memptr_eng.txt)
+  for information on the WZ register behaviour). 
+
+- [**z80-fuse.c**](https://github.com/floooh/chips-test/blob/z80-ticked/tests/z80-fuse.c):
+  Tests the instruction duration and CPU register state, with one important
+  caveat: the undocumented XF and YF flags are ignored for the ```BIT n,(HL)```
+  instructions, because FUSE doesn't agree here with ZEXALL. 
+
+- [**z80-test.c**](https://github.com/floooh/chips-test/blob/z80-ticked/tests/z80-test.c):
+  This is my own little instruction tester which I've been carrying along through
+  all the Z80 emulator iterations. It tests the duration and expected results for 
+  the documented instructions and a handful undocumented instructions.
+
+- [**z80-timing.c**](https://github.com/floooh/chips-test/blob/z80-ticked/tests/z80-timing.c):
+  This is a variation of the previous test which tests pin timing (whether the expected
+  CPU pins are active during the right clock cycles)
+
+- [**z80-int.c**](https://github.com/floooh/chips-test/blob/z80-ticked/tests/z80-int.c):
+  This is similar to the z80-timing.c test, but specializes on interrupt timing.
+
+## Improvements
+
+Points Barres
+
+![points_barres_1_old]({{ site.url }}/images/points_barres_1_old.jpg)
+![points_barres_1_new]({{ site.url }}/images/points_barres_1_new.jpg)
+
+PHX
+
+![phx_1_old]({{ site.url }}/images/phx_1_old.jpg)
+![phx_1_new]({{ site.url }}/images/phx_1_new.jpg)
+
+![phx_2_old]({{ site.url }}/images/phx_2_old.jpg)
+![phx_2_new]({{ site.url }}/images/phx_2_new.jpg)
+
+![phx_3_old]({{ site.url }}/images/phx_3_old.jpg)
+![phx_3_new]({{ site.url }}/images/phx_3_new.jpg)
+
+![phx_4_old]({{ site.url }}/images/phx_4_old.jpg)
+![phx_4_new]({{ site.url }}/images/phx_4_new.jpg)
