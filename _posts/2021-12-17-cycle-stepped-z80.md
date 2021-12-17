@@ -252,7 +252,7 @@ way to add additional instructions to the switch statement.
 
 The solution is to split the switch-case decoder into a shared opcode fetch
 machine cycle which is the same for all instructions, and then do a branch to
-the remaining steps (which I'll call 'the instruction playload' henceforth) somewhere else
+the remaining steps (which I'll call 'the instruction payload' henceforth) somewhere else
 in the big switch-case statement.
 
 At the end of the shared opcode fetch machine cycle, a table lookup
