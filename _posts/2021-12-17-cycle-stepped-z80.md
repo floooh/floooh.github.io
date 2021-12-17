@@ -28,14 +28,14 @@ role in a system emulation, instead it's just an ordinary chip that's
 ticked along with the other chips in the system.
 
 The Z80-based [Tiny Emulators](https://floooh.github.io/tiny8bit/) have all been updated
-to the new cycle-stepped model, which also means that the CPU step debugger can now 
-support cycle-stepping (which is very useful for debugging the other chips in the 
+to the new cycle-stepped model, which also means that the CPU step debugger now 
+supports cycle-stepping (which is very useful for debugging the other chips in the 
 emulated system):
 
 <img src="{{ site.url }}/images/z80_step_debug.jpg" style="image-rendering: pixelated;"/>
 
 ...also, if you haven't seen it yet, check out the [Visual Z80 Remix project](https://floooh.github.io/visualz80remix/),
-which I did as a prerequisite of the new Z80 emulator to get the cycle timing right
+which I did as preparation for the new Z80 emulator to get the cycle timing right
 and better understand what's going on in some of the more esoteric instructions.
 
 ## A Code Sample
@@ -109,10 +109,10 @@ call of ```z80_tick()```. And that's it, no more 'system tick callback', or
 
 Instruction decoding happens in a big switch-case statement like in the
 previous emulator, but instead of one case-branch per opcode there's now one
-case branch per clock cycle.
+case branch per instruction clock cycle.
 
 In the new emulator, the decoder switch-case statement looks more like a program which
-implements its own control flow.
+implements its own 'meta control flow'.
 
 A simple sequence where each call to the tick function executes the next step would look like this:
 
@@ -248,8 +248,7 @@ This looks pretty good already, but there's a chicken-egg-problem: the
 opcode fetch machine cycle (the first four steps) doesn't actually do anything.
 Even though it loads an opcode byte, the opcode is ignored and the CPU
 will only ever execute **LD HL,nn** instructions. Currently there's no
-way to add additional instructions to the switch case
-statement.
+way to add additional instructions to the switch statement.
 
 The solution is to split the switch-case decoder into a shared opcode fetch
 machine cycle which is the same for all instructions, and then do a branch to
@@ -395,8 +394,9 @@ LD $RY,$RZ:
   mcycles:
     - { type: overlapped,  action: $RY=$RZ }
 ```
-This describes all 49 instructions for loading an 8-bit register into another. The ```cond:``` line
-is a python expression matches the 2-3-3 opcode bit pattern described here:
+Those 4 lines describe all 49 instructions for loading an 8-bit register into
+another. The ```cond:``` line is a python expression matching the 2-3-3 opcode
+bit pattern described here:
 
 [Decoding Z80 opcodes](http://www.z80.info/decoding.htm)
 
@@ -449,13 +449,13 @@ The stamped out C code for **LD DE,nn** looks like this:
         case   89: goto fetch_next;
 ```
 
-The macro ```_mread()``` sets the CPU pins for a memory read machine cycle (MREQ|RD and address
+The macro ```_mread()``` sets the CPU pins for a memory read machine cycle (```MREQ|RD``` and address
 bus pins). 
 
 The macro ```_gd()```  extracts the data bus pins into an ```uint8_t```. The ```_wait()``` macro
 samples the WAIT pin and will be explained later.
 
-The code generation Python script is now just around 360 lines of code,
+The code generation Python script is now just around 400 lines of code,
 compared to about 1000 lines for the old script. However, when counting lines
 for all involved files (a C header template file, the Python script, and the
 YAML file) the old and new approach is nearly identical (1691 C+YAML+Python for the new
@@ -463,7 +463,7 @@ approach, and 1633 lines C+Python for the old approach).
 
 One clear advantage of the new approach is that the same YAML description file can be used
 for different code generation scripts (for instance the [instruction tables](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#main-quadrant-1-xx--01)
-in my last blog post have been generated from the same data with a differen
+in my last blog post have been generated from the same data with a different
 generator script).
 
 It will also be much easier to quickly try out different decoder ideas in the future.
@@ -504,12 +504,12 @@ In the first step, the WAIT pin is sampled (and if set, execution will be stuck
 on this decoder step - more details on wait state behaviour later in the post).
 If the WAIT pin isn't active, the opcode byte is loaded from the data bus.
 
-The ```_z80_refresh()``` function sets the pins for a refresh cycle (MREQ|RFSH)
+The ```_z80_refresh()``` function sets the pins for a refresh cycle (```MREQ|RFSH```)
 and the address bus pins to a 16-bit value formed from the I and R register
 pair. The lower 7 bits in the R register are incremented, while the topmost bit
-remains unchanged. The refresh cycle normally has no function in system
-emulators apart from the R register counting up (unless of course one would
-like to implement "DRAM decay")
+remains unchanged. The refresh cycle normally has no use in system emulators
+apart from the side effect of the R register counting up (unless of course one
+would like to implement "DRAM decay").
 
 The last clock cycle in the opcode fetch machine cycle branches to the
 instruction payload by doing a table lookup with the previously loaded opcode
@@ -600,7 +600,7 @@ last label:
 
 The main job of the code block under **track_int_bits:** is to track the NMI and
 INT pins for interrupt detection. More on this later in a dedicated section about
-interrupt handling. The NMI and INT tracking needs to happen for every clock cycle,
+interrupt handling. The interrupt pin tracking needs to happen in every clock cycle,
 that's why it is in the last fallthrough position.
 
 Next up is the **step_next:** label. This simply increments the step counter by 1.
@@ -622,7 +622,7 @@ execution until the WAIT pin goes inactive again. This allows
 the CPU to wait for slow memory or peripheral devices, but in some computer
 systems (like the Amstrad CPC) wait cycles are used to synchronize memory access
 between the CPU and video hardware, which is why it is important to get the wait
-timing exactly right.
+timing right.
 
 In the emulation, a **_wait()** macro is inserted at the start of case branches
 where the WAIT pin needs to be sampled. In regular memory read and write
@@ -646,7 +646,7 @@ if (pins & Z80_WAIT) {
 }
 ```
 
-Jumping to the ```track_int_bits:``` label skips the decoder step increment, so
+Jumping to the ```track_int_bits:``` epilogue label skips the decoder step increment, so
 the next time the ```z80_tick()``` function is called, execution continues at
 the same case-branch which first checks the WAIT pin state. Only when the WAIT
 pin is no longer active, regular execution continues.
@@ -660,7 +660,7 @@ If the condition is true (branch taken) the instruction takes 12 clock cycles, b
 if the branch is not taken only 7 clock cycles.
 
 In the emulation this is implemented by skipping to the overlapped clock cycle at
-the end of the instruction payload:
+the end of the instruction payload (look at **case 176**):
 
 ```c++
         //  28: JR Z,d (M:3 T:12)
@@ -678,7 +678,7 @@ the end of the instruction payload:
         case  182: goto fetch_next;
 ```
 
-The **_skip(5)** macro in step 176 simply expand to:
+The **_skip(5)** macro in step 176 simply expands to:
 
 ```c++
     cpu->step+=5;
@@ -690,12 +690,9 @@ The last clock cycle in an instruction decoder block (which is actually the firs
 cycle of the next opcode fetch machine cycle) mainly sets the CPU pins to load the
 next opcode byte:
 
-- The M1|MREQ|RD pins are set.
-- The address bus is loaded with the program counter and the program counter is incremented.
-- The decoder step is set to 0xFFFF, which will overflow to 0 when the 
-  step counter is incremented at the end of the tick function so that in the next
-  tick function call execution continues at the first step of the shared
-  opcode fetch decoder block.
+* The ```M1|MREQ|RD``` pins are set.
+* The address bus is loaded with the program counter and the program counter is incremented.
+* The decoder step is set to 0xFFFF, which will overflow to 0 when the  step counter is incremented at the end of the tick function so that in the next tick function call execution continues at the first step of the shared opcode fetch decoder block.
 
 The other important thing that needs to happen in the overlapped clock cycle is
 interrupt detection. On a real Z80, interrupt detection happens in the last
@@ -703,21 +700,7 @@ clock cycle of an instruction, but in the emulator it made more sense to move
 the interrupt detection code out of the instruction-specific payload block
 and into the shared opcode fetch preparation code. 
 
-Even though the interrupt detection code is one cycle late in the emulator,
-interrupt timing is still correct because the state of the INT pin and the NMI
-edge detection state had been captured in the last clock cycle's tick function
-epilogue:
-
-```c++
-track_int_bits: {
-        // track NMI 0 => 1 edge and current INT pin state, this will track the
-        // relevant interrupt status up to the last instruction cycle and will
-        // be checked in the first M1 cycle (during _fetch)
-        const uint64_t rising_nmi = (pins ^ cpu->pins) & pins; // NMI 0 => 1
-        cpu->pins = pins;
-        cpu->int_bits = ((cpu->int_bits | rising_nmi) & Z80_NMI) | (pins & Z80_INT);
-    }
-```
+Interrupt handling will be explained in more details later in the blog post.
 
 ## DD/FD Prefix Handling
 
@@ -764,14 +747,14 @@ The first important difference to the regular _z80_fetch() function is that no
 interrupt detection happens (because interrupts are not handled after fetching
 prefix bytes).
 
-The ```prefix_active``` assignmnet can be ignored, this is only used by
-the helper function ```z80_opdone()``` to test when an instruction has finished
-executing which is only needed for test code or implementing debuggers.
+```prefix_active``` can be ignored, this is only used by
+the helper function ```z80_opdone()``` to test whether an instruction has finished
+executing (which is only needed for test code or implementing debuggers).
 
-The returned pinmask is identical with a regular opcode fetch: The pins M1|MREQ|RD
+The returned pinmask is identical with a regular opcode fetch: The pins ```M1|MREQ|RD```
 are set to active, and the program counter is put on the address bus and incremented.
 
-The **hlx_idx** index is used for the HL => IX/IY registe-renaming taking
+The **hlx_idx** index is used for the HL => IX/IY register-renaming taking
 place in DD/FD prefixed instructions through the following somewhat scary
 nested union in struct **z80_t**:
 
@@ -805,7 +788,7 @@ The **hlx[3]** array allows to access the same registers through an index:
     cpu->hlz[2].hl => IY
 ```
 
-For regular, unprefixed instructions the access index (**hlx_idx**) is set to 0, so that register pair HL is accessed.
+For regular, unprefixed instructions the register renaming index (**hlx_idx**) is set to 0, so that register pair HL is accessed.
 
 For DD-prefixed instruction the index is set to 1, which accesses IX, and for FD-prefixed instructions
 the index is set to 2, which accesses IY.
@@ -831,25 +814,11 @@ fetch decoder block, but at a special decoder block at step **3**:
         } goto step_next;
 ```
 
-For comparison, a regular opcode fetch looks like this:
-
-```c++
-        //=== shared fetch machine cycle for non-DD/FD-prefixed ops
-        // M1/T2: load opcode from data bus
-        case 0: _wait(); cpu->opcode = _gd(); goto step_next;
-        // M1/T3: refresh cycle
-        case 1: pins = _z80_refresh(cpu, pins); goto step_next;
-        // M1/T4: branch to instruction payload
-        case 2: {
-            cpu->step = _z80_optable[cpu->opcode];
-            cpu->addr = cpu->hl;
-        } goto step_next;
-```
-
-The first difference is how the 'effective address' is preloaded in step 2:
+The first difference to a regular opcode fetch is how the 'effective address' is preloaded in step 5:
 
 Instead of loading **addr** with HL, the register renaming index **hlx_idx** is
-used, which causes either the IX or IY register to be loaded into **addr**
+used, which causes either the IX or IY register to be loaded into **addr**, depending
+on the previously 'executed' prefix-byte instruction (DD or FD):
 
 ```c++
     cpu->addr = cpu->hlx[cpu->hlx_idx].hl;
@@ -860,9 +829,9 @@ a different table: **_z80_ddfd_optable[]** instead of **_z80_optable[]**. The
 **_z80_ddfd_optable[]** is identical to the regular optable, except for instructions
 that involve **(HL)** which need to be modified to **(IX+d)** or **(IY+d)**.
 
-Those instruction will insert a decoder block which loads the **d** offset,
-adds it to the 'effective address', and then continues to the original 
-instruction decoder block:
+Those instruction will 'inject' a decoder block after the opcode fetch machine
+cycle which loads the **d** offset, adds it to the 'effective address', and
+then continues to the original instruction decoder block:
 
 ```c++
         //=== optional d-loading cycle for (IX+d), (IY+d)
@@ -882,7 +851,9 @@ instruction decoder block:
 ```
 
 All taken together this means that the instruction **LD A,(IX+3)** executes the
-following decoder step sequence (starting with the opcode fetch for the DD prefix):
+following decoder step sequence (starting with the opcode fetch for the DD prefix),
+note how the execution jumps between entirely different parts of the decoder
+switch-case statement:
 
 ```c++
         //=== shared fetch machine cycle for non-DD/FD-prefixed ops
@@ -1068,7 +1039,7 @@ Long story short: since the CB-prefixed instruction block is very 'orderly'
 (see my previous [blog post for
 details](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#cb-prefix))
 I decided to decode the entire CB instruction block in a single function and a
-small number of special instruction decoder blocks.
+handful of special instruction decoder blocks.
 
 For instance all CB-prefixed instructions that don't involve **(HL)** execute the following
 sequence of decoder steps:
@@ -1096,7 +1067,7 @@ sequence of decoder steps:
 ```
 
 **_z80_cb_action()** is the magic function which decodes and implements all Z80 instructions
-behind the CB prefix (here's the [implementation](https://github.com/floooh/chips/blob/b46addd0461fa26fb91037ac431f5316748ab060/chips/z80.h#L771-L838)).
+in the CB-prefix instruction block (here's the [implementation](https://github.com/floooh/chips/blob/b46addd0461fa26fb91037ac431f5316748ab060/chips/z80.h#L771-L838)).
 
 CB-prefixed instructions which involve **(HL)** have a more complex payload for reading and
 (optionally) writing back the operand:
@@ -1136,8 +1107,7 @@ CB-prefixed instructions which involve **(HL)** have a more complex payload for 
 The memory write machine cycle which writes back the result is skipped if the **_z80_cb_action()**
 function returns true (which happens if this is a bit-testing instruction).
 
-Finally, the weird **DD/FD + CB** [double-prefixed instructions](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#dd-cb-and-fd-cb-prefix) are handled through a completely
-custom decoder block which looks like this:
+Finally, the weird **DD/FD + CB** [double-prefixed instructions](https://floooh.github.io/2021/12/06/z80-instruction-timing.html#dd-cb-and-fd-cb-prefix) are handled through another special decoder block which looks like this:
 
 ```c++
         // CB 00: ddfdcb (M:6 T:18)
@@ -1183,11 +1153,11 @@ static inline void _z80_ddfdcb_addr(z80_t* cpu, uint64_t pins) {
 }
 ```
 
-Next in step 1450, a regular memory read machine cycle loads the actual opcode
+Next in **step 1448**, a regular memory read machine cycle loads the actual opcode
 byte into ```cpu->opcode``` (so the opcode byte isn't loaded with an opcode
 fetch machine cycle, but instead with a memory read machine cycle - this is
 also why the R register is only incremented twice during a DD/FD+CB
-instruction, there are only two 'proper' opcode fetch machine cycles for the
+instruction: there are only two 'proper' opcode fetch machine cycles for the
 DD/FD prefix and the CB prefix).
 
 The next memory read machine cycle loads the operand byte from the effective
@@ -1282,7 +1252,7 @@ with the next opcode fetch.
 
 If an NMI is detected, execution branches to a special decoder block which implements the
 extra decoder steps to 'realize' a non-maskable interrupt and the returned pin mask
-is set to what looks like a regular opcode fetch (M1|MREQ|RD and PC on the address bus),
+is set to what looks like a regular opcode fetch (```M1|MREQ|RD``` and PC on the address bus),
 but *without* incrementing the PC.
 
 If a maskable interrupt is detected *and* interrupts are currently enabled,
@@ -1348,7 +1318,7 @@ bus which is then directly executed. The decoder block looks like this:
 ```
 
 Instead of an opcode fetch machine cycle, an interrupt acknowledge machine cycle
-is executed. First both IFF1 and IFF2 are cleared, then the CPU pins M1|IORQ are
+is executed. First both IFF1 and IFF2 are cleared, then the CPU pins ```M1|IORQ``` are
 set which causes the interrupt-requesting device to place an opcode
 byte on the data bus which is loaded in the next clock cycle.
 
@@ -1395,18 +1365,18 @@ acknowledge machine cycle, and the destination address (0x0036 instead of
 ## Mode 2 Interrupt Behaviour
 
 In mode 2 interrupts, the interrupt requesting device is expected to put the
-low-byte of the 'interrupt vector' on the data bus during the regular interrupt
+low-byte of an 'interrupt vector' on the data bus during the regular interrupt
 acknowledge machine cycle. This low-byte will be combined with the I register
 as high-byte to form the full 16-bit interrupt vector.
 
-Next two memory write machines cycles are executed to store the current PC
+Next, two memory write machines cycles are executed to store the current PC
 on the stack as return address.
 
-Next the interrupt vector is placed on the data bus, and two memory read machine
+Next, the interrupt vector is placed on the data bus, and two memory read machine
 cycles are executed to read the 16-bit interrupt service routine entry address,
 which is finally placed into the PC and WZ register.
 
-Finally the overlapped step initiates a regular opcode fetch which loads
+Finally, the overlapped step initiates a regular opcode fetch which loads
 the first opcode of the interrupt service routine.
 
 ```c++
@@ -1463,7 +1433,7 @@ opcode fetch machine cycle, in the emulator this happens in the overlapped cycle
         case  877: cpu->iff1=cpu->iff2=false;goto fetch_next;
 ```
 
-The only thing that's important here is that IFF1 and IFF2 flags are cleared before interrupt
+The only thing that's important here is that the IFF1 and IFF2 flags are cleared before interrupt
 detection happens in the **_z80_fetch()** function at the destination of ```goto fetch_next```
 
 The **RETI/RETN** instruction have identical behaviour on a real Z80: the IFF2 flag is copied
@@ -1472,7 +1442,7 @@ routine, the earliest moment a maskable interrupt will be triggered is at the en
 instruction following RETN.
 
 On the emulator, the RETI instruction sets a 'virtual' RETI output pin which is used by
-peripheral devices which implement the Z80 daisy chain interrupt protocol to detect
+other Z80-family chip emulators which implement the Z80 daisy chain interrupt protocol to detect
 RETI instructions (real chips sniff the data bus for the RETI instruction bytes during
 opcode fetch machine cycles instead).
 
@@ -1507,8 +1477,7 @@ systems which use the Z80 interrupt daisy chain protocol I decided to accept
 this compromise for now.
 
 A proper solution would be to entirely drop the RETI virtual pin, and instead
-sniff the data bus for the RETI opcode bytes like real Z80 family chips which 
-implement the interrupt daisy chain protocol.
+sniff the data bus for the RETI opcode bytes like real Z80-family chips.
 
 ## Pin Timing Differences to a real Z80
 
@@ -1527,21 +1496,25 @@ multiple times.
 
 I'm not quite happy yet with the relationship between WAIT states and
 memory and IO reads/writes, and I may have made some unintended compromises for the 
-Amstrad CPC there. Memory and IO reads are delayed by WAIT states,
-e.g. the CPU reads the data bus value after WAIT goes back to inactive.
+Amstrad CPC emulation which might slightly differ from the behaviour in other
+computer systems:
 
-For IO writes, the IORQ|WR pins are active in the clock cycle before the 
-WAIT pin is sampled, so that the write is not delayed by the WAIT states, 
-which also seems right. However, for memory writes I had to put the
-WAIT pin sampling and MREQ|WR pin activation into the same decoder step.
-This means that memory writes are delayed by the WAIT pin. For systems
-which don't use memory mapped IO this isn't a problem though.
+- Memory and IO reads are delayed by WAIT states, e.g. the CPU reads the data
+  bus value after WAIT goes back to inactive.
+
+- For IO writes, the ```IORQ|WR``` pins are active in the clock cycle before
+  the WAIT pin is sampled, so that the write is not delayed by the WAIT states. 
+
+- However, for memory writes I had to put the WAIT pin sampling and
+  ```MREQ|WR``` pin activation into the same decoder step. This means that
+  memory writes are delayed by the WAIT pin. For systems which don't use memory
+  mapped IO this shouldn't be a problem though.
 
 Long story short: there may be more changes in the relationship between wait
 states and read/write accesses in the future. Maybe I will also experiment with
 making the CPU pins behave exactly as a real Z80 (e.g. being active for
 multiple clock cycles), and put the burden of edge-detection on the system- or
-chip-emulation. 
+chip-emulations.
 
 ## Differences to the old Z80 Emulator
 
@@ -1556,7 +1529,7 @@ more subtle differences between the old and new emulation:
   which can slow down execution quite dramatically. I haven't put
   too much thought yet into general performance optimization advice
   for the system tick function, just be aware that small changes to
-  in the tick function now have a much bigger performance impact,
+  the tick function now have a much bigger performance impact,
   and usually into the wrong direction.
 
 - The new emulator currently only works on little-endian hosts because
@@ -1570,7 +1543,7 @@ more subtle differences between the old and new emulation:
   the CPU emulation needs to take care of clearing the INT pin. How this
   happens in concrete emulated systems is very different, a fairly common
   approach is to do this during an interrupt acknowledge machine cycle (when
-  the pin mask M1|IORQ is active).
+  the pin mask ```M1|IORQ``` is active).
 
 - The helper function **z80_opdone()** now returns true **after** the
   overlapped clock cycle has been executed (so technically it's already
@@ -1579,16 +1552,17 @@ more subtle differences between the old and new emulation:
   cycle (which is important for debuggers).
 
 - In the old emulator, it was enough to set the program counter to a different
-  value.
+  value in order to force execution to continue at a random address, in the
+  new emulator, the function **z80_prefetch()** must be used instead.
   
 ## Testing
 
-The following tests are currently used to verify emulator behaviour:
+The following tests are currently used to verify correct emulator behaviour:
 
 - [**z80-zexall.c**](https://github.com/floooh/chips-test/blob/master/tests/z80-zex.c):
-  This tests the behaviour (but not the timing) of all documented and
-  undocumented instructions including the XF and YF flags which 'leak' from the
-  internal WZ register ([see
+  This is the standard ZEXALL test which tests behaviour (but not the timing)
+  of all documented and undocumented instructions including the state of the
+  undocumented XF and YF flags which 'leak' from the internal WZ register ([see
   here](https://raw.githubusercontent.com/floooh/emu-info/master/z80/memptr_eng.txt)
   for information on the WZ register behaviour). 
 
@@ -1600,7 +1574,8 @@ The following tests are currently used to verify emulator behaviour:
 - [**z80-test.c**](https://github.com/floooh/chips-test/blob/master/tests/z80-test.c):
   This is my own rough instruction tester which I've been carrying along through
   all the Z80 emulator iterations. It tests the duration and expected results for 
-  the documented instructions and a handful undocumented instructions.
+  the documented instructions and a handful undocumented instructions, but not 
+  as thorough as ZEXALL or FUSE.
 
 - [**z80-timing.c**](https://github.com/floooh/chips-test/blob/master/tests/z80-timing.c):
   This is a variation of the previous test which tests pin timing (whether the expected
@@ -1614,7 +1589,7 @@ The following tests are currently used to verify emulator behaviour:
 Implanting the new cycle-stepped emulator into the [Amstrad CPC emulation](https://floooh.github.io/tiny8bit/cpc.html)
 was a rare case where some improvements were immediately visible. Those improvements
 are not a direct result of the cycle-stepping approach, but because more attention
-was given to the correct timing of read and write machine cycles, and more 
+was paid to the correct timing of read and write machine cycles, and more 
 accurate testing.
 
 The CPU vs Gate Array synchronization using WAIT states got a lot simpler though,
@@ -1640,7 +1615,7 @@ background raster effect:
 <img src="{{ site.url }}/images/phx_1_new.jpg" width="512px"/>
 
 In other parts of the PHX demo, a big black bar which was either slowly moving
-down are static is gone:
+down or static is gone:
 
 <img src="{{ site.url }}/images/phx_2_old.jpg" width="512px"/>
 <img src="{{ site.url }}/images/phx_2_new.jpg" width="512px"/>
