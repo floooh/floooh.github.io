@@ -603,7 +603,7 @@ INT pins for interrupt detection. More on this later in a dedicated section abou
 interrupt handling. The interrupt pin tracking needs to happen in every clock cycle,
 that's why it is in the last fallthrough position.
 
-Next up is the **step_next:** label. This simply increments the step counter by 1.
+Next up is the **step_next:** label. This simply increments the step counter by 1
 and needs to happen in each clock cycle, *unless* the CPU is executing WAIT cycles.
 
 And finally the **fetch_next:** label initiates an opcode fetch for the next instruction.
