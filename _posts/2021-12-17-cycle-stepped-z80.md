@@ -908,7 +908,7 @@ switch-case statement:
 ```
 
 This adds up to 19 decoder steps or clock cycles, and that's indeed the
-duration of the **LD A,(IX+d)** instruction
+duration of the **LD A,(IX+d)** instruction.
 
 There is one special case in the **_z80_ddfd_optable[]** and that is the **LD (HL),n** instruction
 which is modified to **LD (IX+d),n** or **LD (IY+d),n**. This is the only instruction which doesn't
