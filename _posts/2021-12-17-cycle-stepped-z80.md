@@ -941,7 +941,7 @@ The special d/n-loading decoder block looks like this:
 ```
 
 ...execution then continues at the memory write machine cycle of **LD (HL),n** which
-writes the immediate value **n** back the memory location defined by the 
+writes the immediate value **n** back to the memory location defined by the 
 'effective address':
 
 ```c++
