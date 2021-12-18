@@ -1601,7 +1601,7 @@ and based on this guess, compute the number of wait states to insert.
 Here are some of the improvements (mainly in demo scene demos, because those
 are usually extremely timing sensitive, much more than classic games):
 
-In the [Points Barres demo by Overlanders](https://floooh.github.io/tiny8bit/cpc.html?file=cpc/points_barres.dsk&input=run%22-PBARRES%0A), a pixel junk scanline above text has been fixed:
+In the [Points Barres demo by Overlanders](https://floooh.github.io/tiny8bit/cpc.html?file=cpc/points_barres.dsk&input=run%22-PBARRES%0A), a pixel junk scanline above scrolling text has been fixed:
 
 <img src="{{ site.url }}/images/points_barres_1_old.jpg" width="512px"/>
 <img src="{{ site.url }}/images/points_barres_1_new.jpg" width="512px"/>
