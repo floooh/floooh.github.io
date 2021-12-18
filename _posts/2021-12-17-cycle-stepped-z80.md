@@ -1193,7 +1193,7 @@ track_int_bits: {
 
 The ```cpu->int_bits``` state is then checked in the overlapped clock cycle in
 the **_z80_fetch()** function. Technically this is one clock cycle too late,
-but since the interrupt state pin state has been stored in the invocation of
+but since the interrupt pin state has been stored in the invocation of
 the tick function, interrupt timing is correct nonetheless.
 
 The complete **_z80_fetch()** function looks like this:
