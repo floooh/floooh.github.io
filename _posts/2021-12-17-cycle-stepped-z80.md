@@ -1263,7 +1263,7 @@ memory or IO request pins.
 If any type of interrupt is detected (and accepted), and the CPU is stopped at a HALT
 instruction, the CPU will exit the HALT state.
 
-## NMI interrupt behaviour
+## NMI Interrupt Behaviour
 
 The special decoder block for non-maskable interrupts looks like this:
 
