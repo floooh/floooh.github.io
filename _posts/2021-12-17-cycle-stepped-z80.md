@@ -916,7 +916,7 @@ simply insert 8 clock cycles for loading the d-offset and computing the effectiv
 it overlays the memory read machine cycle for loading the immediate value **n** over those 8 extra
 clock cycles.
 
-This is handled with a special d-loading cycle, which then jumps into the middle of the
+This is handled with a special d-loading decoder block, which then jumps into the middle of the
 original **LD (HL),n** payload.
 
 The special d/n-loading decoder block looks like this:
