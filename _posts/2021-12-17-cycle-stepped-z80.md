@@ -1589,8 +1589,7 @@ The following tests are currently used to verify correct emulator behaviour:
 Implanting the new cycle-stepped emulator into the [Amstrad CPC emulation](https://floooh.github.io/tiny8bit/cpc.html)
 was a rare case where some improvements were immediately visible. Those improvements
 are not a direct result of the cycle-stepping approach, but because more attention
-was paid to the correct timing of read and write machine cycles, and more 
-accurate testing.
+was paid to the correct timing of read and write machine cycles, and more detailed tests.
 
 The CPU vs Gate Array synchronization using WAIT states got a lot simpler though,
 the gate array emulation now simply sets the READY/WAIT pin in 3 out of 4 clock 
