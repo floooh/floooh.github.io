@@ -1369,7 +1369,7 @@ low-byte of an 'interrupt vector' on the data bus during the regular interrupt
 acknowledge machine cycle. This low-byte will be combined with the I register
 as high-byte to form the full 16-bit interrupt vector.
 
-Next, two memory write machines cycles are executed to store the current PC
+Next, two memory write machine cycles are executed to store the current PC
 on the stack as return address.
 
 Next, the interrupt vector is placed on the data bus, and two memory read machine
