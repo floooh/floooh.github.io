@@ -829,7 +829,7 @@ a different table: **_z80_ddfd_optable[]** instead of **_z80_optable[]**. The
 **_z80_ddfd_optable[]** is identical to the regular optable, except for instructions
 that involve **(HL)** which need to be modified to **(IX+d)** or **(IY+d)**.
 
-Those instruction will 'inject' a decoder block after the opcode fetch machine
+Those instructions will 'inject' a decoder block after the opcode fetch machine
 cycle which loads the **d** offset, adds it to the 'effective address', and
 then continues to the original instruction decoder block:
 
