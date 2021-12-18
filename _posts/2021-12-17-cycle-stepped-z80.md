@@ -1529,7 +1529,7 @@ more subtle differences between the old and new emulation:
   which can slow down execution quite dramatically. I haven't put
   too much thought yet into general performance optimization advice
   for the system tick function, just be aware that small changes to
-  the tick function now have a much bigger performance impact,
+  the system tick function now have a much bigger performance impact,
   and usually into the wrong direction.
 
 - The new emulator currently only works on little-endian hosts because
