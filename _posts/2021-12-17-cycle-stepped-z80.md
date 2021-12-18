@@ -1512,7 +1512,7 @@ computer systems:
 
 Long story short: there may be more changes in the relationship between wait
 states and read/write accesses in the future. Maybe I will also experiment with
-making the CPU pins behave exactly as a real Z80 (e.g. being active for
+making the CPU pins behave exactly like a real Z80 (e.g. being active for
 multiple clock cycles), and put the burden of edge-detection on the system- or
 chip-emulations.
 
