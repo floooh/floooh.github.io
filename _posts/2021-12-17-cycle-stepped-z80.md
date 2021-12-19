@@ -923,7 +923,7 @@ The special d/n-loading decoder block looks like this:
 
 ```c++
         //=== special case d-loading cycle for (IX+d),n where the immediate load
-        //    is hidden in the d-cycle load
+        //    is hidden in the d-load cycle
         //--- mread for d offset
         case 14: goto step_next;
         case 15: _wait();_mread(cpu->pc++); goto step_next;
