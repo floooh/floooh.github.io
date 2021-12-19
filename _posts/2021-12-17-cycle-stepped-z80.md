@@ -1479,7 +1479,7 @@ cycle, while on a real Z80 the pins are usually active for multiple clock cycles
 
 I made this compromise to make the system tick function (which needs to check
 for certain pin combinations) more efficient: for instance if the memory read
-and write machine cycles would be active over multiple clock cycles, the system
+and write pins would be active over multiple clock cycles, the system
 tick function would end up reading and writing memory multiple times.
 
 For memory access this would just mean more work, but for communication with
