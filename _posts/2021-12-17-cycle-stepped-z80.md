@@ -1408,7 +1408,7 @@ opcode fetch machine cycle. This has the effect that any pending maskable
 interrupts are delayed until the end of the next instruction, and that maskable
 interrupts are never triggered during long sequences of EI instructions.
 
-In the emulator this behaviour is simply achieved by temorarily disabling interrupts
+In the emulator this behaviour is simply achieved by temporarily disabling interrupts
 during the overlapped decoder step:
 
 ```c++
