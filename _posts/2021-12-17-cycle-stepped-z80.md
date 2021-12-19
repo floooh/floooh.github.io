@@ -1111,9 +1111,7 @@ Finally, the weird **DD/FD + CB** [double-prefixed instructions](https://floooh.
 
 ```c++
         // CB 00: ddfdcb (M:6 T:18)
-        // -- generic
         case 1446: _wait();_mread(cpu->pc++);goto step_next;
-        // -- generic
         case 1447: _z80_ddfdcb_addr(cpu,pins);goto step_next;
         // -- mread
         case 1448: goto step_next;
@@ -1303,15 +1301,10 @@ bus which is then directly executed. The decoder block looks like this:
 
 ```c++
         //  00: int_im0 (M:6 T:9)
-        // -- generic
         case 1461: cpu->iff1=cpu->iff2=false;goto step_next;
-        // -- generic
         case 1462: pins|=(Z80_M1|Z80_IORQ);goto step_next;
-        // -- generic
         case 1463: _wait();cpu->opcode=_z80_get_db(pins);goto step_next;
-        // -- generic
         case 1464: pins=_z80_refresh(cpu,pins);goto step_next;
-        // -- generic
         case 1465: cpu->step=_z80_optable[cpu->opcode];goto step_next;
         // -- overlapped
         case 1466: goto fetch_next;
