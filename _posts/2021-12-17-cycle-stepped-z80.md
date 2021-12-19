@@ -224,7 +224,7 @@ into 3 machine cycle groups:
 
 ```c++
 uint64_t tick(z80_t* cpu, uint64_t pins) {
-    switch (cpu->step) {
+    switch (cpu->step++) {
         // opcode fetch + refresh machine cycle
         case 0: pins = (M1|MREQ|RD) | set_abus(cpu->PC++); break;
         case 1: cpu->opcode = get_dbus(pins); break;
@@ -257,12 +257,12 @@ in the big switch-case statement.
 
 At the end of the shared opcode fetch machine cycle, a table lookup
 is performed with the opcode as index which yields the first step
-of the instrucion payload (look at ```case 3:```):
+of the instruction payload (look at ```case 3:```):
 
 
 ```c++
 uint64_t tick(z80_t* cpu, uint64_t pins) {
-    switch (cpu->step) {
+    switch (cpu->step++) {
         // opcode fetch + refresh machine cycle
         case 0: pins = (M1|MREQ|RD) | set_abus(cpu->PC++); break;
         case 1: cpu->opcode = get_dbus(pins); break;
@@ -299,7 +299,7 @@ Let's take the **ADD A,B** instruction as example, this *should* look like this:
 
 ```c++
 uint64_t tick(z80_t* cpu, uint64_t pins) {
-    switch (cpu->step) {
+    switch (cpu->step++) {
         // opcode fetch + refresh machine cycle
         case 0: pins = (M1|MREQ|RD) | set_abus(cpu->PC++); break;
         case 1: cpu->opcode = get_dbus(pins); break;
@@ -326,7 +326,7 @@ merged with the ADD A,B payload step:
 
 ```c++
 uint64_t tick(z80_t* cpu, uint64_t pins) {
-    switch (cpu->step) {
+    switch (cpu->step++) {
         // last 3 clock cyles of opcode fetch + refresh machine cycle
         case 0: cpu->opcode = get_dbus(pins); break;
         case 1: pins = (RFSH|MREQ) | set_abus(...); break;
@@ -350,7 +350,7 @@ uint64_t tick(z80_t* cpu, uint64_t pins) {
 #define _fetch() {pins=(M1|MREQ|RD)|set_abus(cpu->PC++);cpu->step=0}
 
 uint64_t tick(z80_t* cpu, uint64_t pins) {
-    switch (cpu->step) {
+    switch (cpu->step++) {
         // last 3 clock cyles of opcode fetch + refresh machine cycle
         case 0: cpu->opcode = get_dbus(pins); break;
         case 1: pins = (RFSH|MREQ) | set_abus(...); break;
@@ -777,15 +777,15 @@ The **hlx[3]** array allows to access the same registers through an index:
 ```c++
     cpu->hlx[0].l => L
     cpu->hlx[0].h => H
-    cpu->hlz[0].hl => HL
+    cpu->hlx[0].hl => HL
 
     cpu->hlx[1].l => IXL
     cpu->hlx[1].h => IXH
-    cpu->hlz[1].hl => IX
+    cpu->hlx[1].hl => IX
 
     cpu->hlx[2].l => IYL
     cpu->hlx[2].h => IYH
-    cpu->hlz[2].hl => IY
+    cpu->hlx[2].hl => IY
 ```
 
 For regular, unprefixed instructions the register renaming index (**hlx_idx**) is set to 0, so that register pair HL is accessed.
@@ -1577,7 +1577,7 @@ The following tests are currently used to verify correct emulator behaviour:
 - [**z80-int.c**](https://github.com/floooh/chips-test/blob/master/tests/z80-int.c):
   This is similar to the z80-timing.c test, but specializes on interrupt timing.
 
-## Amstrad CPC Accurary Improvements
+## Amstrad CPC Accuracy Improvements
 
 Implanting the new cycle-stepped emulator into the [Amstrad CPC emulation](https://floooh.github.io/tiny8bit/cpc.html)
 was a rare case where some improvements were immediately visible. Those improvements
