@@ -185,20 +185,23 @@ combinations are often unpredictable, which can lead to combinatorial
 explosions when trying to create all required combinations upfront.
 
 Resource binding in sokol-gfx happens through the `sg_apply_bindings()` call
-which takes separate arrays of textures and samplers for each shades stage.
+which takes separate arrays of textures and samplers for each shader stage.
 
 In WebGPU, those textures and samplers must be baked into a BindGroup object.
-This means that a dumb sokol-gfx backend would simply create a BindGroup object
+This means that a dumb sokol-gfx backend would simply create a new BindGroup object
 inside `sg_apply_bindings()`, call setBindGroup() on the render pass encoder,
-and then immediate release the BindGroup object again (the WebGPU C-API
-uses COM-style manual reference counting for object lifetime control).
+and then immediately release the BindGroup object again (the WebGPU C-API
+uses COM-style manual reference counting for object lifetime control, it's
+valid to release the BindGroup object immediately because WebGPU
+also keeps a reference as long as the object is 'in flight').
 
-Early versions of the WebGPU backend actually had this dumb implementation,
-but for the initial release I implemented a simple bind-groups-cache which
-try to reuse existing BindGroup objects instead of creating and discarding
-(which would also incur significant pressure on the Javascript garbage collector,
-in the first 'dumb' version I actually saw the typical GC pauses in microbenchmark
-code which did thousands of resource binding updates per frame).
+Early versions of the sokol-gfx WebGPU backend actually had this dumb
+implementation, but recently I implemented a simple bindgroups-cache which
+reuses existing BindGroup objects instead of creating and discarding them in
+each sg_apply_bindings() call (which would also incur significant pressure on
+the Javascript garbage collector, in the first 'dumb' version I actually saw
+the typical GC pauses in microbenchmark code which did thousands of resource
+binding updates per frame).
 
 The implementation details of the bind-groups-cache may differ, but the current
 version is simple and straightforward instead of trying to be clever. The cache
@@ -211,11 +214,30 @@ cache slot.
 
 If frequent hash collisions occur it might make sense to increase the size
 of the bindgroups cache (this doesn't happen automatically but must be
-tweaked at application start in the sg_setup() call).
+tweaked at application start in the sg_setup() call), but I'm thinking
+that even such a dumb hash-array implementation is still better than
+creating and releasing a BindGroup object in each sg_apply_bindings()
+call.
 
 A new function `sg_query_frame_stats()` allows to peek into
 sokol-gfx backend internals (like the number of bindgroup-cache hits, misses
 and collisions).
+
+It's also possible to disable the BindGroups cache alltogether, but this should
+only be used for debugging purposes.
+
+Stale BindGroup objects currently linger around in the cache forever, even if
+their associated sokol-gfx textures, buffers or samplers are destroyed. Since
+WebGPU has managed object lifetimes this is potentially expensive in terms of
+memory consumption, because those stale BindGroup objects prevent their
+referenced buffer, texture and sampler objects from being garbage-collected.
+However, WebGPU has explicit destroy functions on buffer and texture objects
+which cause the associated GPU resources to be freed, which keeps only a
+(hopefully) small JS zombie object pinned. If this turns out to be a problem,
+the best place to clean up stale objects in the bindgroups cache would be in
+the sokol-gfx buffer-, texture- and sampler-destruction functions (basically go
+over all cached bindgroup objects, and kill all bindgroups which reference the
+currently destroyed buffer, texture or sampler).
 
 I actually keep rolling around the idea in my head to add an equivalent to bindgroup
 objects to the sokol-gfx API, but mainly because the `sg_bindings` struct is
@@ -236,8 +258,8 @@ those concepts all connect well to each other forming a well-rounded
 
 It is extremely picky in that it enforces input data correctness to a level
 that's not been seen yet in native APIs. Native APIs often leave some areas
-underspecified or as undefined behaviour for various reasons (one reason
-is most likely plain and simple "oops we totally forgot about this edge case").
+underspecified or as undefined behaviour for various reasons (where the
+most likely one reason is probably "oops we totally forgot about this edge case").
 
 As a security-oriented web API, WebGPU can't effort the luxury
 of under-specification or undefined behaviour, but at the same
@@ -258,26 +280,26 @@ Interestingly, this is an area where traditional OpenGL (the ancient
 version where texture objects also contained the sampler state) were
 more correct than modern APIs where textures and samplers are separate
 objects. If texture- and sampler-state is wrapped in the same object,
-it's trivial to check wether both are compatible.
+it's trivial to check if both states are compatible with each other.
 
-But in modern 3D APIs, textures and samplers are completely separate
+But in more recent 3D APIs, textures and samplers are completely separate
 objects, their relationship doesn't become clear until they are
 used together in texture sampling calls deep down in a shader functions.
 And from the 3D APIs point-of-view this is as 'here be dragons' territory
 as it gets.
 
 To correctly validate texture/sampler combinations, a modern (post-GL)
-3D API needs to analyze shader code, look for texture sampling functions
-in the shader code and extract the texture and sampler used in each
-those functions (and that's what WebGPU needs to do
-under the hood, but native APIs most likely don't bother with).
+3D API needs to analyze shader code, look for texture sampling operations
+in the shader code and extract the texture/sampler pairs used in those
+sampling operations (and that's what WebGPU needs to do
+under the hood too, but native APIs most likely don't bother).
 
 With this texture/sampler usage information extracted from shaders,
 WebGPU would now be able to check that textures and samplers
 are of the expected types when applying resource bindings. But
 now the other goal of WebGPU comes into play, which is to move
 expensive validations out of the render loop into the initialization
-phase, and that's how I guess the whole idea of BindGroup
+phase, and that's how I guess the whole idea of predefined BindGroup
 and BindGroupLayout objects came about.
 
 (btw, it's design decisions like this why I think that WebGPU
@@ -285,7 +307,7 @@ won't be the "3D-API to end all 3D-APIs", other APIs might
 have different opinions on what's the sweet spot in the
 convenience vs performance vs correctness triangle)
 
-But were far from finished here.
+But back to the original conundrum:
 
 WebGPU introduces the concepts of 'texture sample types' and
 'sampler binding types'.
@@ -304,12 +326,12 @@ Sampler binding types are:
 - non-filtering
 - comparison
 
-Only some combinations of those are valid (not sure if I got that 100% right though, the WebGPU spec is a bit opaque there):
+Only some combinations of those are valid (not sure if I got that 100% right, the WebGPU spec is a bit opaque there):
 
-- float => filtering, non-filtering
-- unfilterable-float => non-filtering (there's a WebGPU extension to relax this though)
-- sint, uint => non-filtering
-- depth => comparison, non-filtering
+- texture: float => sampler: filtering, non-filtering
+- texture: unfilterable-float => sampler: non-filtering (there's a WebGPU extension to relax this though)
+- texture: sint, uint => sampler: non-filtering
+- texture: depth => sampler: comparison, non-filtering
 
 There's a specific problem with unfilterable-float/nonfiltering texture/sampler combos though:
 
@@ -323,8 +345,8 @@ from the shader code, for instance in GLSL there are sampler types like:
 
 Furthermore there are different sampler types for 1D, 2D, 3D, Cube, Array and multisampled textures.
 
-This provides plenty of reflection information to figure out the required texture and sampler types
-for validation on the CPU side.
+Alltogether this provides plenty of reflection information to figure out the
+required texture and sampler types for validation on the 3D-API side.
 
 Notably missing is a sampler type specifically for unfilterable-float textures (and from what
 I'm seeing, WGSL doesn't have something similar either).
@@ -367,7 +389,7 @@ such a restriction slipped into WebGPU. I think this must have been
 a confusion because Metal requires scissor rects (but not viewport rects)
 to be contained within the framebuffer, and early versions of the Metal
 API documentation also seems to have confused viewport and scissor
-rectangles.
+rectangles here and there (see: )
 
 sokol-gfx allows scissor rectangles to reach outside the framebuffer, and in
 the Metal backend the scissor rectangle is clipped to the framebuffer dimensions.
