@@ -8,39 +8,46 @@ changelog entry I guess it's time for a new blog post instead (the changelog ent
 technical details too, but here I want to go a bit beyond that and also talk about the design decisions,
 what went well and didn't and what to expect in the future).
 
+The sokol WebGPU backend samples [are hosted here](https://floooh.github.io/sokol-webgpu/).
+
+However, the source-code links will point to outdated code until the WebGPU branch is merged to master.
+
 ## WebGPU in a Nutshell
 
 From the perspective of sokol-gfx, WebGPU is a fairly straightforward API:
 
-- a `WGPUDevice` object which creates other WebGPU objects
-- `WGPUQueue`, `WGPUCommandBuffer`, `WGPUCommandEncoder` and `WGPURenderPassEncoder`
-  objects for sending rendering commands to WebGPU
-- `WGPUBuffer` objects to hold vertex-, index- and uniform-data
-- `WGPTexture` objects to hold pixel data, and `WGPUTextureView` objects to
-  describe subsections of that data
-- `WGPUShaderModule` objects which encapsulate shader code
-- `WGPUBindGroupLayout` and `WGPUPipelineLayout` objects which together
-  describe the shader resource binding interface
-- baked `WGPUBindGroup` objects for communicating uniform-buffer-, texture-
-  and sampler-bindings to shaders
-- `WGPUSampler` objects for describing how pixel data is sampled in shaders
-- `WGPURenderPipelineState` objects which bake granular render states into a
-  single immutable object
+- a WGPUDevice object which creates other WebGPU objects
+- WGPUQueue, WGPUCommandBuffer and WGPUCommandEncoder as general
+  infrastructure for sending commands to the GPU
+- WGPURenderPassEncoder to record commands for one render pass
+  into a command encoder
+- WGPUBuffer objects to hold vertex-, index- and uniform-data
+- WGPTexture objects to hold pixel data in 'subimages', and WGPUTextureView
+  objects for defining a group of texture subimages.
+- WGPUSampler objects for describing how pixel data is sampled in shaders
+- WGPUShaderModule objects which encapsulate shader code
+- WGPUBindGroupLayout and WGPUPipelineLayout which together describe
+  an interface for how shader-resource-objects (uniform-buffers, texture-views
+  and samplers) are communicated to shaders
+- WGPUBindGroup for storing immutable shader-resource-object combinations
+- WGPURenderPipelineState to combine a vertex layout, shaders, a resource
+  binding interface and granular render states into a single immutable
+  state object
 
 ...and that's about it. Currently sokol-gfx doesn't use the following WebGPU
-feature areas:
+features:
 
-- storage buffers and textures
+- storage buffers and storage textures
 - compute passes
 - render bundles
 - occlusion and timestamp queries
 
-WebGPU will slowly replace WebGL2 as the 'reference platform' to define
-the sokol feature set. However, only for features that can also be implemented
-without an emulation layer on top of D3D11, Metal and desktop GL.
+WebGPU will slowly replace WebGL2 as the 'reference platform' to define the
+future sokol feature set. However, only for features that can also be
+implemented without an emulation layer on top of D3D11, Metal and desktop GL.
 
 Storage resource and compute passes are definitely at the top of the list,
-while the idea of render bundles will most likely never make it.
+while the idea of render bundles will most likely never make it into sokol-gfx.
 
 ## WebGPU in the Sokol Ecosystem
 
@@ -49,154 +56,241 @@ swapchain resources are created and managed externally. sokol-gfx
 only depends on [<webgpu/webgpu.h>](https://github.com/webgpu-native/webgpu-headers/blob/main/webgpu.h).
 
 Initially, **sokol_app.h** will only support setting up a WebGPU device
-and swapchain for the Emscripten backend, as alternative to WebGL2.
+and swapchain for the Emscripten backend as alternative to WebGL2.
 This means that another 'window system glue' library (like GLFW) must be used
 when sokol-gfx is used together with a native WebGPU library like
 [Google's Dawn](https://dawn.googlesource.com/dawn).
 
 The **sokol-shdc** shader compiler gains support for translating Vulkan-style
-GLSL via SPIRV into WGSL with the help of [Google's Tint](https://dawn.googlesource.com/tint) library.
+GLSL (where 'Vulkan-style' means 'separate texture and sampler objects) via
+SPIRV into WGSL with the help of [Google's
+Tint](https://dawn.googlesource.com/tint) library.
 
-## The Tricky Parts
+## The Gnarly Parts
 
-Most of the WebGPU backend is a straightforward mapping between C structs and
-function calls, but some parts are more complex:
+Most of the sokol-gfx WebGPU backend is a straightforward data- and function-mapping,
+there are some notable exceptions though:
 
 ### Uniform Data Updates
 
-sokol-gfx doesn't expose uniform buffers to the API user, instead uniform data is
-considered to be 'frame-transient', all uniform data that's needed for rendering a frame
-needs to be written in that frame by calling sg_apply_uniforms(). Each shader
-stage offers 4 uniform data 'slots' to allow different update frequencies.
+sokol-gfx doesn't expose uniform buffers to the API user, instead uniform data
+is considered to be 'frame-transient', all uniform data required for one frame
+must be written from scratch via sg_apply_uniforms() calls (this make sense
+because most uniform data rarely remains unchanged between frames). Each
+sokol-gfx shader stage offers 4 uniform data 'slots' which allows to supply
+uniform data at different update frequencies.
 
-The WebGPU backend creates a single uniform buffer which must be big enough to hold
-all uniform data for one worst-case frame (the size is tweakable at sokol-gfx
-initialization). Apart from that an intermediate memory buffer of the same size is allocated
-on the heap.
+At startup, the sokol-gfx WebGPU backend creates a single uniform buffer which
+must be big enough to hold all uniform data for one worst-case frame.
+Additionally, an intermediate memory buffer of the same size is allocated on
+the heap.
 
 When new uniform data is coming in via `sg_apply_uniforms()`, the data is
-appended to the intermediate memory buffer and the new offset is recorded into
-the render pass encoder by calling `wgpuRenderPassSetBindGroup` with dynamic
-buffer offsets. 8 offsets needs to be updated here even though only one
-has changed.
+appended to the intermediate memory buffer and an offset to the new data is
+recorded into the render pass encoder by calling `wgpuRenderPassSetBindGroup`
+with dynamic buffer offsets (where only one of 8 offsets has actually changed).
 
-At the end of the frame in `sg_commit()` a single big `wgpuQueueWriteBuffer` copies
-the new uniform data from the intermediate memory buffer into the WebGPU
-uniform buffer.
+At the end of the frame in `sg_commit()` a single big `wgpuQueueWriteBuffer` records
+a write operation from the intermediate WASM heap buffer into the WebGPU uniform
+buffer.
 
-This uniform update mechanism works similar like in the native Metal backend, but
+This uniform update mechanism works similar to the native Metal backend, but
 with two important differences: In the Metal backend, there is no intermediate
-copy, the data is written directly into one of multiple uniform buffers which
-are rotated through. And Metal offers special 'slim' functions to record only
-a single buffer offset without any redundant data.
+CPU memory buffer, the data is written directly into one of multiple uniform
+buffers which are rotated through. For updating the uniform buffer offset,
+Metal offers special 'slim' functions to record only a single buffer offset
+update for an already bound buffer.
 
-When trying to implement the same update mechanism in WebGPU and WASM, there
-are multiple options, but all of them are not great:
+I went through several rewrites of the uniform update code, and the current
+version most likely isn't the last one (it's good enough for the initial
+implementation though):
 
-- The first option is to implement a 'buffer conveyor belt', this basically
+- The first version implemented a 'buffer conveyor belt' model, this basically
   rotates through multiple buffers, where the current write buffer is mapped
-  for the duration of a frame. This was also the first version I implemented
-  for an earlier version of the sokol-gfx WebGPU backend (before the
-  write-buffer convenience function existed, which basically does the same
-  thing). The problem with this approach is that a WebGPU buffer cannot be
-  mapped directly into the WASM heap, instead the mapping happens to a
-  separate Javascript ArrayBuffer object. This means in WASM it's not
-  possible to read or write directly a mapped buffer via the WASM heap, and
-  on top of that, the Emscripten WebGPU shim functions which wrap the
-  buffer mapping need to do a temporary allocation in the WASM heap.
+  for the duration of a frame. This version is quite similar to the Metal
+  backend. The problem when using WebGPU from WASM however is that a WebGPU
+  buffer cannot be mapped directly into the WASM heap. The result of mapping
+  a WebGPU buffer is a Javascript ArrayBuffer object, while the WASM heap
+  is a separate ArrayBuffer objects. A C-API shim on top of WASM needs to
+  go through a temporary heap allocation in the WASM heap to emulate the
+  WebGPU buffer mapping functions, which of course is inefficient.
 
-- Once the writeBuffer() convenient method was added to WebGPU the above
-  solution didn't make much sense anymore because writeBuffer() essentially
-  implements the same 'buffer conveyor belt' under the hood. So next version I
-  tried is calling writeBuffer() directly from the `sg_apply_uniforms()`
-  function (which is a very high frequency call). Unfortunately this added
-  significant overhead, so I ditched that and that's when I arrived at the
-  current solution using the intermediate memory buffer and a single big
-  writeBuffer() per frame.
+- The next uniform-update rewrite called a new `wgpuQueueWriteBuffer` function
+  once per sg_apply_uniform() call. This writeBuffer function conveniently
+  implemenets the buffer-conveyor-belt under the hood, and the JS shim function
+  also doesn't need a temporary WASM heap allocation. It turned out that the
+  writeBuffer call overhead was too high for such a high-frequency operation...
 
-- Another option (which I'll have to try at some point) is to go back to the
-  'uniform buffer conveyor belt', but write my own Javascript shim functions
-  which wrap the buffer mapping and updating. This new shim function would be
-  called at high frequency from `sg_apply_uniforms()`, and copy the original
-  uniform data from the WASM heap into the separate ArrayBuffer object which
-  represents the mapped uniform buffer, all on the Javascript side, and without
-  going through an intermediate copy. This should be the best option but
-  requires separate code paths for the WebGPU backend running in the browser
-  and on native WebGPU libraries.
+- And thus the current version was created, which accumulates all uniform
+  data snippets for an entire frame and then does a single big writeBuffer()
+  call at the end of the frame in sg_commit().
 
-One problem that can't be fixed in sokol-gfx is that the WebGPU setBindGroup()
-call has a surprisingly high CPU overhead. Long story short, updating uniform
-buffer offsets via setBindGroup() is a lot slower currently than the WebGL2
-function glUniform4fv() (which is used in the sokol-gfx GL backend to update
-uniform data).
+- There's another option though which I will try out at a later time (because
+  that intermediate memory buffer bother me), but this method requires different
+  code paths for WASM vs native platforms: This method would go back to
+  a manually implemented buffer-conveyor-belt, but call out to a handful
+  of my own Javascript shim functions. At the start of a frame, a JS
+  function would be called which obtains a mapped ArrayBuffer from the
+  current frame's uniform buffer and that ArrayBuffer would be stored
+  somewhere until the end of the frame. During the frame the WebGPU
+  backend version of sg_apply_uniforms() would call out into
+  another Javascript function which directly copies the uniform
+  data snippet from the WASM heap ArrayBuffer object into the
+  mapped uniform ArrayBuffer. Finally at the end of the frame,
+  a third Javascript shim function is called which unmaps the uniform
+  ArrayBuffer. On native platforms, the regular WebGPU buffer mapping
+  functions would be used instead.
 
-This means that micro-benchmarks which measure per-draw CPU overhead are currently
-running slower in WebGPU than WebGL2.
+The next problem with WebGPU uniform buffer updates is unfixable on my side though:
 
-Case in point: [DrawCallPerf sample for WebGL2](https://floooh.github.io/sokol-html5/drawcallperf-sapp.html)
-versus [the same sample for WebGPU](https://floooh.github.io/sokol-webgpu/drawcallperf-sapp.html).
+Apart from copying the uniform data snippets into a uniform buffer, sg_apply_uniforms()
+also needs to record the offset of that data in the uniform for the next draw call.
 
-Hopefully these are just teething problems and can be fixed, because next to
-the actual draw functions (which are fast enough), setBindGroup() is the next
-most important high-frequency function which **must** have minimal CPU
-overhead.
+In WebGPU this requires a setBindGroup() call with so-called 'dynamic offsets'.
 
-I have a lot of opinions about the BindGroup design decision, but I don't want
-to derail this blog post into a rant, so let's move on :)
+And currently, this setBindGroup() call has a surprisingly high CPU overhead which
+makes the `sg_apply_uniforms()` call in the WebGPU significantly slower than in
+the WebGL2 backend. How big the difference is depends on the platform, but as
+an example: on my Windows PC in Chrome with WebGL2 I can issue about 64k
+uniform-update/draw-call pairs before frame rate starts to drop below 60Hz,
+while on WebGPU it tops out at around 16k uniform-update/draw-call pairs.
+
+The culprit is the setBindGroup() call which is a lot slower than the
+glUniform4fv() call that's used in the WebGL2 backend to update uniform data.
+
+You can check for yourself in the following demo for
+[WebGL2](https://floooh.github.io/sokol-html5/drawcallperf-sapp.html) and
+[WebGPU](https://floooh.github.io/sokol-webgpu/drawcallperf-sapp.html).
+
+To me it was definitely surprising that there are situations where WebGPU
+can be drastically slower than WebGL2, and hopefully this is just a case
+of "first make it work, then make it fast". But it looks like moving
+from WebGL2 to WebGPU isn't such a no-brainer as it was on the iOS and
+macOS platforms (where simply switching from GL to Metal provides a
+hefty performance increase).
+
 
 ### Texture and Sampler Resource Bindings
 
-The problems here are a bit similar to the uniform data update problem above, but with
-a different solution. Again it's about BindGroups though :)
+Another BindGroup-related problem, what a surprise ;)
 
-The common theme is that I consider resource bindings (specifically texture and
-sampler bindings) also as frame-transient, and not as baked data. This collides
-with WebGPU's philophy that resource bindings live in baked BindGroup objects.
+This time it's about the texture and sampler resource bindings.
 
-(...ideally I would like something like a BindingsBuffer where a single buffer can
-hold the resource bindings for an entire frame and I'm just recording offsets
-into this BindingsBuffer before a drawcall - the luxus version of this would
-be Metal-style argument buffers - but I disgress)
+Just as with uniform data, sokol-gfx considers shader resource bindings to be
+frame-transient, e.g. they need to be defined from scratch each frame. The
+motivation for this isn't quite as clear-cut as for uniform data though. In
+games for instance, material systems can often stamp out all required material
+instances upfront. But especially in non-game-application resource binding
+combinations are often unpredictable, which can lead to combinatorial
+explosions when trying to create all required combinations upfront.
 
-Back to sokol-gfx, here binding resources happens through a 'dynamic'
-`sg_apply_bindings` call which simply takes arrays of textures and samplers
-for the vertex- and fragment-shader stages. A 'dumb' mapping to WebGPU would
-be to create an adhoc `WGPUBindGroup` object, apply that with setBindGroup()
-and immediately release the object again (since the WebGPU C API is refcounted,
-the BindGroup will then be released automatically when no longer needed by
-the RenderPassEncoder). And that's what I initially implemented.
+Resource binding in sokol-gfx happens through the `sg_apply_bindings()` call
+which takes separate arrays of textures and samplers for each shades stage.
 
-It works of course, but due to the surprisingly high CPU overhead of the
-setBindGroup() call this wasn't an option (and besides, this is also not
-exactly great for the Javascript garbage collector - I actually saw the typical
-garbage collector spikes in the DrawCallPerf sample I linked above).
+In WebGPU, those textures and samplers must be baked into a BindGroup object.
+This means that a dumb sokol-gfx backend would simply create a BindGroup object
+inside `sg_apply_bindings()`, call setBindGroup() on the render pass encoder,
+and then immediate release the BindGroup object again (the WebGPU C-API
+uses COM-style manual reference counting for object lifetime control).
 
-The current solution is caching and reusing BindGroup objects backed
-by a very simple hashmap, the hashmap internals are exposed with a new
-function `sg_query_frame_stats()` which allows to check for hashmap
-slot collisions (because in this case, a BindGroup will be discarded and
-another one created, and if this happens too frequently it's obviously
-a bad thing - but should be fixable by increasing the number of slots
-in the hash map at sokol-gfx initialization time).
+Early versions of the WebGPU backend actually had this dumb implementation,
+but for the initial release I implemented a simple bind-groups-cache which
+try to reuse existing BindGroup objects instead of creating and discarding
+(which would also incur significant pressure on the Javascript garbage collector,
+in the first 'dumb' version I actually saw the typical GC pauses in microbenchmark
+code which did thousands of resource binding updates per frame).
 
-### Shader Interface Reflection Info
+The implementation details of the bind-groups-cache may differ, but the current
+version is simple and straightforward instead of trying to be clever. The cache
+is essentially a simple hash-indexed array using the lower bits of a 64-bit
+murmur-hash of sokol-gfx object handles as index. A cache miss occurs if either
+an indexed slot isn't occupied yet, or that slot already contains a BindGroups
+object with different bindings. When such a slot-collision occurs, the old
+BindGroups object is released and a new BindGroups object is written to that
+cache slot.
 
-WebGPU is both a very convenient API, but also extremely picky when
-it comes to correctness. For a web API it's important that the
-both the API specification and implementation are watertight and
-catch all sorts of problems where native APIs allow a lot more slack.
+If frequent hash collisions occur it might make sense to increase the size
+of the bindgroups cache (this doesn't happen automatically but must be
+tweaked at application start in the sg_setup() call).
 
-The most gnarly of those issues is that texture/sampler combinations
-must obey rules that are often underspecified in native APIs.
+A new function `sg_query_frame_stats()` allows to peek into
+sokol-gfx backend internals (like the number of bindgroup-cache hits, misses
+and collisions).
 
-Long story short: WebGPU has a concept of 'texture-sample-type'
-and 'sampler-binding-types' which must be defined upfront for
-texture and sampler bindings when creating a BindGroupLayout object
-(meaning basically that you need to know upfront what specific types
-of textures and samplers you're going to use with a specific
-render pipeline object).
+I actually keep rolling around the idea in my head to add an equivalent to bindgroup
+objects to the sokol-gfx API, but mainly because the `sg_bindings` struct is
+growing quite big for a high-frequency function. It's unclear yet if this
+would help to create WebGPU BindGroup objects upfront, because I wouldn't
+want to tie such sokol-gfx bindgroup objects to specific shaders and
+pipeline objects.
 
-A texture-sample-type can be:
+
+### The "unfilterable-float-texture / nonfiltering-sampler" conundrum
+
+WebGPU is a bit of a schizophrenic API because it is both convenient
+but also extremely picky.
+
+It is convenient in the way that it has few concepts to learn and
+those concepts all connect well to each other forming a well-rounded
+3D API without many surprises.
+
+It is extremely picky in that it enforces input data correctness to a level
+that's not been seen yet in native APIs. Native APIs often leave some areas
+underspecified or as undefined behaviour for various reasons (one reason
+is most likely plain and simple "oops we totally forgot about this edge case").
+
+As a security-oriented web API, WebGPU can't effort the luxury
+of under-specification or undefined behaviour, but at the same
+time it wants to be a high-performance API which moves as much
+expensive validation checks out of the render loop and into the
+initialization phase. As a result, WebGPU introduces some seemingly
+'artifical' restrictions that don't exist in native 3D APIs.
+
+The most prominent example is the strict validation around
+texture/sampler combinations in WebGPU. It has always been the
+case that certain types of textures don't work together with
+certain types of samplers on certain types of GPUs, but in traditional
+APIs such details were often skipped over in 3D API documentations,
+it was some uncharted 'here be dragons' territory manifesting as
+weird rendering artifacts or black screens.
+
+Interestingly, this is an area where traditional OpenGL (the ancient
+version where texture objects also contained the sampler state) were
+more correct than modern APIs where textures and samplers are separate
+objects. If texture- and sampler-state is wrapped in the same object,
+it's trivial to check wether both are compatible.
+
+But in modern 3D APIs, textures and samplers are completely separate
+objects, their relationship doesn't become clear until they are
+used together in texture sampling calls deep down in a shader functions.
+And from the 3D APIs point-of-view this is as 'here be dragons' territory
+as it gets.
+
+To correctly validate texture/sampler combinations, a modern (post-GL)
+3D API needs to analyze shader code, look for texture sampling functions
+in the shader code and extract the texture and sampler used in each
+those functions (and that's what WebGPU needs to do
+under the hood, but native APIs most likely don't bother with).
+
+With this texture/sampler usage information extracted from shaders,
+WebGPU would now be able to check that textures and samplers
+are of the expected types when applying resource bindings. But
+now the other goal of WebGPU comes into play, which is to move
+expensive validations out of the render loop into the initialization
+phase, and that's how I guess the whole idea of BindGroup
+and BindGroupLayout objects came about.
+
+(btw, it's design decisions like this why I think that WebGPU
+won't be the "3D-API to end all 3D-APIs", other APIs might
+have different opinions on what's the sweet spot in the
+convenience vs performance vs correctness triangle)
+
+But were far from finished here.
+
+WebGPU introduces the concepts of 'texture sample types' and
+'sampler binding types'.
+
+Texture sample types are:
 
 - float
 - unfilterable-float
@@ -204,38 +298,48 @@ A texture-sample-type can be:
 - u(nsigned)int
 - depth
 
-...and sampler-binding-types can be:
+Sampler binding types are:
 
 - filtering
 - non-filtering
 - comparison
 
-Some combinations of texture-sample-type and sampler-binding-types are illegal
-and will be caught by WebGPU when creating a pipeline object by analyzing
-and matching the provided shader code against the pipeline's BindGroupLayouts.
+Only some combinations of those are valid (not sure if I got that 100% right though, the WebGPU spec is a bit opaque there):
 
-The problem for sokol-gfx is that this shader reflection information (what
-textures and sampler combination are used by the shader) is internal to
-WebGPU and cannot be queried by the API user. Sokol-gfx doesn't have the
-concept of BindGroupLayouts, but it has something similar: when a shader
-object is created, additional shader interface reflection info must be
-provided for each shader stage:
+- float => filtering, non-filtering
+- unfilterable-float => non-filtering (there's a WebGPU extension to relax this though)
+- sint, uint => non-filtering
+- depth => comparison, non-filtering
 
-- the number, size and (for GL) the internal layout of uniform blocks
-- information about each texture that's used in the shader
-- ...and information about each sampler
+There's a specific problem with unfilterable-float/nonfiltering texture/sampler combos though:
 
-When the **sokol-shdc** offline shader compiler is used, all that information
-is extracted from the shader, so usually the sokol-gfx API user won't need
-to care about those dirty details. But there's a problem:
+Shading languages usually have different sampler types which allows to infer some information
+from the shader code, for instance in GLSL there are sampler types like:
 
-**sokol-shdc** cannot know just by looking at GLSL code whether a texture
-will be of an `unfilterable-float` type. There's simply no keyword for that
-in GLSL (and it is actually legal to bind either a filterable, or an unfilterable
-texture to the same sampler, as long as the sampler is compatible).
+- isampler2D => compatible with sint texture-sample-types
+- usampler2D => compatible with uint texture-sample-types
+- sampler2D => compatible with float texture-sample-types
+- sampler2DShadow => compatible with depth texture-sample-types
 
-I'm solving this with two new meta-tags in the sokol-shdc shader input to
-provide those hints to the reflection code generation looking like this:
+Furthermore there are different sampler types for 1D, 2D, 3D, Cube, Array and multisampled textures.
+
+This provides plenty of reflection information to figure out the required texture and sampler types
+for validation on the CPU side.
+
+Notably missing is a sampler type specifically for unfilterable-float textures (and from what
+I'm seeing, WGSL doesn't have something similar either).
+
+On the shader level this basically means that the same shader works both with
+float and unfilterable-float textures, **as long as** it is used with a compatible
+sampler type. But in this case the reflection information from the shader
+doesn't help with setting up the BindGroupLayouts (because that's exactly
+that sokol-gfx in combination with the sokol-shdc offline shader-compiler does).
+
+For the sokol-shdc shader compiler, I worked around this problem by adding to
+meta-tags which provide this hint for textures and samplers, the interface
+reflection code then knows that a specific texture or sampler expects the
+unfilterable-float / nonfiltering flavour for a floating point sampling
+operation:
 
 ```glsl
 @image_sample_type joint_tex unfilterable_float
@@ -244,14 +348,45 @@ uniform texture2D joint_tex;
 uniform sampler smp;
 ```
 
-...looks a bit awkward - I know. Thankfully that's only need in some situations
-(specifically when using float pixel formats), all other cases (depth, sint or
-uint textures) are should be automatically detected by the **sokol-shdc**
-shader reflection code.
+This hints to sokol-gfx that an 'unfilterable-float'-type texture must be bound
+to 'joint_tex', and 'non-filtering'-type sampler must be bound to 'smp'.
+
+It's a bit awkward because those meta-tags are not directly integrated with
+GLSL (for that I would need to write my own GLSL parser, which is clearly overkill),
+but since this hint is rarely needed I think the solution is acceptable for now.
 
 
+### The Viewport Clipping Confusion
 
+I stumbled over this pretty late in my WebGPU backend work because it's quite
+subtle: much to my surprise, WebGPU currently requires viewport rectangles to be
+entirely contained within the framebuffer.
 
+None of the native backend APIs have this restrictions, so it's curious how
+such a restriction slipped into WebGPU. I think this must have been
+a confusion because Metal requires scissor rects (but not viewport rects)
+to be contained within the framebuffer, and early versions of the Metal
+API documentation also seems to have confused viewport and scissor
+rectangles.
+
+sokol-gfx allows scissor rectangles to reach outside the framebuffer, and in
+the Metal backend the scissor rectangle is clipped to the framebuffer dimensions.
+Since the scissor discard happens on the fragment/pixel level, behaviour
+is identical with backend APIs like GL or D3D11 which don't have this restriction.
+
+For viewports the situation isn't so simple though. A viewport rectangle always
+maps to clipspace x/y range [-1, +1], which means changing the shape of the
+viewport rectangle (for instance when clipping the rectangle against the
+framebuffer boundaries) will warp the vertex-to-screenspace transform and cause
+rendering to become distorted (unless the vertex transform in the vertex shader
+counters the distortion, for instance with a modified projection matrix).
+
+Of course in a wrapper API like sokol-gfx such vertex shader patching stuff
+is out of the question, so what I'm currently doing is to clip the
+viewport rectangle against the framebuffer, fully aware that this
+will cause distortions that are not present with the other sokol-gfx backends.
+
+This problem really needs to be fixed in WebGPU.
 
 
 
