@@ -257,7 +257,7 @@ updates, but the current version is simple and straightforward instead of
 trying to be clever. The cache is essentially a simple hash-indexed array using
 the lower bits of a 64-bit murmur-hash computed from an array of sokol-gfx
 object handles as index. A cache miss occurs if an indexed slot isn't occupied
-yet, a cache collision occurs if an indexed slot already contains a BindGroups
+yet, a cache collision occurs if an indexed slot already contains a BindGroup
 object with different bindings. When such a slot-collision occurs, the old
 BindGroup object is released before a new BindGroups object is written to that
 cache slot.
