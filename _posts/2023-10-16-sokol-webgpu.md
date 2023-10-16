@@ -328,7 +328,7 @@ The most prominent example is the strict upfront-validation around
 texture/sampler combinations in WebGPU. It has always been the case that
 certain types of textures don't work together with certain types of samplers on
 certain types of GPUs, but in traditional APIs such details were often skipped
-over or hidden in dark places in the documentation, it was some uncharted 'here be
+over or hidden in dark places of the documentation, it was some uncharted 'here be
 dragons' territory manifesting as weird rendering artifacts or black screens.
 
 Interestingly, this is an area where traditional OpenGL (the ancient version
