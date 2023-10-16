@@ -650,7 +650,6 @@ the long-term sokol-gfx roadmap (in undefined order):
 - maybe (just maybe) switch from GLSL to WGSL as the primary cross-backend
   shader authoring language, this assumes that Tint can entirely replace
   SPIRVCross, which is not certain yet
-- ...?
 
 ...for the rest of the year I will probably tinker with other things though (I have the
 urge to do some emulator coding again, and I also have an unfinished experiment
