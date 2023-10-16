@@ -8,7 +8,7 @@ changelog entry I guess it's time for a new blog post instead (the changelog ent
 technical details too, but here I want to go a bit beyond that and also talk about the design decisions,
 what went well and didn't and what to expect in the future).
 
-The sokol WebGPU backend samples are hosted here: [https://floooh.github.io/sokol-webgpu)](https://floooh.github.io/sokol-webgpu).
+The sokol WebGPU backend samples are hosted here: [https://floooh.github.io/sokol-webgpu](https://floooh.github.io/sokol-webgpu).
 
 However, the source-code links will point to outdated code until the WebGPU branch is merged into master.
 
