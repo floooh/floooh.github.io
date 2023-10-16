@@ -199,7 +199,7 @@ double the macOS numbers!): WebGL2 is actually slightly slower than WebGPU here
 is already happening?): 8.5k draws for WebGL2 vs 11k for WebGPU before a 120Hz
 frame rate can no longer be sustained, for comparison, the same code compiled as
 native and using the sokol-gfx Metal backend goes up to around 110k draws
-before performance drops below 120Hz.
+before framerate drops below 120Hz.
 
 The culprit is the setBindGroup() call which is somewhere between "about equal"
 to "a lot slower" than the glUniform4fv() call that's used in the WebGL2
