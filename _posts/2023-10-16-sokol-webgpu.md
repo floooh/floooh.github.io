@@ -264,8 +264,8 @@ cache slot.
 
 If frequent hash collisions occur it might make sense to increase the size of
 the bindgroups cache to the next power-of-2 size (this doesn't happen
-automatically but must be tweaked at application start in the sg_setup() call),
-but I'm thinking that even such a dumb hash-array implementation is still
+automatically but must be tweaked at application start in the sg_setup() call).
+I think that even such a dumb hash-array implementation is still
 better than creating and releasing a BindGroup object in each
 sg_apply_bindings() call (I still have to do the hard benchmarks to confirm
 this though). The bindgroups cache may also become less useful in the future if
