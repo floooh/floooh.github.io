@@ -85,7 +85,7 @@ can't be inferred from the shader code. More on that later in this blog post.
 
 ## The Gnarly Parts
 
-Most of the sokol-gfx WebGPU backend is a straightforward struct- and function-mapping
+Most of the sokol-gfx WebGPU backend is a straightforward mapping
 to WebGPU structs and functions, there are some notable exceptions though:
 
 ### Uniform Data Updates
