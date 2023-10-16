@@ -224,7 +224,7 @@ This time it's about the texture and sampler resource bindings.
 
 Just as with uniform data, sokol-gfx considers shader resource bindings to be
 frame-transient, e.g. they need to be written from scratch each frame (because
-what else are shader resource bindings if not 'uniform data' that's passed 'by
+what else are shader resource bindings if not uniform data that's passed 'by
 reference' instead of 'by value').
 
 The motivation for this isn't quite as clear-cut as for uniform data though. In
