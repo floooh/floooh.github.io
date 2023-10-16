@@ -223,9 +223,9 @@ Another BindGroup-related problem, what a surprise ;)
 This time it's about the texture and sampler resource bindings.
 
 Just as with uniform data, sokol-gfx considers shader resource bindings to be
-frame-transient, e.g. they need to be written from scratch each frame (since
-what else are shader resource bindings than uniform data, but as a group of
-'resource object pointers').
+frame-transient, e.g. they need to be written from scratch each frame (because
+what else are shader resource bindings if not 'uniform data' that's passed 'by
+reference' instead of 'by value').
 
 The motivation for this isn't quite as clear-cut as for uniform data though. In
 games for instance, material systems can often stamp out all required material
