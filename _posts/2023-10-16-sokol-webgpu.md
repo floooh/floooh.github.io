@@ -456,7 +456,7 @@ API documentation also were confused about viewport vs scissor
 rectangles here and there (see: [https://github.com/gpuweb/gpuweb/issues/373](https://github.com/gpuweb/gpuweb/issues/373)).
 
 Sokol-gfx allows scissor rectangles to reach outside the framebuffer, and in
-the Metal backend the scissor rectangle is clipped to the framebuffer dimensions.
+the Metal and WebGPU backends the scissor rectangle is clipped to the framebuffer dimensions.
 Since the scissor discard happens on the pixel level, behaviour
 is identical with backend APIs like GL or D3D11 which don't have this restriction.
 
