@@ -339,7 +339,7 @@ if both states are compatible with each other at texture creation time.
 
 But in more recent 3D APIs, textures and samplers are completely separate
 objects, their relationship doesn't become clear until they are
-used together in texture sampling calls deep down in a shader functions.
+used together in texture sampling calls deep down in shader code.
 And from the 3D API's point-of-view this is as 'here be dragons' territory
 as it gets.
 
