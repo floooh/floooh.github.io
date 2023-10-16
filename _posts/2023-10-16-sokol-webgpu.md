@@ -253,7 +253,7 @@ the typical GC pauses in microbenchmark code which did thousands of resource
 binding updates per frame).
 
 The implementation details of the bind-groups-cache may differ in future
-updated, but the current version is simple and straightforward instead of
+updates, but the current version is simple and straightforward instead of
 trying to be clever. The cache is essentially a simple hash-indexed array using
 the lower bits of a 64-bit murmur-hash computed from an array of sokol-gfx
 object handles as index. A cache miss occurs if an indexed slot isn't occupied
