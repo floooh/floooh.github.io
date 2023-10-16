@@ -70,11 +70,11 @@ swapchain resources are created and managed externally. Sokol-gfx
 itself only depends on [<webgpu/webgpu.h>](https://github.com/webgpu-native/webgpu-headers/blob/main/webgpu.h).
 
 Initially, **sokol_app.h** will only support WebGPU in the Emscripten backend
-as alternative to WebGL2. This means that sokol_app.h can't be used when a
-native WebGPU implementation like Dawn or wgpu.rs is used, and an alternative
-window system glue library like GLFW must be used instead (currently you are
-better off with the native sokol-gfx backends anyway in such a situation, at
-least for the D3D11 and Metal backends).
+as alternative to WebGL2. This means that sokol_app.h can't be used together
+with a native WebGPU implementation like Dawn or wgpu.rs, instead an alternative
+window system glue library like GLFW must be used (currently you are
+better off with the sokol-gfx backends for D3D11 and Metal anyway for native platforms, at
+least on Windows and macOS).
 
 The **sokol-shdc** shader compiler gains support for translating Vulkan-style
 GLSL via SPIRV into WGSL with the help of [Google's Tint](https://dawn.googlesource.com/tint) library.
