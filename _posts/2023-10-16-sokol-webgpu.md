@@ -12,6 +12,11 @@ The sokol WebGPU backend samples are hosted here: [https://floooh.github.io/soko
 
 However, the source-code links will point to outdated code until the WebGPU branch is merged into master.
 
+## Table of Content
+
+* TOC
+{:toc}
+
 ## WebGPU in a Nutshell
 
 From the perspective of sokol-gfx, WebGPU is a fairly straightforward API:
@@ -634,7 +639,7 @@ Apart from the usual bugfixing and maintenance the following things are on
 the long-term sokol-gfx roadmap (in undefined order):
 
 - a 'begin-pass' unification which makes rendering into different externally
-  provided swapchains easier (see: https://github.com/floooh/sokol/issues/904)
+  provided swapchains easier (see: [https://github.com/floooh/sokol/issues/904](https://github.com/floooh/sokol/issues/904))
 - a cleanup and 'orthoganalization' of the currently very restricted resource
   update functions: cpu-to-gpu and gpu-to-gpu copy functions, and ideally a non-stalling
   gpu-to-cpu), all this needs performance-investigations in the GL backend though
