@@ -55,7 +55,7 @@ implemented without an emulation layer on top of D3D11, Metal and desktop GL).
 Storage resources and compute passes are definitely at the top of the list,
 while the idea of render bundles will most likely never make it into sokol-gfx.
 
-(I'm really not a fan of render bundles, they look like a cheap cop-out to not
+(I'm really not a fan of render bundles, they look like a cheap cop-out for not
 having to focus on optimizing the CPU overhead of high-frequency functions, and
 since render bundles are essentially GL-style display lists (which were also a
 bad idea that didn't stick) it will be hard to move them entirely onto the GPU
