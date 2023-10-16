@@ -448,7 +448,7 @@ I stumbled over this pretty late in my WebGPU backend work because it's quite
 subtle: much to my surprise, WebGPU currently requires viewport rectangles to be
 entirely contained within the framebuffer.
 
-None of the native backend APIs have this restrictions, so it's curious how
+None of the native backend APIs require this, so it's curious how
 such a restriction slipped into WebGPU. I think this must have been
 a confusion because Metal requires scissor rects (but not viewport rects)
 to be contained within the framebuffer, and apparently early versions of the Metal
