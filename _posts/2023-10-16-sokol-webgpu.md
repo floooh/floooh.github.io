@@ -27,7 +27,7 @@ From the perspective of sokol-gfx, WebGPU is a fairly straightforward API:
 - `WGPURenderPassEncoder` to record commands for one render pass
   into a command encoder
 - `WGPUBuffer` objects to hold vertex-, index- and uniform-data
-- `WGPTexture` objects to hold pixel data in a set of 'subimages', and
+- `WGPUTexture` objects to hold pixel data in a set of 'subimages', and
   `WGPUTextureView` objects to define a related group of such subimages.
 - `WGPUSampler` objects for describing how pixel data is sampled in shaders
 - `WGPUShaderModule` objects which compile WGSL shader code into an internal
