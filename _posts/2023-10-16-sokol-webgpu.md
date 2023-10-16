@@ -508,7 +508,7 @@ Here's what's happening under the hood in the sokol-gfx WebGPU backend:
   - Creates one `WGPUBindGroup` object to bind the uniform buffer to the vertex- and
     fragment-shader stage. The uniform buffer BindGroup will be bound to the `@group` slot 0,
     with the first four `@binding` slots assigned to the vertex stage, and the following
-    four `@binding` slots assigned to the fragment stage, for four different uniform update
+    four `@binding` slots assigned to the fragment stage, allowing up to four different uniform update
     'frequencies' per stage.
   - an 'empty' `WGPUBindGroup` object is created, for render pipelines that don't expect any texture and
     sampler bindings (I actually need to check if I can drop this empty bind group object)
