@@ -332,7 +332,7 @@ over or hidden in dark places of the documentation, it was some uncharted 'here 
 dragons' territory manifesting as weird rendering artifacts or black screens.
 
 Interestingly, this is an area where traditional OpenGL (the ancient version
-where texture- and sampler-state was merged into the same object) were easier
+where texture- and sampler-state was merged into the same object) was easier
 to validate than modern APIs where textures and samplers are separate objects. If
 texture- and sampler-state is wrapped in the same object, it's trivial to check
 if both states are compatible with each other at texture creation time.
