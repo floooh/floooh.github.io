@@ -259,7 +259,7 @@ the lower bits of a 64-bit murmur-hash computed from an array of sokol-gfx
 object handles as index. A cache miss occurs if an indexed slot isn't occupied
 yet, a cache collision occurs if an indexed slot already contains a BindGroups
 object with different bindings. When such a slot-collision occurs, the old
-BindGroups object is released before a new BindGroups object is written to that
+BindGroup object is released before a new BindGroups object is written to that
 cache slot.
 
 If frequent hash collisions occur it might make sense to increase the size of
