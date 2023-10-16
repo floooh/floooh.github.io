@@ -282,7 +282,7 @@ Stale BindGroup objects currently linger in the cache forever, even if their
 associated sokol-gfx textures, buffers or samplers are destroyed. Since WebGPU
 has managed object lifetimes this might be potentially expensive in terms of
 memory consumption, because those stale BindGroup objects prevent their
-referenced buffer, texture and sampler objects from being garbage-collected.
+referenced buffer, texture and sampler Javascript objects from being garbage-collected.
 
 However, WebGPU has explicit destroy functions on buffer and texture objects
 which cause the associated GPU resources to be freed, which keeps only a
