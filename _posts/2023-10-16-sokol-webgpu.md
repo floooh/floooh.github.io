@@ -566,7 +566,7 @@ Here's what's happening under the hood in the sokol-gfx WebGPU backend:
   - creates one `WGPUPipelineLayout` object which merges the global uniform buffer
     binding with the pipeline shader's texture/sampler bindings
   - creates one `WGPURenderPipeline` object
-  - the separate `WGPUPipelineLayout` object is no longer needed and immediate released
+  - the separate `WGPUPipelineLayout` object is no longer needed and immediately released
 
 - **sg_destroy_pipeline()**:
   - calls `wgpuRenderPipelineRelease`
