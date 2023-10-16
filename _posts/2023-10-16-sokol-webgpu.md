@@ -197,7 +197,7 @@ On my M1 Mac the picture is actually quite different (NOTE that this uses a
 double the macOS numbers!): WebGL2 is actually slightly slower than WebGPU here
 (last time I looked at it that wasn't the case, so maybe some optimization work
 is already happening?): 8.5k draws for WebGL2 vs 11k for WebGPU before a 120Hz
-frame rate can longer be sustained, for comparison, the same code compiled as
+frame rate can no longer be sustained, for comparison, the same code compiled as
 native and using the sokol-gfx Metal backend goes up to around 110k draws
 before performance drops below 120Hz.
 
