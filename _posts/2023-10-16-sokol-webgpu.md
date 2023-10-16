@@ -236,7 +236,7 @@ explosions if resource bindings have to be baked upfront into immutable objects.
 Resource binding in sokol-gfx happens through the `sg_apply_bindings()` call
 which takes arrays of texture and sampler handles for each shader stage.
 
-In WebGPU, those textures and samplers must be baked into a BindGroup object.
+In WebGPU, those textures and samplers must be baked into a new BindGroup object.
 This means that a dumb sokol-gfx backend would simply create a new BindGroup object
 inside `sg_apply_bindings()`, call setBindGroup() on the render pass encoder,
 and then immediately release the BindGroup object again (the WebGPU C-API
