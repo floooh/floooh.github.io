@@ -587,7 +587,7 @@ Here's what's happening under the hood in the sokol-gfx WebGPU backend:
     be bound to the uniform buffer bind slots, even if the pass doesn't require uniform data)
 
 - **sg_apply_viewport()**
-  - clips the viewport to the current framebuffer boundaries (which is actually wrong, but currently requird
+  - clips the viewport to the current framebuffer boundaries (which is actually wrong, but currently required
     by WebGPU), and then calls `wgpuRenderPassEncoderSetViewport`
 
 - **sg_apply_scissor_rect()**
