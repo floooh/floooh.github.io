@@ -182,7 +182,7 @@ buffer.
 In WebGPU this requires a setBindGroup() call with so-called 'dynamic buffer offsets'.
 
 And currently, this setBindGroup() call has a surprisingly high CPU overhead
-which makes the `sg_apply_uniforms()` call in the WebGPU significantly slower
+which makes the `sg_apply_uniforms()` call in the WebGPU backend significantly slower
 than in the WebGL2 backend on some platforms. How big the difference is depends
 a lot on the host platform, but as an example: on my (quite modest) Windows PC
 (2.9 GHz i5 CPU and NVIDIA 2070) in Chrome with WebGL2 I can issue about 64k
