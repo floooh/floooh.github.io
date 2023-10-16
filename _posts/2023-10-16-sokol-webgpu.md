@@ -415,7 +415,7 @@ which require an upfront decision what texture and sampler types will be
 provided.
 
 The sokol-shdc shader compiler extracts reflection data from the shader: number and
-size of uniform blocks, number and type of textures and sampler, and actually
+size of uniform blocks, number and type of textures and samplers, and actually
 used texture/sampler pairs. This reflection information is then passed into
 the `sg_make_shader()` calls via a code-generated `sg_shader_desc` struct. The
 shader code cannot provide any information about whether a provided texture
