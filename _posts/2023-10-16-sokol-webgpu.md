@@ -555,7 +555,7 @@ Here's what's happening under the hood in the sokol-gfx WebGPU backend:
     in `sg_shader_desc`, texture/sampler bindings go into `@group` slot 1 and at predefined
     `@binding` slots:
     - vertex shader textures start at `@group(1) @binding(0)`
-    - vertex shader smaplers start at `@group(1) @binding(16)`
+    - vertex shader samplers start at `@group(1) @binding(16)`
     - fragment shader textures start at `@group(1) @binding(32)`
     - fragment shader samplers start at `@group(1) @binding(48)`
 
