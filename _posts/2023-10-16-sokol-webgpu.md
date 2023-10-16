@@ -132,7 +132,7 @@ write different code paths for native platforms vs WebAssembly):
   WebGPU buffer cannot be mapped directly into the WASM heap. The result of
   mapping a WebGPU buffer is a Javascript ArrayBuffer object, while the WASM
   heap is a separate ArrayBuffer object. WASM can only directly access its
-  own WASM heap ArrayBuffer, but not separate buffers. This means that the Emscripten
+  own WASM heap ArrayBuffer, but not separate ArrayBuffers. This means that the Emscripten
   WebGPU Javascript shim needs to "emulate" buffer mapping via a temporary
   heap allocation and copying data between JS ArrayBuffer objects. Clearly
   this isn't exactly efficient (paradoxically a situation where pure Javascript
