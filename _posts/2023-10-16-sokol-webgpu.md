@@ -147,7 +147,7 @@ write different code paths for native platforms vs WebAssembly):
   Javascript shim for the writeBuffer() call doesn't need to go through a
   temporary WASM heap allocation which is a pretty big plus.
   Unfortunately it turned out that the writeBuffer call overhead was still too
-  much for such a high-frequency operation, doing writeBuffer at draw-call-frequency
+  much for such a high-frequency operation, doing writeBuffer calls at draw-call-frequency
   turned out to be a pretty bad idea.
 
 - And thus the current version was born, which accumulates all uniform
