@@ -93,7 +93,7 @@ to WebGPU structs and functions, there are some notable exceptions though:
 Sokol-gfx doesn't expose the concept of uniform buffers to the API user,
 instead uniform data is considered to be 'frame-transient', all uniform data
 required for a frame must be written from scratch via sg_apply_uniforms() calls
-interleaved with sg_draw() calls (this make senses because most uniform data
+interleaved with sg_draw() calls (this makes sense because most uniform data
 rarely remains unchanged between frames). Each sokol-gfx shader stage offers 4
 uniform 'slots' which allows to supply uniform data snippets at different
 update frequencies and map them to up to four uniform block structures per
