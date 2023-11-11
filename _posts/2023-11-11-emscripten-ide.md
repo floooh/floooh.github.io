@@ -493,7 +493,7 @@ To define the `StartServer` task, create a file `.vscode/tasks.json` and populat
 
 ...and that's it!
 
-When pressing `F5`, Chrome should open running our program:
+When pressing `F5`, Chrome should now open and load our program:
 
 ![Browser Screenshot](/images/emscripten-ide-9.png)
 
