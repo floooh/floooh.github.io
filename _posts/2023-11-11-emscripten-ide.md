@@ -509,7 +509,7 @@ are not caught. There are two workarounds, first the one already mentioned to se
 a breakpoint on the JS side in `build/Debug/hello.js` in the `callMain` function
 and stop on that first. This seems to catch any early breakpoints on the C side too.
 
-The second option for programs with a rendering loop is to simply restart the debug
+The second option for programs with a render loop is to simply restart the debug
 session with by pressing the 'Refresh' button in the VSCode debugger controls:
 
 ![VSCode Screenshot](/images/emscripten-ide-11.png)
