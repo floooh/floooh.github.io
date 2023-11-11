@@ -363,7 +363,7 @@ with the orange rectangle cycling between yellow and red:
 ...let's get rid of the 'window chrome' by injecting our own minimal `shell.html` in the
 project directory with the following content:
 
-Create a file `shell.html` looking like this:
+Create a file `shell.html` in the project directory looking like this:
 
 `shell.html`
 ```html
