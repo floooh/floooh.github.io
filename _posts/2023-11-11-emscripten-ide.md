@@ -212,7 +212,7 @@ see something like this in the VSCode Output panel:
 
 ...next lets make debugging work!
 
-Create `.vscode/launch.json` file like this:
+Create a `.vscode/launch.json` file like this:
 
 ```json
 {
@@ -223,7 +223,6 @@ Create `.vscode/launch.json` file like this:
             "type": "node",
             "request": "launch",
             "program": "build/Debug/${command:cmake.launchTargetFilename}",
-
         }
     ]
 }
@@ -237,7 +236,7 @@ But when trying to debug there's the next wart. Try to set a breakpoint in the C
 
 Now hit `F5`. We'd expect that the execution stops at the breakpoint, but that doesn't happen.
 
-This is a known issue in the DWARF debugging extension. From the [documenation](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_debugging-webassembly):
+This is a known issue in the DWARF debugging extension. From the [documentation](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_debugging-webassembly):
 
 > Breakpoints in WebAssembly code are resolved asynchronously, so breakpoints hit early on in a program's lifecycle may be missed. There are plans to fix this in the future. If you're debugging in a browser, you can refresh the page for your breakpoint to be hit. If you're in Node.js, you can add an artificial delay, or set another breakpoint, after your WebAssembly module is loaded but before your desired breakpoint is hit.
 
@@ -335,7 +334,7 @@ Open the CMakeLists.txt file and change the `Emscripten` if-block like this:
 if (CMAKE_SYSTEM_NAME STREQUAL Emscripten)
     set(CMAKE_EXECUTABLE_SUFFIX .html)
     target_link_options(hello PUBLIC -sUSE_WEBGL2=1)
-endif(
+endif()
 ```
 
 In VSCode press `F7` to rebuild the program. This should generate three output files
