@@ -356,7 +356,8 @@ with the orange rectangle cycling between yellow and red:
 
 ![Browser Screenshot](/images/emscripten-ide-7.png)
 
-...let's get rid of the 'window chrome' by injecting our own minimal `shell.html` file:
+...let's get rid of the 'window chrome' by injecting our own minimal `shell.html` in the
+project directory with the following content:
 
 Create a file `shell.html` looking like this:
 
