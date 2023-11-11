@@ -186,7 +186,7 @@ Change those that it looks like this:
 
 ![VSCode Screenshot 2](/images/emscripten-ide-2.png)
 
-Here we also encounter the first wart, the CMake Tools extensions isn't able to communicate the
+Here we also encounter the first wart, the CMake Tools extension isn't able to communicate the
 correct Emscripten sysroot include paths over to the C/C++ extension. You'll see an error squiggle
 under the stdio.h include path:
 
