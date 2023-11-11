@@ -130,9 +130,14 @@ integrating with VSCode:
     "buildPresets": [
         {
             "name": "Debug",
-            "configurePreset": "default"
+            "configurePreset": "default",
+            "configuration": "Debug"
         },
-
+        {
+            "name": "Release",
+            "configurePreset": "default",
+            "configuration": "Release"
+        }
     ]
 }
 ```
