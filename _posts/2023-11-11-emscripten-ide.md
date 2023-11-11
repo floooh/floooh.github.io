@@ -468,7 +468,7 @@ First, `.vscode/launch.json` needs to be changed to start a Chrome remote debug 
 
 ...note the `preLaunchTask`, this will start a web server using the Live Preview VSCode extension.
 
-For the `StartServer` task, create a file `.vscode/tasks.json` and populate it like this:
+To define the `StartServer` task, create a file `.vscode/tasks.json` and populate it like this:
 
 `.vscode/tasks.json`
 ```json
