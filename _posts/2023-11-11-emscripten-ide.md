@@ -448,8 +448,7 @@ emsdk/upstream/emscripten/emrun build/Debug/hello.html
 
 Now on to the last step: making remote debugging work!
 
-First, `.vscode/launch.json` needs to be changed to start a Chrome remote debug session,
-and a web server:
+First, `.vscode/launch.json` needs to be changed to start a Chrome remote debug session and a local web server:
 
 `.vscode/launch.json`
 ```json
