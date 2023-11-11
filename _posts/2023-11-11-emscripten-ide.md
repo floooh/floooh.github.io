@@ -32,6 +32,7 @@ git init
 
 Add a `.gitignore` file:
 
+`.gitignore`
 ```
 build/
 emsdk/
@@ -212,8 +213,9 @@ see something like this in the VSCode Output panel:
 
 ...next lets make debugging work!
 
-Create a `.vscode/launch.json` file like this:
+Create a `launch.json` file in the `.vscode` subdirectory:
 
+`.vscode/launch.json`
 ```json
 {
     "version": "0.2.0",
@@ -275,6 +277,7 @@ rm -rf sokol
 Replace the `hello.c` file with the following code which just clears the canvas with
 a dynamically changing color:
 
+`hello.c`
 ```c
 #define SOKOL_IMPL
 #define SOKOL_GLES3
@@ -330,6 +333,7 @@ Emscripten to link with WebGL2.
 
 Open the CMakeLists.txt file and change the `Emscripten` if-block like this:
 
+`CMakeLists.txt`
 ```cmake
 if (CMAKE_SYSTEM_NAME STREQUAL Emscripten)
     set(CMAKE_EXECUTABLE_SUFFIX .html)
@@ -361,6 +365,7 @@ project directory with the following content:
 
 Create a file `shell.html` looking like this:
 
+`shell.html`
 ```html
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html>
@@ -424,6 +429,7 @@ Create a file `shell.html` looking like this:
 
 ...and in the `CMakeLists.txt` file, change the linker options like this:
 
+`CMakeLists.txt`
 ```cmake
     target_link_options(hello PUBLIC -sUSE_WEBGL2=1 --shell-file=../shell.html)
 ```
@@ -446,6 +452,7 @@ Now on to the last step: making remote debugging work!
 First, `.vscode/launch.json` needs to be changed to start a Chrome remote debug session,
 and a web server:
 
+`.vscode/launch.json`
 ```json
 {
     "version": "0.2.0",
@@ -465,6 +472,7 @@ and a web server:
 
 For the `StartServer` task, create a file `.vscode/tasks.json` and populate it like this:
 
+`.vscode/tasks.json`
 ```json
 {
     "version": "2.0.0",
