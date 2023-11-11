@@ -93,7 +93,7 @@ rm hello.js hello.wasm
 ## CMake + Emscripten
 
 Let's bake the build process into a cmake file. Create a CMakeLists.txt
-file into the `hello` project directory:
+file in the `hello` project directory:
 
 `CMakeLists.txt`
 ```cmake
@@ -510,7 +510,7 @@ a breakpoint on the JS side in `build/Debug/hello.js` in the `callMain` function
 and stop on that first. This seems to catch any early breakpoints on the C side too.
 
 The second option for programs with a render loop is to simply restart the debug
-session with by pressing the 'Refresh' button in the VSCode debugger controls:
+session by pressing the 'Refresh' button in the VSCode debugger controls:
 
 ![VSCode Screenshot](/images/emscripten-ide-11.png)
 
