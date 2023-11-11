@@ -146,7 +146,7 @@ integrating with VSCode:
 
 ```sh
 cmake --preset default -B build
-cmake --build build --config Debug
+cmake --build build --preset Debug
 ```
 
 ...and run with node.js:
