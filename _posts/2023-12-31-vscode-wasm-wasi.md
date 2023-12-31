@@ -96,8 +96,8 @@ The KC IDE extension implements:
     - `KCIDE: Open Emulator`: (re-)opens the emulator tab
     - `KCIDE: Reboot Emulator`: cold-boots the emulator and stops active debug session
     - `KCIDE: Reset Emulator`: resets the emulator and stops active debug session (on some home computers,
-      a reset preserved the memory content)
-- two **Key Bindings**: `F5` to start a debug session and `F7` build the project source code into a binary file
+      a reset preserves the memory content)
+- two **Key Bindings**: `F5` to start a debug session and `F7` to build the project source code into a binary file
 - a **JSON Schema** for a `kcide.project.json` file which defines the target
   computer system, assembly dialect, file paths and emulator binary file format
 - a **Language Grammar** for regex-based syntax highlighting (Z80 and 6502 assembly statements, plus ASMX-specific keywords)
