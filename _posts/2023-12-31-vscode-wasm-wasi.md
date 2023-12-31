@@ -40,7 +40,7 @@ would either need to port the assembler and emulator to JS/TS, ask the user to i
 
 WASM fixes all those issues:
 
-- it's completely hassle-free for the user because the WASM blobs can be bundled with the extension and everything work out of the box
+- it's completely hassle-free for the user because the WASM blobs can be bundled with the extension and everything works out of the box
 - it's less hassle for the extension developer, because a single WASM blob automatically works on all platforms supported by VSCode (including the VSCode web version)
 - ...and unlike native binaries, WASM and WASI don't add any more security concerns over regular VSCode extensions written in TS/JS
 
