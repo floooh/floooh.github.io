@@ -135,7 +135,7 @@ does all the hard work.
 What this extension basically does is to allow any POSIX commandline tool to run inside VSCode without requiring
 changes to the source (most notably, no changes are required for blocking file IO code via fopen/fread/fwrite/fclose).
 
-The only thing I had to fix in ASMX assembler was a separately provided root path for the assembler's
+The only thing I had to fix in the ASMX assembler was a separately provided root path for the assembler's
 `include` statement (which is supposed to work with relative paths). WASI currently doesn't have the concept
 of a 'current working directory', so all filesystem paths must be resolved to absolute paths within the
 WASI container's virtual filesystem (a WASI environment doesn't use direct filesystem paths of the host system,
