@@ -394,8 +394,9 @@ case is that I need to implement my own VSCode WASI runtime, or figure out anoth
 assembler inside VSCode (maybe as a regular WASM blob which replaces the C stdlib IO calls with
 asynchronous functions with completion-callback, delegated to Javascript)
 
-- Currently, any binary-blob data that needs to be transferred from VSCode into the emulator needs to go through a base64-encoded string which is expensive, because transferring Uint8Array objects doesn't
-work when VSCode is running in the web (it's supposed to work, but the data is corrupted).
+- Currently, any binary-blob data that needs to be transferred from VSCode into the emulator needs to go through a base64-encoded string
+which is expensive to encode and decode. The reason for that hack is that transferring Uint8Array objects doesn't
+work when VSCode is running in the web (it's supposed to work, but the data gets corrupted).
 
 - Working directly on Github repositories in the VSCode web version doesn't work (weird
 virtual filesystem issues).
