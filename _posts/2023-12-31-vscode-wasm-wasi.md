@@ -388,8 +388,11 @@ web version, so not exactly show stoppers):
 
 - Hopefully the [VSCode WASI extension](https://github.com/microsoft/vscode-wasm) will go out of
 pre-release-only mode rather sooner than later, at that point I can also move the KC IDE
-extension out of pre-release. Otherwise I will need to come up with a different solution
-to run the debugger.
+extension out of pre-release. The problem is that trying to install a VSCode extension which depends
+on a pre-release-only extension will fail to install the dependency with a cryptic error message. Worst
+case is that I need to implement my own VSCode WASI runtime, or figure out another way to run the
+assembler inside VSCode (maybe as a regular WASM blob which replaces the C stdlib IO calls with
+asynchronous functions with completion-callback, delegated to Javascript)
 
 - Currently, any binary-blob data that needs to be transferred from VSCode into the emulator needs to go through a base64-encoded string which is expensive, because transferring Uint8Array objects doesn't
 work when VSCode is running in the web (it's supposed to work, but the data is corrupted).
