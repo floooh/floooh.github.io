@@ -245,7 +245,7 @@ at it, I also select the correct emulator to load):
     panel.webview.html = html;
 ```
 
-Communication between VSCode and the WebView panel content works via bi-directinal message passing, this means
+Communication between VSCode and the WebView panel content works via bi-directional message passing, this means
 the VSCode extension needs to register a listener function which dispatches received messages to their handler
 functions:
 
