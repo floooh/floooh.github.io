@@ -111,7 +111,7 @@ Some notable VSCode extension features which are **not** implemented:
   also be implemented without a full LSP implementation (VSCode has a couple of other language features
   like [semantic highlighting](https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide),
   [snippets](https://code.visualstudio.com/api/language-extensions/snippet-guide) or
-  [programmatic language features](https://code.visualstudio.com/api/language-extensions/programmatic-language-features).
+  [programmatic language features](https://code.visualstudio.com/api/language-extensions/programmatic-language-features)).
   In the end I simply ran out of time, maybe in the next round of updates...
 - No **Task Providers** (e.g. proper integration with `tasks.json` and `launch.json`). This also seemed
   like overkill. Just adding two key bindings while the extension is active (`F5` for debugging and `F7` for building)
