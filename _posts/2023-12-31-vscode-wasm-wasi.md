@@ -55,7 +55,7 @@ it in VSCode but quickly abandondend that idea, here are the ruins of that folly
 I considered various approaches:
 
 1. a native IDE via Qt similar to Goran Devic's [Z80 Explorer](https://baltazarstudios.com/z80explorer/)
-2. integrate the IDE features right into the emulator via Dear Imgui (the emulators already have an extensive Dear ImGui debugging UI)
+2. integrate the IDE features right into the emulator via [Dear ImGui](https://github.com/ocornut/imgui) (the emulators already have an extensive Dear ImGui debugging UI)
 3. create a VSCode extension which calls into an assembler and emulator written in Typescript
 4. create a VSCode extension which calls into native assembler and emulator binaries
 5. create a VSCode extension which uses WASM for the assembler and emulator
