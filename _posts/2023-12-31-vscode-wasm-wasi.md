@@ -386,7 +386,7 @@ There's a couple of issues which are currently worked around or don't work at al
 and which I want to fix in future updates (most of those are only an issue in the VSCode
 web version, so not exactly show stoppers):
 
-- Hopefully the [VSCode WASI](https://github.com/microsoft/vscode-wasm) will go out of
+- Hopefully the [VSCode WASI extension](https://github.com/microsoft/vscode-wasm) will go out of
 pre-release-only mode rather sooner than later, at that point I can also move the KC IDE
 extension out of pre-release. Otherwise I will need to come up with a different solution
 to run the debugger.
