@@ -36,7 +36,7 @@ This allows to bundle the assembler (written in C89) and the emulator (C99 and C
 extension as WASM blobs. Similar extensions without WASM components
 would either need to port the assembler and emulator to JS/TS, ask the user to install and run native tools
 (most other retro-dev extensions seem to use that approach), or automatically download and install separate platform-specific native tools
-(like the Microsoft C/C++ extension), which is asking for a lot of trust from the extension user.
+(the approach used by the Microsoft C/C++ extension), which is asking for a lot of trust from the extension user.
 
 WASM fixes all those issues:
 
