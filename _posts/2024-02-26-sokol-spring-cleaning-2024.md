@@ -364,10 +364,11 @@ sg_environment d3d11_environment(void) {
 }
 ```
 
-`.defaults.color_format`, `defaults.depth_format` and `defaults.sample_count` must match the swapchain
-surface properties. These defaults will be used to fill in defaults for zero-initialized
-values in various sokol-gfx calls. `.depth_format` can also be `SG_PIXELFORMAT_NONE` if
-no depth-buffer exists, or `SG_PIXELFORMAT_DEPTH` if no stencil buffer is used.
+`.defaults.color_format`, `defaults.depth_format` and `defaults.sample_count`
+should match the 'most common' swapchain surface properties. These defaults
+will be used to fill in defaults for zero-initialized values in various
+sokol-gfx calls. `.depth_format` can also be `SG_PIXELFORMAT_NONE` if no
+depth-buffer exists, or `SG_PIXELFORMAT_DEPTH` if no stencil buffer is used.
 
 The associated DXGI depth-stencil-view pixel formats are:
 
