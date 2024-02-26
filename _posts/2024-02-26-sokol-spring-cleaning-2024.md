@@ -178,7 +178,7 @@ The following functions have been renamed:
 
 sokol_glue.h is now a regular library header without the 'preprocessor magic'
 which created a different API depending on what other sokol headers had been
-includes before sokol_glue.h (this was an 'interesting' but in ultimately
+included before sokol_glue.h (this was an 'interesting' but in ultimately
 pretty stupid idea).
 
 The API prefix has changed from a somewhat confusing `sapp_` to the expected `sglue_`.
