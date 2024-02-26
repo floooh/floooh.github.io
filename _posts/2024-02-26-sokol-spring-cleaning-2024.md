@@ -69,7 +69,7 @@ The following public API structs and functions have been **removed**:
 - `sg_activate_context()`
 - `sg_discard_context()`
 
-The following top-level struct have been **added**:
+The following top-level structs have been **added**:
 
 - `struct sg_environment`: this is passed as a nested struct of `sg_desc` into
   the `sg_setup()` call to provide information about the environment sokol-gfx
