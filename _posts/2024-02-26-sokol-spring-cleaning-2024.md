@@ -226,15 +226,15 @@ with the sokol_gfx.h Metal backend.
 Also please be aware of the following behaviour and expectation changes if you
 are using your own window system glue:
 
-- For **D3D11/DXGI** please be aware of an important behavior change for
-  multisampled rendering: Previously, the window glue code was expected to
-  perform the MSAA resolve operation. This has been moved into `sg_end_pass()`
-  to be consistent with the other backends.
+- For **D3D11/DXGI** the MSAA resolve operation is now performed in `sg_end_pass()`,
+  previously this was expected to be performed in the window system glue before
+  presentation.
 
-- For **Metal** please be aware that you are no longer expected to provide
-  an `MTLRenderPassDescriptor` object to describe a swapchain, but instead
-  individual `CAMetalDrawable` and `MTLTexture` objects. This was also done as
-  'harmonization' with other backends.
+- For **Metal** it is now expected that the window system glue provides
+  a `CAMetalDrawable` and optional `MTLTexture` objects instead of an
+  `MTLRenderPassDescriptor`. This was also done to better 'harmonize'
+  with the other backends (it's just as easy getting those individual
+  object from an `MTKView` as the `MTLRenderPassDescriptor`.
 
 - For **GL**, sokol-gfx now expects that *all* rendering goes through a single
   GL context. This may require changes to existing code which renders into
