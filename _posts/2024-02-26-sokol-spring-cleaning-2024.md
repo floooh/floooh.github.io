@@ -145,11 +145,6 @@ sg_begin_pass(&(sg_pass){
 });
 ```
 
-If you don't use sokol_gfx.h together with sokol_app.h and sokol_glue.h, it is recommended
-that you create a similar helper function like `sglue_swapchain()` which returns
-a filled-out `sg_swapchain` struct by value which can be plugged directly into
-`sg_pass.swapchain`.
-
 Other unrelated 'drive-by-changes' in sokol_gfx.h:
 
 - `sg_limits.gl_max_vertex_uniform_vectors` has been replaced with `sg_limits.gl_max_vertex_uniform_components`
