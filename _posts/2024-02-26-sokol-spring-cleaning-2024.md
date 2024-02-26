@@ -573,7 +573,7 @@ In D3D11 and WebGPU, one temporary texture view object would need
 to be created per pass-attachment (which may add up to 9 temporary objects),
 and in the GL backend, a GL framebuffer object must be created,
 configured and checked for completeness. All this work currently
-only once in `sg_make_attachments()`, but would need to happen
+only happens once in `sg_make_attachments()`, but would need to happen
 inside `sg_begin_pass()` without baked attachments objects.
 
 While these backend API objects should be 'reasonably cheap' to create, I still
