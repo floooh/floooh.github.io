@@ -135,7 +135,7 @@ sg_begin_pass(&(sg_pass){
 });
 ```
 
-...and for a 'swapchain-render-pass', a '.swapchain` item must be provided, but no
+...and for a 'swapchain-render-pass', a `.swapchain` item must be provided, but no
 `.attachments`:
 
 ```c
