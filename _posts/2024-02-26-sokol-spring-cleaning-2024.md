@@ -511,7 +511,7 @@ sg_swapchain wgpu_swapchain(void) {
 ```
 
 ...note the selection for `.wgpu.render_view` and `.wgpu.resolve_view` based on the MSAA
-sample count.
+sample count, which works the same as in the `d3d11_swapchain()` function.
 
 The types for all view objects are `WGPUTextureView`.
 
