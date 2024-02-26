@@ -400,9 +400,8 @@ of type `ID3D11DepthStencilView`.
 Note how a different `.d3d11.render_view` is selected depending on whether multisampled rendering
 is used or not. For non-multisampled rendering, sokol-gfx renders into the same view that's
 presented. For multisampled rendering, sokol-gfx will render into an intermediate MSAA texture
-view (`state.msaa_view`) which is then resolved into the presented `.render_view` inside
-`sg_end_pass()` (the MSAA resolve happening inside `sg_end_pass()` instead of the window system
-glue is actually different behavior from before).
+view (`state.msaa_view`) which is then resolved into the `d3d11.resolve_view` inside
+`sg_end_pass()`.
 
 Also check out the example D3D11 window system glue code here:
 
