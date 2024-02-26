@@ -188,7 +188,8 @@ The old function `sapp_sgcontext()` has been split into two new functions:
 - `sglue_environment()` which plugs directly into `sg_desc.environment`, and...
 - `sglue_swapchain()` which plugs into `sg_pass.swapchain`
 
-Note that `sglue_swapchain()` will return different values each frame.
+Note that `sglue_swapchain()` may return different values each frame depending
+on the 3D API backend.
 
 ### sokol_gfx_imgui.h
 
