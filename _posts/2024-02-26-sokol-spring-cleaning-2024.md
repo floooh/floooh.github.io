@@ -234,7 +234,7 @@ are using your own window system glue:
   a `CAMetalDrawable` and optional `MTLTexture` objects instead of an
   `MTLRenderPassDescriptor`. This was also done to better 'harmonize'
   with the other backends (it's just as easy getting those individual
-  object from an `MTKView` as the `MTLRenderPassDescriptor`).
+  objects from an `MTKView` as the `MTLRenderPassDescriptor`).
 
 - For **GL**, sokol-gfx now expects that *all* rendering goes through a single
   GL context. This may require changes to existing code which renders into
