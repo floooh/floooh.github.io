@@ -149,7 +149,7 @@ sg_begin_pass(&(sg_pass){
 Other unrelated 'drive-by-changes' in sokol_gfx.h:
 
 - `sg_limits.gl_max_vertex_uniform_vectors` has been replaced with `sg_limits.gl_max_vertex_uniform_components`
-  (see [#714](https://github.com/floooh/sokol/issues/714).
+  (see [#714](https://github.com/floooh/sokol/issues/714))
 - the start and end canaries in `sg_pass_action` have been removed (since `sg_pass_action` is now a nested
   struct of `sg_pass`, the canaries are redundant)
 - a new initialization config item `sg_desc.mtl_use_command_buffer_with_retained_references` has been added,
