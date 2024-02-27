@@ -108,7 +108,7 @@ Inside the `sg_attachments_desc` struct there has been some renaming to reduce r
 - `.resolve_attachments[]` => `.resolves[]`
 - `.depth_stencil_attachment` => `.depth_stencil`
 
-The typename `sg_pass` has been repurposed to serve as the `sg_begin_pass()` argument,
+The typename `sg_pass` has been repurposed to serve as the `sg_begin_pass()` parameter,
 e.g. the begin-pass function signature now looks like this:
 
 ```c
