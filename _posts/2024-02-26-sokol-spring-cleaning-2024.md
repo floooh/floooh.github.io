@@ -345,7 +345,7 @@ Create two helper functions, one which returns an initialized `sg_environment`
 struct and one which returns an initialized `sg_swapchain` struct. Following
 are examples how these functions might look like for different backend 3D APIs.
 
-#### ...using D3D11:
+#### ...using D3D11
 
 Example implementations:
 
