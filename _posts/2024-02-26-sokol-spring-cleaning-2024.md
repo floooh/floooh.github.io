@@ -64,6 +64,7 @@ The following public API structs and functions have been **removed**:
 
 - `sg_begin_default_pass()`
 - `sg_begin_default_passf()`
+- `struct sg_context_desc`
 - `struct sg_context`
 - `sg_setup_context()`
 - `sg_activate_context()`
