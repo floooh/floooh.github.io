@@ -218,7 +218,8 @@ check out the updated backend specific examples:
 - for D3D11: [https://github.com/floooh/sokol-samples/tree/master/d3d11](https://github.com/floooh/sokol-samples/tree/master/d3d11)
 - for Metal: [https://github.com/floooh/sokol-samples/tree/master/metal](https://github.com/floooh/sokol-samples/tree/master/metal)
 - for GL with GLFW: [https://github.com/floooh/sokol-samples/tree/master/glfw](https://github.com/floooh/sokol-samples/tree/master/glfw)
-- for WASM/Emscripten: [https://github.com/floooh/sokol-samples/tree/master/html5](https://github.com/floooh/sokol-samples/tree/master/html5)
+- for WebGL2: [https://github.com/floooh/sokol-samples/tree/master/html5](https://github.com/floooh/sokol-samples/tree/master/html5)
+- for WebGPU: [https://github.com/floooh/sokol-samples/tree/master/wgpu](https://github.com/floooh/sokol-samples/tree/master/wgpu)
 
 The GLFW subdirectory also contains an updated `multiwindow-glfw` sample, and
 a `metal-glfw` sample which demonstrates how to use GLFW in NO_API mode together
