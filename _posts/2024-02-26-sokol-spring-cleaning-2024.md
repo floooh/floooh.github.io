@@ -566,7 +566,7 @@ objects alltogether (e.g. what were formerly `sg_pass` objects and are now
 `sg_attachments` objects), and instead pass a transient struct with the same
 information that's in `sg_attachments_desc` into the `sg_begin_pass()`
 function, similar to how `sg_apply_bindings()` takes a transient `sg_bindings`
-struct will all the resource bindings.
+struct with all the resource bindings.
 
 I didn't follow through with that idea because this would mean creating
 temporary objects inside `sg_begin_pass()` and discarding them again in
