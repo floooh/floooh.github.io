@@ -3,16 +3,16 @@ layout: post
 title: "The upcoming sokol-gfx storage buffer update (May 2024)"
 ---
 
-I a couple of days I will merge the next sokol-gfx feature update which adds initial
-storage buffer support. The udpate also affects other headers and tools (most notably
+In a couple of days I will merge the next sokol-gfx feature update which adds initial
+storage buffer support. The update also affects other headers and tools (most notably
 sokol_app.h and sokol-shdc - the cross-backend shader compiler).
 
 The bad news first:
 
-- This is 'gpu-readonly' support, e.g. it's not possible to populate storage buffers
-  with the GPU, this will come in a future 'compute shaders' update.
+- This is 'gpu-readonly' support, e.g. it's not possible to write to storage buffers
+  from shader code, this will come in a future 'compute shaders' update.
 - The following platform/backend combos don't get storage buffer support:
-    - all GLES3 backends (WebGL2, iOS, Android): for WebGL2 and iOS there is no
+    - all GLES3 backends (WebGL2, iOS+GLES3, Android): for WebGL2 and iOS there is no
       other choice since they are stuck with GLES 3.0, for Android, storage buffer
       support may be added at a later point
     - macOS+GL: macOS is stuck at GL 4.1, while storage buffers require at least
@@ -26,12 +26,15 @@ The bad news first:
     - Web + WebGPU
 
 In general, storage buffers provide a convenient way to communicate
-large array-like data to the CPU, for instance:
+large array-like data to shaders, for instance:
 
-- use 'vertex pulling' to load per-vertex and/or per-instance data from
+- for 'vertex pulling' to load per-vertex and/or per-instance data from
   storage buffers instead of relying on the fixed function vertex input
-  stage
-- as a more more convenient and flexible way to load random access
+  stage (this is a bit controversial though since on some GPUs the fixed
+  function vertex pipeline may be faster, and the `std430` layout used
+  in storage buffers may have some 'padding waste' compared to fixed
+  function vertex attributes)
+- as a more convenient and flexible way to load random access
   structured data in shaders compared to the old-school way of using
   'data textures'.
 
@@ -49,7 +52,6 @@ if (sg_query_features().storage_buffer) {
     // storage buffers are supported...
 } else {
     // storage buffers are *NOT* supported...
-
 }
 ```
 
@@ -73,7 +75,7 @@ In sokol-shdc, the target language `glsl330` has been removed and replaced
 with `glsl410` and `glsl430`. When targeting the macOS GL backend, use `glsl410`,
 otherwise `glsl430`.
 
-## Cross-backend shader authoring with sokol-shdc
+## A vertex pulling example
 
 Let's rewrite the [cube-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/cube-sapp.glsl) shader
 to pull vertices from a storage buffer instead of the fixed function vertex input.
@@ -276,11 +278,77 @@ sort of fallback.
 
 ## Shader Authoring Caveats
 
-[TODO]
+Shader authoring via sokol-shdc is a bit more restricted than vanilla GLSL:
+
+1. A storage buffer interface block must contain exactly one item, and this
+  item must be a flexible struct array member. In vanilla GLSL you can have
+  additional 'header items' in front of the flexible array member, but this
+  turned out tricky to map to CPU-side non-C languages that don't allow
+  flexible array members (I actually need to research options a bit more, maybe
+  this rule can be relaxed in the future based on the target CPU languge).
+2. Currently the following types are valid inside a storage buffer struct,
+  but few of those are actually tested:
+    - `bool, bvec2..4`: mapped to int32_t, and int32_t[2..4]
+    - `int, ivec2..4`: mapped to int32_t, and int32_t[2..4]
+    - `uint, uvec2..4`: mapped to uint32_t, and uint32_t[2..4]
+    - `float, vec2..4`: mapped to float and float[2..4]
+    - `matNxM` where N=2..4 and M=1..4 mapped to float[2..64]
+3. arrays of the above
+4. nested structs of the above
+
+Please note that only few of those combinations are tested, especially when it
+comes to correct array item padding and alignment. If you stumble over any problems
+please write a ticket at [https://github.com/floooh/sokol-tools/issues](https://github.com/floooh/sokol-tools/issues), but at worst specific types will need to be disabled if they
+don't have a common memory mapping between different shader languages and CPU side languages.
 
 ## Under the hood
 
-[TODO]
+### Metal
+
+On Metal there is no 'buffer zoo' like in other 3D APIs, uniform-, vertex-,
+index- and storage-buffer are the same thing on the CPU side. The vertex-
+and fragment-shader stages have their own bind slot spaces though.
+
+Currently the following bind slot ranges are used for the various sokol-gfx
+buffer types:
+
+- on the vertex shader stage:
+    - **slots 0..3** for uniform buffer bindings (sokol-gfx internally
+      manages an uniform buffer which might be bound at up to four different
+      offsets)
+    - **slots 4..11** for vertex buffer bindings
+    - **slots 12..19** for storage buffer bindings
+- on the fragment shader stage:
+    - **slots 0..3** for uniform buffer bindings
+    - **slots 4..11** for storage buffer bindins
+
+When authoring Metal shaders directly you'll need to use the above bind slots
+(also see low-level [Metal backend samples](https://github.com/floooh/sokol-samples/tree/master/metal).
+
+### D3D11
+
+On D3D11, so called [*Byte Address Buffers*](https://learn.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-resources-intro#raw-views-of-buffers) are used for storage buffers which makes their direct usage in manually written HLSL a bit awkward (but
+is not an issue when using sokol-shdc).
+
+If this turns out to be a problem I might add D3D11-specific creation flags to
+`sg_buffer_desc` to allow using different D3D11 buffer types under the hood, details
+like this might also change again once compute shader support is added.
+
+On D3D11 and HLSL storage buffers share a bind slot range with texture bindings, that's
+why sokol-gfx defines the following bind ranges for textures and storage buffers in
+HLSL:
+
+- **register(t0..t15)**: reserved for texture bindings
+- **register(t16..t23)**: reserved for storage buffer bindings
+
+Also see the low-level [D3D11 backend samples](https://github.com/floooh/sokol-samples/tree/master/d3d11) for details.
+
+
+### WebGPU
+
+### GL
+
+
 
 ## Using storage buffers without sokol-shdc
 
