@@ -169,7 +169,7 @@ Converted to vertex pulling it looks like this:
 ```glsl
 void main() {
     vec4 position = vec4(vtx[gl_VertexIndex].pos, 1.0);
-    gl_Position = position;
+    gl_Position = mvp * position;
     color = vtx[gl_VertexIndex].color;
 }
 ```
