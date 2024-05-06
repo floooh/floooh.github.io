@@ -306,7 +306,8 @@ state.bind = (sg_bindings) {
 };
 ```
 
-...is changed like this:
+...is changed like this (e.g. replace the vertex buffer binding with a storage
+buffer binding on the vertex shader stage):
 
 ```c
 state.bind = (sg_bindings) {
