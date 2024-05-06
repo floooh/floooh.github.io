@@ -43,11 +43,14 @@ is 128 MBytes), for instance:
 a draw call without any resource bindings and instead synthesize vertices
 'out of thin air' in the vertex shader.
 
+The root PR for the update is here: [#1007](https://github.com/floooh/sokol/pull/1007).
+
+
 ## New sample code
 
 The following backend-agnostic samples have been added (those use sokol_app.h and sokol-shdc).
 
-You'll need a recent Chrome for the WebGPU sample links to work, also expect
+> NOTE: You'll need a recent Chrome for the WebGPU sample links to work, also expect
 some general breakage and rendering artifacts depending on the platform (for
 instance I see pixel noise artifacts in the `sbuftex-sapp` sample on my Windows
 PC with an NVIDIA RTX 2070, and Chrome on Android straight up crashes the tab
