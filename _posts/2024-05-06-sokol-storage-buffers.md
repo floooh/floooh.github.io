@@ -132,10 +132,9 @@ in vec4 color0;
 ```
 
 > NOTE: the cube-sapp.glsl shader makes use of a fixed function vertex input
-feature which extends float[3] vertex input to a vec4 with a w-component of
-1.0, magic like this isn't supported when
-using storage buffers
-
+feature which extends float[3] vertex data on the CPU side to vec4 with a w-component 1.0
+on the GPU side. Magic like this isn't supported when reading from storage buffers (as far as
+I'm aware at least).
 
 For vertex pulling the input vertex attributes are replaced with a flexible-array struct inside a buffer interface block.
 
