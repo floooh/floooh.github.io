@@ -153,7 +153,7 @@ readonly buffer ssbo {
 in the Metal Shading Language and would cause a compile error when outputting MSL.
 
 Do not use an attribute like `layout(std430, binding=0)` for the buffer interface block,
-sokol-shdc will take of those details.
+sokol-shdc will take care of those details.
 
 The original vertex shader looks like this:
 
