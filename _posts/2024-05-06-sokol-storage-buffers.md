@@ -380,7 +380,7 @@ buffer types:
     - **`slots 12..19`** for storage buffer bindings
 - on the fragment shader stage:
     - **`slots 0..3`** for uniform buffer bindings
-    - **`slots 4..11`** for storage buffer bindins
+    - **`slots 4..11`** for storage buffer bindings
 
 When authoring Metal shaders directly you'll need to use the above bind slots
 (also see the low-level [Metal backend samples](https://github.com/floooh/sokol-samples/tree/master/metal)).
