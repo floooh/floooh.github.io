@@ -52,8 +52,7 @@ The following backend-agnostic samples have been added (those use sokol_app.h an
 
 > NOTE: You'll need a recent Chrome for the WebGPU sample links to work, also expect
 some general breakage and rendering artifacts depending on the platform (for
-instance I see pixel noise artifacts in the `sbuftex-sapp` sample on my Windows
-PC with an NVIDIA RTX 2070, and Chrome on Android straight up crashes the tab
+instance Chrome on Android straight up crashes the tab
 on most samples). Also please note that the source code links in those samples
 will not be valid until all the update PRs have been merged.
 
