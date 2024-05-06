@@ -366,7 +366,7 @@ more flexibility when mapping sokol-gfx bind slots to backend 3D API bind slots
 ### Metal
 
 On Metal there is no 'buffer zoo' like in other 3D APIs, uniform-, vertex-,
-index- and storage-buffer are the same buffer objects. The vertex-
+index- and storage-buffers are all the same thing. The vertex-
 and fragment-shader stages have their own bind slot spaces though.
 
 The following bind slot ranges are used for the various sokol-gfx
