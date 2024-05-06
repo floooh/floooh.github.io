@@ -112,7 +112,7 @@ Since the GL version is now flexible, the configuration define `SOKOL_GLCORE33` 
 much sense anymore and has been renamed to `SOKOL_GLCORE`. You'll get a proper compile
 error when trying to build with the old `SOKOL_GLCORE33` define.
 
-Apart from rebuilding your shaders via an updated sokol-shdc, this is the only *required*
+Apart from rebuilding your shaders via an updated sokol-shdc, this is the only required
 change for existing code.
 
 In sokol-shdc, the target language `glsl330` has been removed and replaced
@@ -383,7 +383,7 @@ buffer types:
     - **`slots 4..11`** for storage buffer bindins
 
 When authoring Metal shaders directly you'll need to use the above bind slots
-(also see low-level [Metal backend samples](https://github.com/floooh/sokol-samples/tree/master/metal).
+(also see the low-level [Metal backend samples](https://github.com/floooh/sokol-samples/tree/master/metal)).
 
 ### D3D11
 
