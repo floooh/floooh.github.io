@@ -74,7 +74,7 @@ will not be valid until all the update PRs have been merged.
     - WebGPU: [instancing-pull-sapp.html](https://floooh.github.io/sokol-webgpu/instancing-pull-sapp.html)
     - C code: [sapp/instancing-pull-sapp.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/instancing-pull-sapp.c)
     - GLSL code: [sapp/instancing-pull-sapp.glsl](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/instancing-pull-sapp.glsl)
-- **ozz-storagebuffer-sapp**: the ozz-skin sample rewritten to pull vertex-, instance- and skinning-matrices from storage buffers:
+- **ozz-storagebuffer-sapp**: the ozz-skin sample rewritten to pull vertices, instance- and skinning-matrices from storage buffers:
     - WebGPU: [ozz-storagebuffer-sapp.html](https://floooh.github.io/sokol-webgpu/ozz-storagebuffer-sapp.html)
     - C code: [sapp/ozz-storagebuffer-sapp.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/ozz-storagebuffer-sapp.c)
     - GLSL code: [sapp/ozz-storagebuffer-sapp.glsl](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/ozz-storagebuffer-sapp.glsl)
