@@ -59,31 +59,31 @@ will not be valid until all the update PRs have been merged.
 - **triangle-bufferless-sapp**: this demonstrates rendering without buffers (and
   is the only new sample that also works on backends without storage buffer support):
     - WebGPU: [triangle-bufferless-sapp.html](https://floooh.github.io/sokol-webgpu/triangle-bufferless-sapp.html)
-    - C code: [sapp/triangle-bufferless-sapp.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/triangle-bufferless-sapp.c)
-    - GLSL code: [sapp/triangle-bufferless-sapp.glsl](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/triangle-bufferless-sapp.glsl)
+    - C code: [sapp/triangle-bufferless-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/triangle-bufferless-sapp.c)
+    - GLSL code: [sapp/triangle-bufferless-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/triangle-bufferless-sapp.glsl)
 - **vertexpull-sapp**: the cube-sapp sample ported to vertex pulling:
     - WebGPU: [vertexpull-sapp.html](https://floooh.github.io/sokol-webgpu/vertexpull-sapp.html)
-    - C code: [sapp/vertexpull-sapp.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/vertexpull-sapp.c)
-    - GLSL code: [sapp/vertexpull-sapp.glsl](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/vertexpull-sapp.glsl)
+    - C code: [sapp/vertexpull-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/vertexpull-sapp.c)
+    - GLSL code: [sapp/vertexpull-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/vertexpull-sapp.glsl)
 - **sbuftex-sapp**: a sample which uses a storage buffer in the fragment shader stage:
     - WebGPU: [sbuftex-sapp.html](https://floooh.github.io/sokol-webgpu/sbuftex-sapp.html)
-    - C code: [sapp/sbuftex-sapp.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/sbuftex-sapp.c)
-    - GLSL code: [sapp/sbuftex-sapp.glsl](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/sbuftex-sapp.glsl)
+    - C code: [sapp/sbuftex-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/sbuftex-sapp.c)
+    - GLSL code: [sapp/sbuftex-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/sbuftex-sapp.glsl)
 - **instancing-pull-sapp**: vertex pulling and instancing via storage buffers:
     - WebGPU: [instancing-pull-sapp.html](https://floooh.github.io/sokol-webgpu/instancing-pull-sapp.html)
-    - C code: [sapp/instancing-pull-sapp.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/instancing-pull-sapp.c)
-    - GLSL code: [sapp/instancing-pull-sapp.glsl](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/instancing-pull-sapp.glsl)
+    - C code: [sapp/instancing-pull-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-pull-sapp.c)
+    - GLSL code: [sapp/instancing-pull-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-pull-sapp.glsl)
 - **ozz-storagebuffer-sapp**: the ozz-skin sample rewritten to pull vertices, instance- and skinning-matrices from storage buffers:
     - WebGPU: [ozz-storagebuffer-sapp.html](https://floooh.github.io/sokol-webgpu/ozz-storagebuffer-sapp.html)
-    - C code: [sapp/ozz-storagebuffer-sapp.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/ozz-storagebuffer-sapp.c)
-    - GLSL code: [sapp/ozz-storagebuffer-sapp.glsl](https://github.com/floooh/sokol-samples/blob/storage-buffers/sapp/ozz-storagebuffer-sapp.glsl)
+    - C code: [sapp/ozz-storagebuffer-sapp.cc](https://github.com/floooh/sokol-samples/blob/master/sapp/ozz-storagebuffer-sapp.cc)
+    - GLSL code: [sapp/ozz-storagebuffer-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/ozz-storagebuffer-sapp.glsl)
 
 The following backend-specific samples demonstrate how to use storage buffers without the sokol-shdc shader compiler:
 
-- **D3D11** [d3d11/vertexpulling-d3d11.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/d3d11/vertexpulling-d3d11.c)
-- **Metal**: [metal/vertexpulling-metal.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/metal/vertexpulling-metal.c)
-- **WebGPU**: [wgpu/vertexpulling-wgpu.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/wgpu/vertexpulling-wgpu.c)
-- **desktop GL**: [glfw/vertexpulling-glfw.c](https://github.com/floooh/sokol-samples/blob/storage-buffers/glfw/vertexpulling-glfw.c)
+- **D3D11** [d3d11/vertexpulling-d3d11.c](https://github.com/floooh/sokol-samples/blob/master/d3d11/vertexpulling-d3d11.c)
+- **Metal**: [metal/vertexpulling-metal.c](https://github.com/floooh/sokol-samples/blob/master/metal/vertexpulling-metal.c)
+- **WebGPU**: [wgpu/vertexpulling-wgpu.c](https://github.com/floooh/sokol-samples/blob/master/wgpu/vertexpulling-wgpu.c)
+- **desktop GL**: [glfw/vertexpulling-glfw.c](https://github.com/floooh/sokol-samples/blob/master/glfw/vertexpulling-glfw.c)
 
 
 ## How to check for storage buffer support
@@ -422,7 +422,7 @@ written WGSL shaders into sokol-gfx:
     - samplers: **`@group(1) @binding(64..79)`**
     - storage buffers: **`@group(1) @binding(80..95)`**
 
-Also see the low-level [WebGPU backend samples](https://github.com/floooh/sokol-samples/tree/storage-buffers/wgpu) for details
+Also see the low-level [WebGPU backend samples](https://github.com/floooh/sokol-samples/tree/master/wgpu) for details
 
 ### GL
 
