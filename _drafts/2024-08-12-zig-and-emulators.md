@@ -85,7 +85,7 @@ comfortably fits into a 64 bit integer.
 
 The API of such a chip emulator only has one important function:
 
-```rust
+```zig
 pub fn tick(pins: u64) u64;
 ```
 
@@ -162,7 +162,7 @@ Each chip emulator defines a struct which assigns pin names to bit positions.
 
 For Z80 CPU emulator this pin definition struct looks like this:
 
-```rust
+```zig
 pub const Pins = struct {
     DBUS: [8]comptime_int,
     ABUS: [16]comptime_int,
@@ -177,7 +177,7 @@ type to use for the system bus (u64, u128, etc...). All those comptime
 parameters needed to 'stamp out' a specialized Z80 emulator are grouped
 in a `TypeConfig` struct:
 
-```rust
+```zig
 pub const TypeConfig = struct {
     pins: Pins,
     bus: type,
@@ -187,7 +187,7 @@ pub const TypeConfig = struct {
 Next a comptime function is created which returns a specialized type (this
 is how Zig does Generics):
 
-```rust
+```zig
 pub fn Type(comptime cfg: TypeConfig) type {
   // define a type alias for our system bus type
   const Bus = cfg.bus;
@@ -203,7 +203,7 @@ pub fn Type(comptime cfg: TypeConfig) type {
 computer system by the system bus integer type and the Z80 pins mapped to
 specific bit positions of this integer type:
 
-```rust
+```zig
 const z80 = @import("z80");
 
 const Z80 = z80.Type(.{
@@ -219,7 +219,7 @@ const Z80 = z80.Type(.{
 Note that `Z80` is just a type, not a runtime object. To get a default-initialized
 Z80 CPU object:
 
-```rust
+```zig
 var cpu = Z80{};
 ```
 
@@ -230,7 +230,7 @@ Arbitrarily complex comptime configuration options can be 'baked' into types,
 and dynamic runtime configuration options can be passed in a 'constructor' function,
 and all is just regular Zig code:
 
-```rust
+```zig
 var obj = Type(.{
   // comptime options...
 }).init(.{
@@ -243,7 +243,7 @@ nested types based on comptime type-config parameters. For instance
 the KC85/2, /3 and /4 models have different ROM configurations and require
 different ROM dumps to be passed in:
 
-```rust
+```zig
 pub fn Type(comptime model: Model) type {
   return struct {
     const Self = @This();
@@ -277,7 +277,7 @@ pub fn Type(comptime model: Model) type {
 ...note the `switch` statement in Options struct declaration, this causes a different
 `Options` struct to be stamped out based on the `model` comptime parameter.
 
-```rust
+```zig
   // for KC85/2:
   pub const Options = struct {
     audio: Audio.Options,
@@ -308,7 +308,7 @@ pub fn Type(comptime model: Model) type {
 
 ...a KC85/3 emulator might then be created like this:
 
-```rust
+```zig
 fn init() void {
   // ...
   sys = kc85.Type(.KC853).init(.{
@@ -324,8 +324,8 @@ fn init() void {
 
 All in all, the idea to use Zig's comptime features to stamp out specialized
 per-system chip emulators, which can then be connected to each other with less
-runtime code worked very well. While overall performance (-O3 vs ReleaseFast)
-doesn't seem to be any better or worse than the C version, the simplified
+runtime code worked very well. While overall performance
+doesn't seem to be any better or worse than the C version (with -O3 vs ReleaseFast), the simplified
 system tick function and reduced runtime state is worth it.
 
 ## Bit Twiddling and Integer Maths
