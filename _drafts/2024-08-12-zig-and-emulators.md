@@ -382,7 +382,7 @@ Note how the intent gets totally drowned in '@-litter'.
 Both functions result in the same x86 and ARM assembly output (with -O3 for C
 and any of the Release modes in Zig):
 
-```
+```assembly
 addi8:
   movsx eax, sil  ; move low byte of esi into eax with sign-extension
   add eax, edi    ; eax += edi
@@ -390,7 +390,7 @@ addi8:
 ```
 
 For ARM:
-```
+```assembly
 addi8:
   ; looks like ARM handles the sign-extension right in the add instruction, not very RISC-y but neat!
   add w0, w0, w1, sxtb
@@ -440,37 +440,43 @@ data loss, but currently still requires an explicit cast.
 
 Without integer promotion, there's also surprising cases like this:
 
+Assuming that:
+
+  - a: u16 = 0xF000
+  - b: u16 = 0x1000
+  - c: u32 = 0x10000
+
+This expression creates an overflow error:
+
 ```zig
-  const a: u16 = 0xF000;
-  const b: u16 = 0x1000;
-  const c: u32 = 0x10000;
-
-  // this produces an overflow error:
   const d = a + b + c;
+```
 
-  // but this doesn't:
+...but this doesn't:
+
+```zig
   const e = c + a + b;
 ```
 
-Then there bit shifting. The shift amount is a narrow integer type which can
-hold the maximum shift value to prevent 'overshifting'. For instance in
-the expression:
+Bit shifting also has some awkward behaviour. The shift amount is a narrow
+integer type which can hold the maximum shift value to prevent 'overshifting'.
+For instance in the expression:
 
 ```zig
   const c = a << b;
 ```
 
-If `a` is of type `u8`, then `b` is expected to be of type `u3`. When using a
-comptime-known shift amount this creates a useful error if the shift-value
-is out-of-bounds:
+If `a` is of type `u8`, then `b` is expected to be of type `u3`. On one
+hand this can produce useful error messages:
 
 ```zig
   const a: u8 = 255;
   const c = a << 8;   // => error: type 'u3' cannot represent integer value '8'
 ```
 
-...but it gets ugly if the shift amount of a wider type, for instance
-when it is coming out of a loop):
+...but it gets awkward if the shift amount is a wider type, for instance
+when it is coming out of a loop) - even when the compiler should be able
+to figure out that the shift amount is valid:
 
 ```zig
   const a: u8 = 255;
@@ -479,27 +485,9 @@ when it is coming out of a loop):
   }
 ```
 
-...so this requires an explicit `@intCast()` or `@truncate()`, even though the
-compiler should be able to figure out that shift value fits into an u3:
-
-```zig
-  const a: u8 = 255;
-  for (0..7) |i| {
-    const c = a << @intCast(i);
-  }
-```
-
-...or forcing the loop to be unrolled at comptime, because then the loop variable
-is a more flexible `comptime_int`:
-
-```zig
-  const a: u8 = 255;
-  inline for (0..7) |i| {
-    const c = a << i;
-  }
-```
-
-...here's a bit of a footgun:
+...in the following function, bits are shifted out of the u8 range and become
+lost before the result is extended to 16 bits (tbf C has a similar despite
+integer promotion, but only when bits are shifted beyond 32 bits):
 
 ```zig
 fn shift(val: u8, shift: u3) u16 {
@@ -507,20 +495,8 @@ fn shift(val: u8, shift: u3) u16 {
 }
 ```
 
-When called with `shift(0xFF, 7)` this function returns 0x80 and not 0x7F80 since
-the top bits are shifted out of the u8 range before the result is extended to
-u16.
-
-The correct form involves adding `@-litter` again, the 8-bit values needs to be
-manually extended to 16-bits before the shift operation:
-
-```zig
-fn shift(val: u8, shift: u3) u16 {
-  return @as(u16, val) << shift;
-}
-```
-
-And here's another surprising behaviour I stumbled over. `sprite_coords` is an u8-array:
+And here's another surprising behaviour I stumbled over. `sprite_coords` is an
+array of bytes:
 
 ```zig
 const px: usize = 272 - self.sprite_coords[sprite_index * 2 + 1];
@@ -534,15 +510,17 @@ The solution is to widen the value read from the array:
 const px: usize = 272 - @as(usize, self.sprite_coords[sprite_index * 2 + 1]);
 ```
 
-TL;DR: I only understood how helpful C's integer promotion actually is
-after not having it available in Zig :D
+In conclusion, I only understood that C's integer promotion actually has an
+important purpose after missing it in Zig :D
 
-I think C's main problem is that it promotes to `int`, and int being stuck at
-32-bits even on 64-bit CPUs (in hindsight an exceptionally stupid decision).
+I think C's main problem with integer promotion is that it promotes to `int`,
+and int being stuck at 32-bits even on 64-bit CPUs (not moving the `int` type
+to 64 bits during the transition from 32- to 64-bit CPUs was a pretty stupid
+decision in hindsight).
 
 TBF though, just extending to the natural word size (e.g. 64 bits) wouldn't
 help much in Zig when using wide integers like u128. Maybe it makes sense to do
-integer math on the width of the result type, or if that is inferred, on the
+integer math on the width of the result type, or if that isn't available, the
 width of the widest input.
 
 In any case, I hope that the current status quo isn't what ends up in Zig 1.0
@@ -550,13 +528,13 @@ and that a way can be found to reduce '@-litter' in mixed-width integer expressi
 without going back entirely to C's admittedly too sloppy integer promotion and
 conversion rules.
 
+## Using wide integers with bit twiddling code is fast
 
-## Using wide integers in bit twiddling is fine
-
-Using a wide integer (like u128, u256 etc...) for the system bus works nicely
-and doesn't have the negative performance impact I feared. In fact, with a bit
-of care (by not crossing 64-bit boundaries) the produced assembly code is
-identical with the same operation on a 64-bit variable.
+Using a 128 bit integer variable for the emulator system bus works
+nicely and doesn't have a relevant performance impact. In fact, with a bit of
+care (by not using bit twiddling operations that cross a 64-bit boundary) the
+produced assembly code is identical to doing the same operation on a simple
+64-bit variable.
 
 For instance extracting an 8-bit value from the upper half of an 128-bit integer:
 
@@ -566,7 +544,8 @@ fn getu8(val: u128) u8 {
 }
 ```
 
-...is just a move from one register into another:
+...is just moving the register which holds the upper 64 bits into the return
+value register:
 ```
 getu8:
   mov rax, rsi
@@ -606,4 +585,96 @@ getu8:
 
 ## Debug Performance
 
-## Strings, Slices and Memory
+Release performance of my C emulator code (with -O3) and my Zig code (with
+-ReleaseFast) is roughly in the same ballpark, but I'm seeing a pretty big
+difference in Debug performance:
+
+- in C, debug performance is roughly 2x slower than -O3
+- in Zig, debug performance is roughly 4x slower than ReleaseFast
+
+I haven't figured out why yet, but it's not the most obvious candidate (range and
+overflow checks) since ReleaseSafe performance is practically identical with ReleaseFast
+(interestingly ReleaseSmall is the slowest Release build config, it's about 40% slower
+than both ReleaseFast and ReleaseSmall).
+
+One important difference between my C and Zig code is that in C I'm using tons
+of small preprocessor macros to simplify expressions. In Zig these are replaced
+with inline functions (`inline` in Zig isn't just an optimization hint, it causes
+the function body to be inlined also in debug mode).
+
+At first glance Zig's inline functions seem to be a good replacement for
+C preprocessor macros, but when looking at the generated code in debug mode,
+the compiler still pushes and pops function arguments through the stack even though
+the function body is inlined.
+
+Consider this Zig code:
+
+```zig
+inline fn add(a: u8, b: u8) u8 {
+    return a +% b;
+}
+
+export fn add_1(a: u8, b: u8) u8 {
+    return add(a, b);
+}
+
+export fn add_2(a: u8, b: u8) u8 {
+    return a +% b;
+}
+```
+
+...in release mode, both functions produce the same code as expected:
+
+```assembly
+add_1:
+  lea eax, [rsi + rdi]
+  ret
+
+add_2:
+  lea eax, [rsi + rdi]
+  ret
+```
+
+But in debug mode, the function which calls the inline function has a slightly
+higher overhead because of additional stack traffic:
+
+```assembly
+add_1:
+  push rbp
+  mov rbp, rsp
+  sub rsp, 5
+  mov cl, sil
+  mov al, dil
+  mov byte ptr [rbp - 4], al
+  mov byte ptr [rbp - 3], cl
+  mov byte ptr [rbp - 2], al
+  mov byte ptr [rbp - 1], cl
+  add al, cl
+  mov byte ptr [rbp - 5], al
+  mov al, byte ptr [rbp - 5]
+  movzx eax, al
+  add rsp, 5
+  pop rbp
+  ret
+
+add_2:
+  push rbp
+  mov rbp, rsp
+  sub rsp, 2
+  mov cl, sil
+  mov al, dil
+  mov byte ptr [rbp - 2], al
+  mov byte ptr [rbp - 1], cl
+  add al, cl
+  movzx eax, al
+  add rsp, 2
+  pop rbp
+  ret
+```
+
+TBH though it's unlikely that inline function overhead is the only contributor to the
+slower debug performance, but it could be many such small papercuts combined.
+
+## Conclusion
+
+TODO
