@@ -3,12 +3,6 @@ layout: post
 title: "Zig and Emulators"
 ---
 
-> NOTE: I made several attempts for this blog post and it always ended up
-> getting too big and rambly. As a result I'm omitting all background info
-> about how the emulators actually work and will focus on Zig language
-> features instead. A lot of this stuff either already exists in older blog posts, or
-> should exists in other blog posts not yet written :)
-
 Some quick Zig feedback in the context of a new 8-bit emulator project I started
 a little while ago:
 
@@ -26,15 +20,12 @@ Currently this includes:
 
 With the exception of an external C dependency for 'host system glue'
 (the cross-platform sokol headers used for the window, input, rendering
-and audio output), the project is pure Zig (unlike the original project
-which is a mix of C, C++, Python for code generation and cmake scripts
-for the build system).
+and audio output), the project is around 16kloc of Zig code.
 
-Eventually I hope to bring the project on paar with, but this will take
-a while (and next I'll go back to sokol-gfx feature development):
-
-[https://github.com/floooh/chips](https://github.com/floooh/chips)
-
+I'm not yet sure how this new project will evolve in relation to the [original
+C/C++ project](https://github.com/floooh/chips), but the experience of writing
+emulator code in Zig is already pleasant enough that I can see the Zig project
+to eventually overtake the C project.
 
 ## Dev Environment
 
