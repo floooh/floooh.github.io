@@ -56,16 +56,16 @@ All in all, not yet perfect, but good enough to get shit done.
 Before diving into language details, I'll need to provide some minimal
 amount of background information of how the chipz emulators work:
 
-Microchips of the 70s and 80s were very much like 'software libraries,
-but implemented in hardware'. Microchips followed a minimal interoperability
-standard so that chips from different manufacturers could be combined into
-computer systems without requiring much 'custom glue', this basic idea of
-competition through interoperability made the whole personal computer
+Microchips of the 70s and 80s were very much like 'software libraries, but
+implemented in hardware', they followed a minimal interoperability standard so
+that chips from different manufacturers could be combined into computer systems
+without requiring too much 'custom glue', I think it's safe to say that this
+idea of competition through interoperability made the whole personal computer
 revolution possible in the first place.
 
-Microchips communicate with the outside world via their input/output
+Microchips communicate with the outside world via input/output
 pins, and a complete computer system is essentially a handful of
-microchips, connected through their pins.
+microchips connected through their pins.
 
 The chipz project follows that same idea: The basic building blocks
 are chip emulators which communicate with other chip emulators via
@@ -77,7 +77,7 @@ comfortably fits into a 64 bit integer.
 The API of such a chip emulator only has one important function:
 
 ```zig
-pub fn tick(pins: u64) u64;
+pub fn tick(pins: u64) u64
 ```
 
 This tick function executes exactly one clock cycle, it takes an integer
@@ -92,10 +92,10 @@ a challenge and is described in these blog posts (for the 6502 and Z80):
 - [A new cycle-stepped Z80 emulator](https://floooh.github.io/2021/12/17/cycle-stepped-z80.html)
 
 A system emulator for a whole computer system then 'simply' glues together a
-handful such chips in a similar tick function which executes a single clock
-cycle.
+handful such chips in a similar tick function which executes a
+single clock cycle for the whole system.
 
-The main job of such of system tick function is to call the tick functions of
+The main job of such a system tick function is to call the tick functions of
 the chip emulators that computer is built from, plus some glue logic which is
 called 'address decoding'.
 
