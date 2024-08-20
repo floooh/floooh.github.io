@@ -8,7 +8,7 @@ a little while ago:
 
 [https://github.com/floooh/chipz](https://github.com/floooh/chipz])
 
-Currently this includes:
+Currently the project consists of:
 
 - a cycle-stepped Z80 CPU emulator (similar to the emulator described
   here: https://floooh.github.io/2021/12/17/cycle-stepped-z80.html)
@@ -19,13 +19,13 @@ Currently this includes:
 - various tests to check Z80 emulation correctness
 
 With the exception of an external C dependency for 'host system glue'
-(the cross-platform sokol headers used for the window, input, rendering
-and audio output), the project is around 16kloc of Zig code.
+(the cross-platform [sokol headers](https://github.com/floooh/sokol-zig) used for the window, input, rendering
+and audio output), the project is around 16kloc of pure Zig code.
 
 I'm not yet sure how this new project will evolve in relation to the [original
-C/C++ project](https://github.com/floooh/chips), but the experience of writing
-emulator code in Zig is already pleasant enough that I can see the Zig project
-to eventually overtake the C project.
+C/C++ 'chips' emulator project](https://github.com/floooh/chips), but I expect
+that the Zig project will overtake the C/C++ project at some point in the
+future.
 
 ## Dev Environment
 
@@ -36,7 +36,7 @@ The Zig and ZLS (Zig Language Server) installation is managed with ZVM (https://
 
 For the most part this setup works pretty well, with a few tweaks:
 
-- I have setup 'build on save' to get more complete error information as described here:
+- I'm doing 'build-on-save' to get more complete error information as described here:
   [Improving Your Zig Language Server Experience](https://kristoff.it/blog/improving-your-zls-experience/)
   (I'm not bothering with creating separate non-install build targets though)
 - With the default Zig VSCode extension settings I was seeing that in long coding
@@ -57,22 +57,22 @@ Before diving into language details, I'll need to provide some minimal
 amount of background information of how the chipz emulators work:
 
 Microchips of the 70s and 80s were very much like 'software libraries, but
-implemented in hardware', they followed a minimal interoperability standard so
-that chips from different manufacturers could be combined into computer systems
-without requiring too much 'custom glue', I think it's safe to say that this
-idea of competition through interoperability made the whole personal computer
-revolution possible in the first place.
+implemented in hardware', they followed a minimal standard for interoperability
+so that chips from different manufacturers could be combined into computer
+systems without requiring too much custom glue between them. This 'competition
+through interoperability' caused a cambrian explosion of cheap 8-bit
+computer systems in the 70's and 80's.
 
-Microchips communicate with the outside world via input/output
-pins, and a complete computer system is essentially a handful of
-microchips connected through their pins.
+Microchips communicate with the outside world via input/output pins, and a
+typical 8-bit home computer system is essentially just a handful of microchips
+communicating through their input/output pins.
 
 The chipz project follows that same idea: The basic building blocks
 are chip emulators which communicate with other chip emulators via
-virtual input/output pins.
+virtual input/output pins which are mapped to bits in an integer.
 
-Chips of the home computer era typically had up to 40 pins, which
-comfortably fits into a 64 bit integer.
+Chips of that era typically had up to 40 pins which makes them a good
+fit for 64-bit integers used in today's CPUs.
 
 The API of such a chip emulator only has one important function:
 
@@ -91,65 +91,38 @@ a challenge and is described in these blog posts (for the 6502 and Z80):
 
 - [A new cycle-stepped Z80 emulator](https://floooh.github.io/2021/12/17/cycle-stepped-z80.html)
 
-A system emulator for a whole computer system then 'simply' glues together a
-handful such chips in a similar tick function which executes a
-single clock cycle for the whole system.
+A whole computer system is then emulated by writing a 'system tick function'
+which emulates a single clock cycle for the whole system by calling the
+tick functions of each chip emulator and passing pin-state integers
+from one chips emulator to the next.
 
-The main job of such a system tick function is to call the tick functions of
-the chip emulators that computer is built from, plus some glue logic which is
-called 'address decoding'.
+There's two related problems to solve with the above approach:
 
-In a traditional computer system, different subsystems (like the memory- and video-system)
-and microchips are typically connected to a shared data bus. To avoid collisions
-on this shared bus, a mediator process needs to be in place which decides what chip or
-subsystem 'owns the bus' at any given clock cycle. This process is typically
-called 'address decoding' but essentially comes down to 'if this specific
-combination of chip output pins are active, activate this specific
-combination of input pins of another chip'.
+- There's not enough space to assign one bit for each inter-chip connection of
+  a complete cokmputer system. This means a system tick function will
+  need to maintain one pin-state integer for each chip, and shuffle bits
+  around before each chip's tick function is called.
+- For direct pin-to-pin connections it makes sense to assign the same bit position
+  in different chip emulators, however, those direct connection are different
+  in each emulated computer system. To make this work, a specialized chip
+  emulator needs to be 'stamped out' for every computer system which assigns
+  its pins to different bit positions in the pin-state integer.
 
-For instance a specific combination of CPU control- and
-address-bus pins may activate the chip-select pin of a specific chip which
-then knows that it is supposed to read or write the data bus.
+Both problems can be solved quite elegantly in Zig:
 
-To reiterate the above:
+- Instead of 64-bit integers for the pin-state we can switch to wide integers
+  (u128, u192, u256, ...), which is enough room to assign each chip in a system
+  its own reserved bit range instead of juggling with multiple 64-bit integers.
+- With Zig's comptime generics it's possible to stamp out chip emulators
+  which are specialized by a specific mapping of pins to bit positions in the
+  shared wide integer.
 
-- virtual input/output pins mapped to bits in an integer
-- chip emulators with a per-clock-cycle tick function
-- system emulators as collection of connected chip emulators,
-  also stepped forward with a per-clock-cycle tick function
+This means a chip emulator is specialized by two comptime configuration values:
 
-With the above idea that each chip emulator uses a 64-bit integer to represent
-its input/output pins at specific bit positions, we run into a couple of
-awkward problems that need to be solved in a system tick function:
-
-- while 64-bits is enough for the pins of a single microchip,
-  it may not be enough to give each chip pin its own unique bit
-  position in a whole system emulator
-- if a computer system has multiple chips of the same type (for instance
-  a C64 with its two CIA chips), the hardwired pin positions will collide
-  with each other
-- and finally, with hardwired pin positions we cannot directly express
-  a connection between an output pin of one chip and an input pin
-  of another chip, since those connections are computer system specific
-
-In the [C version of the emulators](https://github.com/floooh/chips) these
-problems are solved in the systemm tick function by maintaining a separate
-pins-integer for each chip in the system, and bit shuffling code which moves
-connected pins into the right position before and after ticking system chips.
-
-In the Zig version I use a wide integer to represent the whole system
-bus, and use Zig's comptime features to assign chip emulator pin
-positions on this shared system bus.
-
-For instance if an output pin of one chip is directly connected to an input
-pin of another chip in a specific computer system, I can assign both
-pins to the same bit position. This avoids the bit shuffling necessary
-in the C emulators since the pin is already in the right bit position.
-
-This is achieved by stamping out specialized chip emulators via Zig's
-comptime and generics features:
-
-Each chip emulator defines a struct which assigns pin names to bit positions.
+- a `Bus` type which is an unsigned integer with enough bits for all pin-to-pin
+  connections in a system
+- a `Pins` definition which defines a bit position for each input/output pin
+  of a chip emulator
 
 For Z80 CPU emulator this pin definition struct looks like this:
 
@@ -163,10 +136,9 @@ pub const Pins = struct {
     // ...
 };
 ```
-Apart from this pin mapping, the Z80 emulator also needs to know what integer
-type to use for the system bus (u64, u128, etc...). All those comptime
-parameters needed to 'stamp out' a specialized Z80 emulator are grouped
-in a `TypeConfig` struct:
+
+...which is used as nested struct in a `TypeConfig` struct which holds
+all generic parameters:
 
 ```zig
 pub const TypeConfig = struct {
@@ -175,17 +147,14 @@ pub const TypeConfig = struct {
 };
 ```
 
-Next a comptime function is created which returns a specialized type (this
-is how Zig does Generics):
+This `TypeConfig` struct is used as parameter for a comptime Zig function
+which returns a specialized type (this is how Zig does generics):
 
 ```zig
 pub fn Type(comptime cfg: TypeConfig) type {
-  // define a type alias for our system bus type
-  const Bus = cfg.bus;
   return struct {
-    // define pin bit-masks from the pin positions
-    pub const A0: Bus = 1 << cfg.pins.A[0];
-    // ...
+    // the returned struct is a new type which is configured
+    // by the 'cfg' type configuration parameter
   };
 }
 ```
@@ -207,6 +176,12 @@ const Z80 = z80.Type(.{
 });
 ```
 
+This specific `Z80` type uses a 128-bit pin-state integer and maps its own
+pins to bit positions starting at bit 0, with the first 8 bits being the
+data bus (most other chips in any computer system will also map their
+data bus pins to the same bit range, since the data bus is usually shared
+between all chips).
+
 Note that `Z80` is just a type, not a runtime object. To get a default-initialized
 Z80 CPU object:
 
@@ -217,107 +192,39 @@ var cpu = Z80{};
 This example doesn't look like much, it's "just Zig code" after all, but this
 is exactly what makes generic programming in Zig so elegant and powerful.
 
-Arbitrarily complex comptime configuration options can be 'baked' into types,
+Arbitrarily complex comptime config options can be 'baked' into types,
 and dynamic runtime configuration options can be passed in a 'construction' function
 on that type, and all is just regular Zig code from top to bottom:
 
 ```zig
 var obj = Type(.{
   // comptime options...
+  .bus = u128,
+  .pins = .{ ... },
 }).init(.{
-  // runtime options...
+  // additional runtime options...
 });
 ```
 
-...and this is just scratching the surface. It's also possible to build
-specialized nested types based on comptime type-config parameters of the parent
-type. For instance the KC85/2, /3 and /4 models have different ROM
-configurations and require different ROM dumps to be passed in:
+...and this is just scratching the surface. There's a couple of really
+interesting side effects of this 2-step approach (first build the type,
+then build an object from that type):
 
-```zig
-pub fn Type(comptime model: Model) type {
-  return struct {
-    const Self = @This();
+- Can use designated-init-syntax for configuring the type
+  which is just **chef's kiss**.
+- The TypeConfig struct can be composed by nesting other TypeConfig structs,
+  or generic parameters in general, which then can be used to build
+  types inside types (Yo Dawg...).
+- It's possible to build different struct interiors based on comptime
+  parameters (for instance the different KC85 models have different
+  init-config structs, which makes 'misconfiguration' an immediate
+  compile error).
 
-    pub const Options = struct {
-      audio: Audio.Options,
-      roms: switch (model) {
-        .KC852 => struct {
-          caos22: []const u8,
-        },
-        .KC853 => struct {
-          caos31: []const u8,
-          kcbasic: []const u8,
-        },
-        .KC854 => struct {
-          caos42c: []const u8,
-          caos42e: []const u8,
-          kcbasic: []const u8,
-        },
-      },
-    };
-
-    // ...
-    pub fn init(opts: Options) Self {
-      ...
-    }
-  };
-}
-```
-
-...note the `switch` statement in Options struct declaration, this causes a different
-`Options` struct to be stamped out based on the `model` comptime parameter.
-
-```zig
-  // for KC85/2:
-  pub const Options = struct {
-    audio: Audio.Options,
-    roms: struct {
-      caos22: []const u8,
-    },
-  };
-
-  // for KC85/3:
-  pub const Options = struct {
-    audio: Audio.Options,
-    roms: struct {
-      caos31: []const u8,
-      kcbasic: []const u8,
-    },
-  };
-
-  // for KC85/4:
-  pub const Options = struct {
-    audio: Audio.Options,
-    roms: struct {
-      caos42c: []const u8,
-      caos42e: []const u8,
-      kcbasic: []const u8,
-    },
-  };
-```
-
-...a KC85/3 emulator might then be created like this:
-
-```zig
-fn init() void {
-  // ...
-  sys = kc85.Type(.KC853).init(.{
-    .audio = .{ // ... },
-    .roms = .{
-      .caos32 = @embedFile("roms/caos31.853"),
-      .kcbasic = @embedFile("roms/basic_c0.853"),
-    },
-  });
-  // ...
-}
-```
-
-All in all, the idea to use Zig's comptime features to stamp out specialized
-per-system chip emulators, which can then be connected to each other with less
-runtime glue code worked very well. While overall performance
-doesn't seem to be any better or worse than the C version (with -O3 vs ReleaseFast), the simplified
-system tick function and reduced runtime state is worth it.
+In conclusion, the idea to use Zig's comptime features to stamp out specialized
+per-system chip and system emulators works exceptionally well and is (IMHO)
+*much* more enjoyable than C++ or Rust generic programming (I'm sure C++ and
+Rust can do the same things with sufficient template magic, but this code
+definitely won't look as nice as the Zig version).
 
 
 ## Bit Twiddling and Integer Math Woes
