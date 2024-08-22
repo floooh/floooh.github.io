@@ -421,24 +421,25 @@ known (which would solve some of the problems mentioned above).
 
 Another idea that might make sense is to add integer promotion to the
 result type. Currently the compiler already seems to use the widest
-input type in an expression as result type. Maybe it makes sense
-to widen all other expression inputs to the result type.
+input type in an expression as result type, promoting the other
+inputs to this widest type looks like a logical step to me.
 
 I would keep the strict separation of signed and unsigned integer types
-though, e.g. mixed signed expressions are not allowed, and any theoretical
-integer promotion should happen 'across signedness'.
+though, e.g. mixed-sign expressions are not allowed, and any theoretical
+integer promotion should never happen 'across signedness' (e.g. promoting
+and unsigned expression input to signed).
 
-From my own experience in C (where I don't allow implicit signedness-conversion
-via -Wsign-conversion warnings) I can say that this will feel painful
+From my own experience in C (where I don't allow implicit sign-conversion
+via -Wsign-conversion warnings) I can tell that this will feel painful
 in the beginning for C and C++ coders, but it makes for better code and API
 design in the long run.
 
-This experience is also why I'm giving some slack to Zig's extreme integer
-conversion strictness. After all, maybe I'm just not used to it yet. But OTH, I
-have by now written enough Zig code that I should slowly get used to it, but it
-*still* feels bumpy. All in all I think this is an area where 'strict design
-purity' can the language in the long run though, and a balance must be found
-between strictness, convenience and readability.
+This experience is also why I'm giving Zig some slack about its conversion
+strictness. After all, maybe I'm just not used to it yet. But OTH, I have by
+now written enough Zig code that I should slowly get used to it, but it *still*
+feels bumpy. All in all I think this is an area where 'strict design purity'
+can harm the language in the long run though, and a better balance should be
+found between strictness, convenience and readability.
 
 
 ## Using wide integers with bit twiddling code is fast
