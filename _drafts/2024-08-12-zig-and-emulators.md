@@ -227,7 +227,7 @@ Rust can do the same things with sufficient template magic, but this code
 definitely won't look as nice as the Zig version).
 
 
-## Bit Twiddling and Integer Math Woes
+## Bit Twiddling and Integer Math can be awkward
 
 This section is hard to write because it's critizing without offering an
 obvious solution, please read it as 'constructive criticism'. Hopefully Zig will
@@ -237,8 +237,8 @@ Zig's integer handling is quite different from C:
 
 - arbitrary width integers are the norm, not the exception
 - there is no concept of integer promotion in math expressions
-- assignment between different integer types is only allowed if no data loss
-  can happen (otherwise an explicit cast is needed)
+- implicit conversion between different integer types is only
+  allowed when no data loss can happen
 - mixing signed and unsigned values in expressions isn't allowed
 - overflow is checked in Debug and ReleaseSafe mode, but there are separate
   operators for wraparound
@@ -253,12 +253,13 @@ Unfortunately, in reality it's not so clear cut. While C is definitely too
 sloppy when it comes to integer math, Zig might swing the pendulum a bit too
 far into the other direction by requiring too much explicit casting.
 
-The most awkward example I stumbled over is the indexed addressing mode of the
-Z80 (e.g. instructions involving `(IX+d)` or `(IY+d)`). This takes the byte `d`
-and adds it as a signed offset and with wraparound to a 16 bit address (e.g.
-the byte is sign-extended to a 16-bit value before the addition).
+The most extreme example I stumbled over was implementing the Z80's indexed
+addressing mode (e.g. those instructions involving `(IX+d)` or `(IY+d)`. This
+takes the byte `d` and adds it as a signed offset and with wraparound to a 16
+bit address (e.g. the byte is sign-extended to a 16-bit value before the
+addition).
 
-In C this is expressed as:
+In C this is straightforward:
 
 ```c
 uint16_t addi8(uint16_t addr, uint8_t offset) {
@@ -294,37 +295,61 @@ addi8:
   ret
 ```
 
-IMHO when the assembly output of a compiler looks much more straightforward
-than the high level language input, there's not much of a point to write
-high level code ;)
+IMHO when the assembly output of a compiler looks so much more straightforward
+than the high level compiler input, it becomes a bit hard to justify why
+high level programming languages had been invented in the first place ;)
 
 Apart from the above extreme case (which only exists once in the whole code
-base), narrowing conversions are much more common to deal with, either via
-`@truncate()` (which simply cuts off the top bits), or `@intCast()` (which does
-a runtime check in Debug and ReleaseSafe mode).
+base), narrowing conversions are much more common when writing code that
+involved different integer widths, and those narrowing conversions require
+explicit casts, and those explicit casts reduce readability.
 
-There are situations where the compiler should know that a narrowing cannot
-lose data, but where a `@truncate()` or `@intCast()` is still required, for
-instance:
+IMHO the situation would much improve if the Zig compiler would just
+be a but smarter.
+
+The basic idea to only allow implicit conversions that can't lose data
+is a good one, but very often a cast is required even though the
+compiler has all the information it needs to prove that no
+information is lost.
+
+For instance this Zig code currently is an error:
 
 ```zig
 fn trunc4(val: u8) u4 {
-  return @truncate(val & 0xF);
+  return val & 0xF;
 }
 ```
 
-...since the `& 0xF` already explicitly cuts off the top bits so that the
-result fits into an u4 without (unintended) data loss, the `@truncate()` should
-be redundant but is currently required.
+The expression result would fit into an u4, yet an `@intCast` or
+`@truncate` is required to make it work:
 
-...but somewhat surprisingly, this works:
+```zig
+fn trunc4(val: u8) u4 {
+  return @intCast(val & 0xF);
+}
+```
+
+Similar situation with a right-shift:
+
+```zig
+fn broken(val: u8) u4 {
+  return val >> 4;
+}
+
+fn works(val: u8) u4 {
+  return @truncate(val >> 4);
+}
+```
+
+Somewhat surprisingly, this works fine:
 
 ```zig
   const a: u8 = 0xFF;
   const b: u4 = a & 0xF;
+  const c: u4 = a >> 4;
 ```
 
-A similar problem with loop variables, which are always of type usize and
+A similar problem exists with loop variables, which are always of type usize and
 which need to be explicitly narrowed even if the loop count is 'small enough':
 
 ```zig
@@ -332,9 +357,6 @@ for (0..16) |_i| {
   const i: u4 = @intCast(_i);
 }
 ```
-
-...the compiler *should* know that the loop variable fits into an u4, but
-currently still requires an explicit cast.
 
 Without integer promotion, there's also surprising cases like this:
 
@@ -356,47 +378,14 @@ This expression creates an overflow error:
   const e = c + a + b;
 ```
 
-Bit shifting also has some awkward behaviour. The shift amount is a narrow
-integer type which can hold the maximum shift value to prevent 'overshifting'.
-For instance in the expression:
+The type of `d` and `e` is both `u32` btw (which I find also a but surprising,
+so Zig already seems to pick the widest input type as the result type, it 'just'
+doesn't promote the other inputs to this widest type!
+
+And here's another surprising behaviour I stumbled over:
 
 ```zig
-  const c = a << b;
-```
-
-If `a` is of type `u8`, then `b` is expected to be of type `u3`. On one
-hand this can produce useful error messages:
-
-```zig
-  const a: u8 = 255;
-  const c = a << 8;   // => error: type 'u3' cannot represent integer value '8'
-```
-
-...but it gets awkward if the shift amount is a wider type, for instance
-when it is coming out of a loop) - even when the compiler should be able
-to figure out that the shift amount is valid:
-
-```zig
-  const a: u8 = 255;
-  for (0..7) |i| {
-    const c = a << i; // error: expected type 'u3', found 'usize'
-  }
-```
-
-...in the following function, bits are shifted out of the u8 range and become
-lost before the result is extended to 16 bits (tbf C has a similar despite
-integer promotion, but only when bits are shifted beyond 32 bits):
-
-```zig
-fn shift(val: u8, shift: u3) u16 {
-  return val << shift;
-}
-```
-
-And here's another surprising behaviour I stumbled over. `sprite_coords` is an
-array of bytes:
-
-```zig
+// self.sprite_coords[] is an array of bytes
 const px: usize = 272 - self.sprite_coords[sprite_index * 2 + 1];
 ```
 
@@ -409,7 +398,7 @@ const px: usize = 272 - @as(usize, self.sprite_coords[sprite_index * 2 + 1]);
 ```
 
 In conclusion, I only understood that C's integer promotion actually has an
-important purpose after missing it in Zig :D
+important purpose after missing it so badly in Zig :D
 
 I think C's main problem with integer promotion is that it promotes to `int`,
 and int being stuck at 32-bits even on 64-bit CPUs (not moving the `int` type
@@ -425,6 +414,32 @@ In any case, I hope that the current status quo isn't what ends up in Zig 1.0
 and that a way can be found to reduce '@-litter' in mixed-width integer expressions
 without going back entirely to C's admittedly too sloppy integer promotion and
 conversion rules.
+
+Asking around on the Zig Discord there seems to be a proposal which lets
+operators narrow the result type part of the expression is comptime
+known (which would solve some of the problems mentioned above).
+
+Another idea that might make sense is to add integer promotion to the
+result type. Currently the compiler already seems to use the widest
+input type in an expression as result type. Maybe it makes sense
+to widen all other expression inputs to the result type.
+
+I would keep the strict separation of signed and unsigned integer types
+though, e.g. mixed signed expressions are not allowed, and any theoretical
+integer promotion should happen 'across signedness'.
+
+From my own experience in C (where I don't allow implicit signedness-conversion
+via -Wsign-conversion warnings) I can say that this will feel painful
+in the beginning for C and C++ coders, but it makes for better code and API
+design in the long run.
+
+This experience is also why I'm giving some slack to Zig's extreme integer
+conversion strictness. After all, maybe I'm just not used to it yet. But OTH, I
+have by now written enough Zig code that I should slowly get used to it, but it
+*still* feels bumpy. All in all I think this is an area where 'strict design
+purity' can the language in the long run though, and a balance must be found
+between strictness, convenience and readability.
+
 
 ## Using wide integers with bit twiddling code is fast
 
