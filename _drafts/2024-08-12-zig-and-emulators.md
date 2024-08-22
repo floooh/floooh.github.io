@@ -236,10 +236,9 @@ be able to fix some of those things on the road towards 1.0.
 Zig's integer handling is quite different from C:
 
 - arbitrary width integers are the norm, not the exception
-- there is no integer promotion which converts items in math expression to a
-  common type
+- there is no concept of integer promotion in math expressions
 - assignment between different integer types is only allowed if no data loss
-  can happen
+  can happen (otherwise an explicit cast is needed)
 - mixing signed and unsigned values in expressions isn't allowed
 - overflow is checked in Debug and ReleaseSafe mode, but there are separate
   operators for wraparound
@@ -296,8 +295,8 @@ addi8:
 ```
 
 IMHO when the assembly output of a compiler looks much more straightforward
-than the high level language input, it's time to stop and check if we're still
-on the right path ;)
+than the high level language input, there's not much of a point to write
+high level code ;)
 
 Apart from the above extreme case (which only exists once in the whole code
 base), narrowing conversions are much more common to deal with, either via
@@ -314,8 +313,9 @@ fn trunc4(val: u8) u4 {
 }
 ```
 
-...since the `& 0xF` already explicitly cuts off the top bits, the `@truncate()`
-should be redundant but is currently required.
+...since the `& 0xF` already explicitly cuts off the top bits so that the
+result fits into an u4 without (unintended) data loss, the `@truncate()` should
+be redundant but is currently required.
 
 ...but somewhat surprisingly, this works:
 
@@ -333,8 +333,8 @@ for (0..16) |_i| {
 }
 ```
 
-...the compiler *should* know that the loop variable fits into an u4 without
-data loss, but currently still requires an explicit cast.
+...the compiler *should* know that the loop variable fits into an u4, but
+currently still requires an explicit cast.
 
 Without integer promotion, there's also surprising cases like this:
 
