@@ -240,8 +240,8 @@ Zig's integer handling is quite different from C:
 - implicit conversion between different integer types is only
   allowed when no data loss can happen
 - mixing signed and unsigned values in expressions isn't allowed
-- overflow is checked in Debug and ReleaseSafe mode, but there are separate
-  operators for wraparound
+- overflow is checked in Debug and ReleaseSafe mode, and there are separate
+  operators for 'intended wraparound'
 
 At first glance these features look pretty nice because they fix some obvious
 footguns in C and C++. Arbitrary width integer types are especially useful for
@@ -302,10 +302,8 @@ high level programming languages had been invented in the first place ;)
 Apart from the above extreme case (which only exists once in the whole code
 base), narrowing conversions are much more common when writing code that
 involved different integer widths, and those narrowing conversions require
-explicit casts, and those explicit casts reduce readability.
-
-IMHO the situation would much improve if the Zig compiler would just
-be a but smarter.
+explicit casts, and those explicit casts may reduce readability quite
+a bit.
 
 The basic idea to only allow implicit conversions that can't lose data
 is a good one, but very often a cast is required even though the
@@ -341,7 +339,7 @@ fn works(val: u8) u4 {
 }
 ```
 
-Somewhat surprisingly, this works fine:
+Somewhat surprisingly, this works fine though:
 
 ```zig
   const a: u8 = 0xFF;
@@ -350,7 +348,8 @@ Somewhat surprisingly, this works fine:
 ```
 
 A similar problem exists with loop variables, which are always of type usize and
-which need to be explicitly narrowed even if the loop count is 'small enough':
+which need to be explicitly narrowed even if the loop count is guaranteed to
+fit into a smaller type:
 
 ```zig
 for (0..16) |_i| {
@@ -358,7 +357,7 @@ for (0..16) |_i| {
 }
 ```
 
-Without integer promotion, there's also surprising cases like this:
+There's also surprising cases like this:
 
 Assuming that:
 
@@ -379,8 +378,8 @@ This expression creates an overflow error:
 ```
 
 The type of `d` and `e` is both `u32` btw (which I find also a but surprising,
-so Zig already seems to pick the widest input type as the result type, it 'just'
-doesn't promote the other inputs to this widest type!
+it means that Zig already picks the widest input type as the result type, it
+'just' doesn't promote the other inputs to this widest type!
 
 And here's another surprising behaviour I stumbled over:
 
@@ -406,9 +405,7 @@ to 64 bits during the transition from 32- to 64-bit CPUs was a pretty stupid
 decision in hindsight).
 
 TBF though, just extending to the natural word size (e.g. 64 bits) wouldn't
-help much in Zig when using wide integers like u128. Maybe it makes sense to do
-integer math on the width of the result type, or if that isn't available, the
-width of the widest input.
+help much in Zig when using wide integers like u128.
 
 In any case, I hope that the current status quo isn't what ends up in Zig 1.0
 and that a way can be found to reduce '@-litter' in mixed-width integer expressions
@@ -416,30 +413,29 @@ without going back entirely to C's admittedly too sloppy integer promotion and
 conversion rules.
 
 Asking around on the Zig Discord there seems to be a proposal which lets
-operators narrow the result type part of the expression is comptime
-known (which would solve some of the problems mentioned above).
+operators narrow the result type for comptime known values (which if I understand
+it right would make the result type of the  expression `a & 0xF` an `u4`).
 
-Another idea that might make sense is to add integer promotion to the
-result type. Currently the compiler already seems to use the widest
+Another idea that might make sense is to promote integers to the result
+type width. Currently the compiler already seems to use the widest
 input type in an expression as result type, promoting the other
 inputs to this widest type looks like a logical step to me.
 
 I would keep the strict separation of signed and unsigned integer types
 though, e.g. mixed-sign expressions are not allowed, and any theoretical
-integer promotion should never happen 'across signedness' (e.g. promoting
-and unsigned expression input to signed).
+integer promotion should never happen 'across signedness'.
 
 From my own experience in C (where I don't allow implicit sign-conversion
 via -Wsign-conversion warnings) I can tell that this will feel painful
 in the beginning for C and C++ coders, but it makes for better code and API
 design in the long run.
 
-This experience is also why I'm giving Zig some slack about its conversion
+This 'IME' effect is also why I'm giving Zig some slack about its integer conversion
 strictness. After all, maybe I'm just not used to it yet. But OTH, I have by
 now written enough Zig code that I should slowly get used to it, but it *still*
 feels bumpy. All in all I think this is an area where 'strict design purity'
 can harm the language in the long run though, and a better balance should be
-found between strictness, convenience and readability.
+found between strictness, coding convenience and readability.
 
 
 ## Using wide integers with bit twiddling code is fast
