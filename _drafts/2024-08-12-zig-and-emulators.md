@@ -18,13 +18,13 @@ Currently the project consists of:
 - a code generation tool to create the Z80 instruction decoder code block
 - various tests to check Z80 emulation correctness
 
-With the exception of an external C dependency for 'host system glue'
-(the cross-platform [sokol headers](https://github.com/floooh/sokol-zig) used for the window, input, rendering
-and audio output), the project is around 16kloc of pure Zig code.
+With the exception of an external C dependency for 'host system glue' (the
+cross-platform [sokol headers](https://github.com/floooh/sokol-zig) used
+wrapping the platform-specific windowing, input, rendering and audio-output
+code), the project is around 16 kloc of pure Zig code.
 
 I'm not yet sure how this new project will evolve in relation to the [original C/C++ 'chips' emulator project](https://github.com/floooh/chips), but I expect
-that the Zig project will overtake the C/C++ project at some point in the
-future.
+that the Zig project will overtake the C/C++ project at some point in the future.
 
 ## Dev Environment
 
