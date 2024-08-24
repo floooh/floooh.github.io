@@ -526,7 +526,7 @@ One important difference between my C and Zig code is that in C I'm using tons
 of small preprocessor macros to make bit twiddling expressions more readable.
 In Zig these are replaced with inline functions (`inline` in Zig isn't just an
 optimization hint, it causes the function body to be inlined also in debug
-mode).
+mode - so it should be comparable to a C macro).
 
 At first glance Zig's inline functions seem to be a good replacement for
 C preprocessor macros, but when looking at the generated code in debug mode,
