@@ -211,7 +211,7 @@ var obj = Type(.{
 interesting side effects of this 2-step approach (first build the type,
 then build an object from that type):
 
-- Can use designated-init-syntax for configuring the type which is just **chef's kiss**
+- Can use designated-init-syntax for configuring the type which is just \*chef's kiss\*
   because it makes the code very readable (no guessing what a generic parameter
   actually does because the name is right there in the code).
 - TypeConfig structs can be composed by nesting other TypeConfig structs,
