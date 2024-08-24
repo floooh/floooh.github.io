@@ -381,7 +381,7 @@ This expression creates an overflow error:
   const e = c + a + b;
 ```
 
-The type of `d` and `e` is both `u32` btw (which I find also a but surprising,
+The type of `d` and `e` is both `u32` btw (which I find also a bit surprising,
 it means that Zig already picks the widest input type as the result type, but
 it doesn't promote the other inputs to this widest type).
 
