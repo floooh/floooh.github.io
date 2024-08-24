@@ -481,7 +481,7 @@ getu8:
 
 ```zig
 fn getu8(val: u64) u8 {
-  @truncate(val);
+  return @truncate(val);
 }
 ```
 
