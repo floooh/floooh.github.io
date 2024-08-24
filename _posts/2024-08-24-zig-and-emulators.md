@@ -426,8 +426,8 @@ implicit conversion rules.
 
 Asking around on the Zig Discord there seems to be a proposal which lets
 operators narrow the result type for comptime known values (which if I understand
-it right would make the result type of the  expression `a & 0xF` instead of
-whatever type `a` is).
+it right would make the result type of the  expression `a & 0xF` a `u4` instead of
+whatever wider type `a` is).
 
 Another idea that might make sense is to promote integers to the widest
 input type. Currently the compiler already seems to use the widest
