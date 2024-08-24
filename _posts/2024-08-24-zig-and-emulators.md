@@ -6,7 +6,7 @@ title: "Zig and Emulators"
 Some quick Zig feedback in the context of a new 8-bit emulator project I started
 a little while ago:
 
-[https://github.com/floooh/chipz](https://github.com/floooh/chipz])
+[https://github.com/floooh/chipz](https://github.com/floooh/chipz)
 
 Currently the project consists of:
 
