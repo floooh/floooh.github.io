@@ -443,13 +443,14 @@ via -Wsign-conversion warnings) I can tell that this will feel painful
 in the beginning for C and C++ coders, but it makes for better code and API
 design in the long run.
 
-This experience (of transition to more restrictive C code by enabling certain
-warning) is also why I'm giving Zig some slack about its integer conversion
-strictness. After all, maybe I'm just not used to it yet. But OTH, I have by
-now written enough Zig code that I should slowly get used to it, but it *still*
-feels bumpy. All in all I think this is an area where 'strict design purity'
-can harm the language in the long run though, and a better balance should be
-found between strictness, coding convenience and readability.
+This experience (of transitioning to more restrictive but also more correct C
+code by enabling certain warning) is also why I'm giving Zig some slack about
+its integer conversion strictness. After all, maybe I'm just not used to it
+yet. But OTH, I have by now written enough Zig code that I should slowly get
+used to it, but it *still* feels bumpy. All in all I think this is an area
+where 'strict design purity' can harm the language in the long run though, and
+a better balance should be found between strictness, coding convenience and
+readability.
 
 
 ## Using wide integers with bit twiddling code is fast
