@@ -31,7 +31,7 @@ that the Zig project will overtake the C/C++ project at some point in the future
 I'm coding on an M1 Mac in VSCode with the [Zig Language Extension](https://marketplace.visualstudio.com/items?itemName=ziglang.vscode-zig), and [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb)
 for step-debugging.
 
-The Zig and ZLS (Zig Language Server) installation is managed with ZVM (https://github.com/tristanisham/zvm).
+The Zig and ZLS (Zig Language Server) installation is managed with [ZVM](https://github.com/tristanisham/zvm).
 
 For the most part this setup works pretty well, with a few tweaks:
 
