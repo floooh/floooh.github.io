@@ -104,7 +104,7 @@ There's two related problems to solve with the above approach:
   shuffle bits around before each chip's tick function is called.
 - For direct pin-to-pin connections it makes sense to assign the same bit position
   in different chip emulators to avoid 'runtime bit shuffling' from an output
-  pin position of one chip to the input pin position of another chip. Those
+  pin position of one chip to a different input pin position of another chip. Those
   direct pin-to-pin connections are different in each emulated computer
   system, so to make this idea work a specialized chip emulator needs to be
   'stamped out' for each computer system.
