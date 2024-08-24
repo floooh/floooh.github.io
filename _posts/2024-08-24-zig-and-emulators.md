@@ -520,7 +520,7 @@ difference in Debug performance:
 I haven't figured out why yet, but it's not the most obvious candidate (range and
 overflow checks) since ReleaseSafe performance is nearly identical with ReleaseFast
 (interestingly ReleaseSmall is the slowest Release build config, it's about 40% slower
-than both ReleaseFast and ReleaseSmall).
+than both ReleaseFast and ReleaseSafe).
 
 One important difference between my C and Zig code is that in C I'm using tons
 of small preprocessor macros to make bit twiddling expressions more readable.
