@@ -239,7 +239,7 @@ Zig's integer handling is quite different from C:
 
 - arbitrary bit-width integers are the norm, not the exception
 - there is no concept of integer promotion in math expressions
-  (not that noticed at least)
+  (not that I noticed at least)
 - implicit conversion between different integer types is only
   allowed when no data loss can happen (e.g. an u8 can be assigned to an
   u16, but assigning an u16 to an u8 requires an explicit cast)
