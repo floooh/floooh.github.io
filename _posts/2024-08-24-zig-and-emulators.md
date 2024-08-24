@@ -622,7 +622,7 @@ I also completely left out a whole chapter about code generation with Zig
 (which would have been mostly about string processing and memory management), simply
 because the blog post would have become too big, and it is probably an
 interesting enough topic for its own blog post. This is also an area where Zig is
-different enough both from C, mid-level languages like C++ or Rust, and high
+different enough from C, mid-level languages like C++ or Rust, and high
 level memory-managed languages that I don't feel quite confident enough yet to
 have found the right solution to questions like 'who owns the underlying
 memory of a slice returned from a function' - I have solutions of course,
