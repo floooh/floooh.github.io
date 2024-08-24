@@ -226,7 +226,7 @@ In conclusion, the idea to use Zig's comptime features to stamp out specialized
 per-system chip and system emulators works exceptionally well and is (IMHO)
 *much* more enjoyable than C++ or Rust generic programming (I'm sure C++ and
 Rust can do the same things with sufficient template magic, but this code
-definitely won't look as straighforward as the Zig version).
+definitely won't look as straightforward as the Zig version).
 
 
 ## Bit Twiddling and Integer Math can be awkward
