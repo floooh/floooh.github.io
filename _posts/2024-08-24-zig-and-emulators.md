@@ -641,7 +641,7 @@ without any concept of ownership. It would be nice if Zig had some syntax sugar
 to make working with arrays just as flexible as with slices, because arrays are
 value types and avoid all the ownership footguns of slices. I think mostly this
 comes down to implementing a handful 'missing features' from C99 designated
-initialization (like https://github.com/ziglang/zig/issues/6068) or maybe even
+initialization (like [#6068](https://github.com/ziglang/zig/issues/6068)) or maybe even
 looking at languages like JS and TS (...shock and gasps from the audience!!! I
 know but bear with me) for a couple of features which make working with struct
 and array values more convenient (like destructuring and spreading).
