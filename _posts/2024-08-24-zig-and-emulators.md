@@ -120,7 +120,7 @@ Both problems can be solved quite elegantly in Zig:
 
 This means a chip emulator is specialized by two comptime configuration values:
 
-- a `Bus` type which is an unsigned integer with enough bits for all pin-to-pin
+- a `Bus` type which is an unsigned integer type with enough bits for all pin-to-pin
   connections in a system
 - a `Pins` structure which defines a bit position for each input/output pin
   of a chip emulator
