@@ -231,7 +231,7 @@ definitely won't look as straighforward as the Zig version).
 
 ## Bit Twiddling and Integer Math can be awkward
 
-This section is hard to write because it's critizing without offering an
+This section is hard to write because it's criticizing without offering an
 obviously better solution, please read it as 'constructive criticism'. Hopefully Zig will
 be able to fix some of those things on the road towards 1.0.
 
