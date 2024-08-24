@@ -629,7 +629,7 @@ memory of a slice returned from a function' - I have solutions of course,
 but I'm not entirely happy with them because it feels like a throwback
 to my first forays into C and C++.
 
-In short, I don't want to burden myself too much with memory ownership questions, even
+In short, I don't want to burden myself (too much) with memory ownership questions, even
 in low level systems programming languages. Typically in C I avoid such
 problems with a 'mostly value-driven approach' instead of returning references
 to data, I return a copy of the data (unless of course it's about bulk data
