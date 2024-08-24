@@ -61,7 +61,7 @@ so that chips from different manufacturers could be combined into computer
 systems without requiring too much custom glue logic between them. I think
 it's fair to say that this 'competion through interoperability' was the main
 driver for the Cambrian Explosion of cheap 8-bit computer systems in the
-70's and 80s.
+70s and 80s.
 
 Microchips communicate with the outside world via input/output pins, and a
 typical 8-bit home computer system is essentially just a handful of microchips
