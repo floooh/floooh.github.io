@@ -125,7 +125,7 @@ This means a chip emulator is specialized by two comptime configuration values:
 - a `Pins` structure which defines a bit position for each input/output pin
   of a chip emulator
 
-For Z80 CPU emulator this pin definition struct looks like this:
+For the Z80 CPU emulator this pin definition struct looks like this:
 
 ```zig
 pub const Pins = struct {
