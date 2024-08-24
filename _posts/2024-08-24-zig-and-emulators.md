@@ -19,7 +19,7 @@ Currently the project consists of:
 - various tests to check Z80 emulation correctness
 
 With the exception of an external C dependency for 'host system glue' (the
-cross-platform [sokol headers](https://github.com/floooh/sokol-zig) used
+cross-platform [sokol headers](https://github.com/floooh/sokol-zig) used for
 wrapping the platform-specific windowing, input, rendering and audio-output
 code), the project is around 16 kloc of pure Zig code.
 
