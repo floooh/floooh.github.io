@@ -94,7 +94,7 @@ a challenge and is described in these blog posts (for the 6502 and Z80):
 A whole computer system is then emulated by writing a 'system tick function'
 which emulates a single clock cycle for the whole system by calling the
 tick functions of each chip emulator and passing pin-state integers
-from one chips emulator to the next.
+from one chip emulator to the next.
 
 There's two related problems to solve with the above approach:
 
