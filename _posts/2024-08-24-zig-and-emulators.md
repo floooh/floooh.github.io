@@ -274,7 +274,7 @@ uint16_t addi8(uint16_t addr, uint8_t offset) {
 The simplest way I could come up with to do the same in Zig is:
 
 ```zig
-export fn addi8(addr: u16, offset: u8) u16 {
+fn addi8(addr: u16, offset: u8) u16 {
   return addr +% @as(u16, @bitCast(@as(i16, @as(i8, @bitCast(offset)))));
 }
 ```
@@ -540,11 +540,11 @@ inline fn add(a: u8, b: u8) u8 {
     return a +% b;
 }
 
-export fn add_1(a: u8, b: u8) u8 {
+fn add_1(a: u8, b: u8) u8 {
     return add(a, b);
 }
 
-export fn add_2(a: u8, b: u8) u8 {
+fn add_2(a: u8, b: u8) u8 {
     return a +% b;
 }
 ```
