@@ -383,7 +383,7 @@ This expression creates an overflow error:
 
 The type of `d` and `e` is both `u32` btw (which I find also a but surprising,
 it means that Zig already picks the widest input type as the result type, but
-it doesn't promote the other inputs to this widest type.
+it doesn't promote the other inputs to this widest type).
 
 And here's another surprising behaviour I stumbled over:
 
