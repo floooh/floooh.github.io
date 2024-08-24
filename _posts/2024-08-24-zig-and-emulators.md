@@ -59,7 +59,7 @@ Microchips of the 70s and 80s were very much like 'software libraries, but
 implemented in hardware', they followed a minimal standard for interoperability
 so that chips from different manufacturers could be combined into computer
 systems without requiring too much custom glue logic between them. I think
-it's fair to say that this 'competion through interoperability' was the main
+it's fair to say that this 'competition through interoperability' was the main
 driver for the Cambrian Explosion of cheap 8-bit computer systems in the
 70s and 80s.
 
