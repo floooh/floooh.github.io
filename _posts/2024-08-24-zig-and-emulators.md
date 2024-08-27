@@ -65,7 +65,7 @@ driver for the Cambrian Explosion of cheap 8-bit computer systems in the
 
 Microchips communicate with the outside world via input/output pins, and a
 typical 8-bit home computer system is essentially just a handful of microchips
-talking to each other though their 'pin API'.
+talking to each other through their 'pin API'.
 
 The chipz project follows that same idea: The basic building blocks are
 self-contained chip emulators which communicate with other chip emulators via
