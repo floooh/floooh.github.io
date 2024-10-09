@@ -5,6 +5,8 @@ title: WASM Debugging with Emscripten and VSCode
 
 **TL;DR**: glueing together VSCode, Cmake and the Emscripten SDK to enable an IDE-like workflow (including debugging).
 
+**09-Oct-2024**: updated
+
 This is written from the perspective of a UNIX-like OS (macOS or Linux), but should also work on Windows with some minor tweaks.
 
 ## Prerequisites
@@ -42,7 +44,7 @@ Install the Emscripten SDK, we'll do so in a way that it doesn't leave a trace o
 deleted so don't worry. Still inside the `hello` directory:
 
 ```
-git clone https://github.com/emscripten-core/emsdk
+git clone --depth=1 https://github.com/emscripten-core/emsdk
 cd emsdk
 ./emsdk install latest
 ./emsdk activate --embedded latest
@@ -79,7 +81,7 @@ emsdk      hello.c    hello.js   hello.wasm
 ...run the hello.js file via node.js (depending on the emsdk version the path may differ):
 
 ```sh
-emsdk/node/16.20.0_64bit/bin/node hello.js
+emsdk/node/18.20.3_64bit/bin/node hello.js
 ```
 
 ...you should see a `Hello World!` printed to the terminal.
@@ -153,7 +155,7 @@ cmake --build build --preset Debug
 ...and run with node.js:
 
 ```sh
-emsdk/node/16.20.0_64bit/bin/node build/Debug/hello.js
+emsdk/node/18.20.3_64bit/bin/node build/Debug/hello.js
 ```
 
 ...this should again print `Hello World!`.
@@ -177,6 +179,8 @@ code .
 
 You should see something like this, pay attention to the status bar at the bottom (underlined in red), these
 items are used to control the cmake build config and target:
+
+(**NOTE 09-Oct-2024**: the underlined items in the bottom bar have moved into the CMake Tools sidepanel in recent versions).
 
 ![VSCode Screenshot 1](/images/emscripten-ide-1.png)
 
@@ -264,7 +268,7 @@ Let's extend our `hello.c` to render something in WebGL2.
 Clone the sokol headers into the `hello` project directory and copy some headers up into the project:
 
 ```sh
-git clone https://github.com/floooh/sokol
+git clone --depth=1 https://github.com/floooh/sokol
 cp sokol/sokol_gfx.h sokol/sokol_app.h sokol/sokol_log.h sokol/sokol_glue.h .
 ```
 
@@ -290,7 +294,7 @@ static sg_pass_action pass_action;
 
 static void init(void) {
     sg_setup(&(sg_desc){
-        .context = sapp_sgcontext(),
+        .environment = sglue_environment(),
         .logger.func = slog_func,
     });
     pass_action = (sg_pass_action) {
@@ -304,7 +308,7 @@ static void init(void) {
 static void frame(void) {
     float g = pass_action.colors[0].clear_value.g + 0.01f;
     pass_action.colors[0].clear_value.g = (g > 1.0f) ? 0.0f : g;
-    sg_begin_default_pass(&pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){ .action = pass_action, .swapchain = sglue_swapchain() });
     sg_end_pass();
     sg_commit();
 }
