@@ -294,7 +294,7 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
 });
 ```
 
-...it's still save to use explicit attribute locations though and ignore
+...it's also possible to use explicit attribute locations though and ignore
 the code-generated constants, for instance:
 
 ```glsl
