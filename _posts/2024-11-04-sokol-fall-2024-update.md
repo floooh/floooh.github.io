@@ -3,14 +3,14 @@ layout: post
 title: "Upcoming Sokol header API changes (Nov 2024)"
 ---
 
+In a couple of days I will merge the next breaking sokol_gfx.h update (aka the
+"Bindings Cleanup"). The update also affects sokol-shdc, so if you're using
+sokol-shdc for shader compilation make sure to update that as well.
+
 * TOC
 {:toc}
 
 ## Overview
-
-In a couple of days I will merge the next breaking sokol_gfx.h update (aka the
-"Bindings Cleanup"). The update also affects sokol-shdc, so if you're using
-sokol-shdc for shader compilation make sure to update that as well.
 
 In general, the update makes the relationship between the shader resource interface
 and the sokol-gfx resource binding model more explicit, but also more flexible.
@@ -28,15 +28,15 @@ The TL;DR is:
   shader stages are now only a minor detail in the shader interface reflection
   information in the `sg_shader_desc` struct passed into the `sg_make_shader()`
   function.
-- When *not* using sokol-shdc there's now an explicit mapping from 3D backend-specific
-  resource bindslots to sokol-gfx bindslots. This reduces the sokol-gfx internal
-  magic for mapping the generic sokol-gfx binding model to the specific binding
+- When *not* using sokol-shdc there's now an explicit mapping from sokol-gfx bindslots
+  to 3D backend-specific bindslots. This reduces the sokol-gfx internal
+  magic for mapping the backend-agnostic sokol-gfx binding model to the specific binding
   models of the backend 3D APIs (there *are* still some restrictions but only
   when they allow a more efficient resource binding implementation in sokol-gfx).
 
-In general, all changes result in compile errors (both on the CPU and when using
-sokol-shdc, also on the shader side), so after cleaning up the compile errors
-by following the 'change recipes' below you should be good to go.
+In general, all changes result in compile errors, and cleaning up the
+compile errors by following the 'change recipes' below should be enough
+to make your existing code work.
 
 The following parts of the public sokol_gfx.h API have changed:
 
@@ -58,18 +58,17 @@ The following parts of the public sokol_gfx.h API have changed:
 The update also has some minor behaviour changes:
 
 - Resource bindings can now have gaps, and validation for `sg_apply_bindings()`
-  have been relaxed to allow bindslots in the `sg_bindings` struct to be occupied
+  has been relaxed to allow bindslots in the `sg_bindings` struct to be occupied
   even when the current shader doesn't use those bindings. This allows to use
-  the same `sg_bindings` struct for different variants of the same shader.
+  the same `sg_bindings` struct for different but related shader variants.
 - Likewise, uniform block bindslots can now be explicitly defined in the shaders
   which allows to 'share' bindslot indices across shaders. Trying to call
   `sg_apply_uniforms()` for a bindslot that isn't used by the current shader
   is still an error though (not sure yet if this makes sense, could probably
   be relaxed in a later update)
-- There's now a new (debug-mode only) error check in `sg_draw()` whether
-  `sg_apply_bindings()` and/or `sg_apply_uniforms()` had been called since the
+- There's now a new (debug-mode only) error check in `sg_draw()` to make sure
+  that `sg_apply_bindings()` and/or `sg_apply_uniforms()` had been called since the
   last `sg_apply_pipeline()` when required.
-
 
 ## Updated documentation and example code
 
@@ -92,7 +91,7 @@ Check the updated sokol samples here:
 
 ### When *not* using sokol-shdc
 
-In the [sokol_gfx.h header](https://github.com/floooh/sokol/blob/master/sokol_gfx.h), read the documentation section `ON SHADER CREATION`.
+In the [sokol_gfx.h header](https://github.com/floooh/sokol/blob/master/sokol_gfx.h), re-read the updated documentation section `ON SHADER CREATION`.
 
 Next read the updated documentation above the `sg_shader_desc` and `sg_bindings` structs.
 
@@ -108,7 +107,7 @@ Especially note the `sg_shader_desc` struct interiors in the `sg_make_shader()` 
 
 ## Change Recipes
 
-General rule of thumb: fix all places that currently throw compile errors and
+General rule of thumb: fix all places that throw compile errors and
 you should be good.
 
 ### When using sokol-shdc:
@@ -122,7 +121,7 @@ sokol-shdc over your current shader code you'll get errors looking like this:
 
     error: 'binding' : sampler/texture/image requires layout(binding=X)
 
-To fix those errors for the different resource types:
+To fix those errors for the different resource types add `layout(binding=N)` annotations:
 
 ```glsl
 layout(binding=0) uniform vs_params { ... };
@@ -132,13 +131,11 @@ layout(binding=0) readonly buffer ssbo { ... };
 ```
 
 Note that each resource type (uniform blocks, textures, samplers and storage buffers)
-have their own bindslot space which is shared across shader stages. Trying to use
+has its own bindslot space which is shared across shader stages. Trying to use
 bindslot indices outside those ranges, or using the same bindslot for a resource
-type in different shader stages will cause a compilation error (so in general you
-should be fine fixing up all shader compilation errors and then you're good to
-go).
+type in different shader stages will cause a compilation error.
 
-The bindslot ranges per resource type are:
+The binding ranges per resource type are:
 
 - uniform blocks: 0..7
 - textures: 0..15
@@ -150,11 +147,11 @@ on a shader across all shader stages.
 
 Next fix the compile errors on the CPU side, you should see errors
 when initializing an `sg_bindings` struct, when calling `sg_apply_uniforms()`
-and possible when setting up vertex attributes in the `sg_pipeline_desc`
+and possibly when setting up vertex attributes in the `sg_pipeline_desc`
 struct:
 
 - in the `sg_bindings` struct, the nested structs for the vertex
-  and fragment shader stage has been removed, and the format per-stage
+  and fragment shader stage have been removed, and the former per-stage
   binding arrays have moved up into the root
 - in the `sg_apply_uniforms()` call, the shader stage argument has been removed
 - all code-generated slot constants have new naming schemes (also the vertex
@@ -185,8 +182,8 @@ layout(binding=1) uniform sampler smp;
 @end
 ```
 
-...then the matching `sg_bindings` struct on the CPU side needs to look like
-this (note how the array indices match the shader `layout(binding=N)`):
+...the matching `sg_bindings` struct on the CPU side needs to look like
+this - note how the array indices match the shader `layout(binding=N)`:
 
 ```c
 const sg_bindings bnd = {
@@ -248,11 +245,12 @@ sg_apply_uniforms(UB_fs_params, &SG_RANGE(fs_params));
 ```
 
 ...using the code-generated constants has the advantage that changing the
-bindslots in the shader code doesn't require changing the CPU-side code, but other
+bindslots in the shader code doesn't require updating the CPU-side code, but other
 then that it's totally fine to use numeric indices.
 
-The code-generated vertex-attribute slot constants have changed from
-including a vertex shader snippet name to include the shader program name.
+The naming scheme for the code-generated vertex attribute slots has changed
+to use the shader program name for 'namespacing' instead of the vertex shader
+snippet name.
 
 For instance with the following shader fragment:
 
@@ -274,29 +272,29 @@ The generated vertex attribute slot constants `ATTR_*` previously looked like th
 (in the sg_pipeline_desc struct):
 
 ```c
-sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+const sg_pipeline_desc desc = {
     .layout = {
         .attrs = {
-            [ATTR_vs_position].format = SG_VERTEXFORMAT_FLOAT3,
-            [ATTR_vs_color0].format = SG_VERTEXFORMAT_FLOAT4,
+            [ATTR_vs_position].format = ...,
+            [ATTR_vs_color0].format = ...,
         },
     },
-    // ...
-});
+    ...
+};
 ```
 
-...now the `ATTR_*` names look like this:
+...now the `ATTR_*` names look like this (e.g. `ATTR_vs_*` to `ATTR_cube_*`):
 
 ```c
-sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+const sg_pipeline_desc desc = {
     .layout = {
         .attrs = {
-            [ATTR_cube_position].format = SG_VERTEXFORMAT_FLOAT3,
-            [ATTR_cube_color0].format = SG_VERTEXFORMAT_FLOAT4,
+            [ATTR_cube_position].format = ...,
+            [ATTR_cube_color0].format = ...,
         },
     },
-    // ...
-});
+    ...
+};
 ```
 
 ...it's also possible to use explicit attribute locations and ignore
@@ -311,15 +309,15 @@ layout(location=1) in vec4 color0;
 ```
 
 ```c
-sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+const sg_pipeline_desc desc = {
     .layout = {
         .attrs = {
-            [0].format = SG_VERTEXFORMAT_FLOAT3,
-            [1].format = SG_VERTEXFORMAT_FLOAT4,
+            [0].format = ...,
+            [1].format = ...,
         },
     },
-    // ...
-});
+    ...
+};
 ```
 
 ...note though that it's still not allowed to have gaps in the vertex
@@ -336,20 +334,20 @@ const sg_shader_desc desc = {
     .vertex_func = { ... },         // vertex shader source or bytecode
     .fragment_func = { ... },       // fragment shader source or bytecode
     .attrs = { ... },               // vertex attribute reflection info
-    .uniform_blocks = { ... },      // reflection info for uniform blocks bindings
-    .storage_buffers = { ... },     // reflection info for storage buffers bindings
-    .images = { ... },              // reflection info for textures bindings
-    .samplers = { ... },            // reflection info for samplers bindings
+    .uniform_blocks = { ... },      // reflection info for uniform block bindings
+    .storage_buffers = { ... },     // reflection info for storage buffer bindings
+    .images = { ... },              // reflection info for texture bindings
+    .samplers = { ... },            // reflection info for sampler bindings
     .image_sampler_pairs = { ... }, // how images and samplers are used together in the shader
 };
 ```
 
-The array indices in the `uniform_blocks` array match the `ub_slot` parameter
+The array indices in the `uniform_blocks[]` array match the `ub_slot` parameter
 in the `sg_apply_uniforms()` call:
 
     sg_shader_desc.uniform_blocks[N] => sg_apply_uniforms(N, ...)
 
-The array indices in the `storage_buffers`, `images` and `samplers` arrays
+The array indices in the `storage_buffers[]`, `images[]` and `samplers[]` arrays
 match the respective indices in the `sg_bindings` struct:
 
     sg_shader_desc.images[N] => sg_bindings.images[N]
@@ -364,7 +362,7 @@ prefixes:
 - Metal/MSL: `msl_*`
 - WebGPU/WGSL: `wgsl_*`
 
-The resource bindings slots now require two new types of information:
+The resource binding slots now require two new types of information:
 
 - the shader stage this resource binding appears on
 - a 3D backend specific bindslot
