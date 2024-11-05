@@ -199,7 +199,7 @@ const sg_bindings bnd = {
         [0] = vs_smp,
         [1] = smp,
     },
-    .storage_buffers[0] = {
+    .storage_buffers = {
         [0] = vs_ssbo,
     },
 };
@@ -231,7 +231,7 @@ const sg_bindings bnd = {
         [SMP_vs_smp] = vs_smp,
         [SMP_smp] = smp,
     },
-    .storage_buffers[0] = {
+    .storage_buffers = {
         [SBUF_vs_ssbo] = vs_ssbo,
     },
 };
