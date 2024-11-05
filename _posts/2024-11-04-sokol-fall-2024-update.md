@@ -163,7 +163,7 @@ For instance if your shader resource interface looks like this:
 @vs
 // a vertex shader uniform block
 layout(binding=0) uniform vs_params { ... };
-// a vertex shader texture
+// a vertex shader texture and sampler
 layout(binding=0) uniform texture2D vs_tex;
 layout(binding=0) uniform sampler vs_smp;
 // a vertex shader storage buffer
