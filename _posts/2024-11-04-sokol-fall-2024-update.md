@@ -393,7 +393,7 @@ lie within specific ranges:
     - `.glsl_binding_n = N` => GLSL `layout(binding=N)` where `(N >= 0) && (N < 16)`
 
 These backend-specific bindslots allow a more flexible mapping from the sokol-gfx
-resource binding model to the 3D backend API binding models, but there are still
+resource binding model to the backend 3D-API binding models, but there are still
 some restrictions (which typically exist to allow a more efficient resource binding implementation
 in sokol_gfx.h):
 
