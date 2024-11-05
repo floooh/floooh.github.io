@@ -19,11 +19,11 @@ shader support.
 
 The root PR is here: [https://github.com/floooh/sokol/pull/1111](https://github.com/floooh/sokol/pull/1111).
 
-In a nutshell, the changes are:
+The TL;DR is:
 
 - When using sokol-shdc for shader compilation, the input GLSL source
   now requires explicit binding annotations via `layout(binding=N)`, where
-  `N` directly maps to a sokol-gfx bindslot index.
+  `N` directly maps to bindslot indices in the sokol-gfx resource binding API.
 - The concept of 'shader stages' mostly disappears from the sokol-gfx API,
   shader stages are now only a minor detail in the shader interface reflection
   information in the `sg_shader_desc` struct passed into the `sg_make_shader()`
@@ -32,7 +32,7 @@ In a nutshell, the changes are:
   resource bindslots to sokol-gfx bindslots. This reduces the sokol-gfx internal
   magic for mapping the generic sokol-gfx binding model to the specific binding
   models of the backend 3D APIs (there *are* still some restrictions but only
-  when they allow more efficiency).
+  when they allow a more efficient resource binding implementation in sokol-gfx).
 
 In general, all changes result in compile errors (both on the CPU and when using
 sokol-shdc, also on the shader side), so after cleaning up the compile errors
@@ -40,16 +40,17 @@ by following the 'change recipes' below you should be good to go.
 
 The following parts of the public sokol_gfx.h API have changed:
 
-- in the `sg_bindings` struct, the nested vertex- and fragment-stage structs
+- In the `sg_bindings` struct, the nested vertex- and fragment-stage structs
   for the image-, sampler- and storage-buffer-bindings have been removed,
-  and those bindings arrays have moved up into the root
-- in the `sg_apply_uniforms()` call, the shader stage parameter has been removed
-- the interior of the `sg_shader_desc` struct and the typename of nested structs
+  and the bindings arrays have moved up into the root struct.
+- In the `sg_apply_uniforms()` call, the shader stage parameter has been removed
+- The interior of the `sg_shader_desc` struct and the typename of nested structs
   have changed completely (but if you are using sokol-shdc for shader authoring
-  you can ignore this)
-- a number of public API constants have been removed or renamed, but those
-  should rarely show up in user code
-- the enum items in `sg_shader_stage` have been renamed, and those are now
+  you don't need to worry about that, since sokol-shdc will code-generate
+  the `sg_shader_desc` struct.
+- A number of public API constants have been removed or renamed (but those
+  should rarely show up in user code).
+- The enum items in `sg_shader_stage` have been renamed, and those are now
   only used in the `sg_shader_desc` struct and nowhere else:
     - `SG_SHADERSTAGE_VS` => `SG_SHADERSTAGE_VERTEX`
     - `SG_SHADERSTAGE_FS` => `SG_SHADERSTAGE_FRAGMENT`
@@ -72,7 +73,7 @@ The update also has some minor behaviour changes:
 
 ## Updated documentation and example code
 
-> NOTE: these links will only be uptodate after the 'big merge' has happened.
+> NOTE: these links will only be uptodate after [PR #1111](https://github.com/floooh/sokol/pull/1111) has been merged.
 
 ### When using sokol-shdc:
 
@@ -147,12 +148,17 @@ The bindslot ranges per resource type are:
 ...these are also the maximum number of resources of that type that can be bound
 on a shader across all shader stages.
 
-Next fix up the CPU-side code, this requires fixing the `sg_bindings` struct
-initialization and calls to `sg_apply_uniforms()`.
+Next fix the compile errors on the CPU side, you should see errors
+when initializing an `sg_bindings` struct, when calling `sg_apply_uniforms()`
+and possible when setting up vertex attributes in the `sg_pipeline_desc`
+struct:
 
-In the `sg_bindings` struct, resource bindings are no longer split by
-shader stage, and in the `sg_apply_uniforms()` call, the first parameter
-to identify the shader stage is gone.
+- in the `sg_bindings` struct, the nested structs for the vertex
+  and fragment shader stage has been removed, and the format per-stage
+  binding arrays have moved up into the root
+- in the `sg_apply_uniforms()` call, the shader stage argument has been removed
+- all code-generated slot constants have new naming schemes (also the vertex
+  attribute slot constants)
 
 For instance if your shader resource interface looks like this:
 
@@ -210,7 +216,7 @@ sg_apply_uniforms(0, &SG_RANGE(vs_params));
 sg_apply_uniforms(1, &SG_RANGE(fs_params));
 ```
 
-...instead of hardwired indices you can also use code-generated constants
+...instead of hardwired numeric indices you can also use code-generated constants
 (note that those have been renamed from a generic `SLOT_*` to a per-resource-type
 naming scheme):
 
@@ -245,9 +251,8 @@ sg_apply_uniforms(UB_fs_params, &SG_RANGE(fs_params));
 bindslots in the shader code doesn't require changing the CPU-side code, but other
 then that it's totally fine to use numeric indices.
 
-There's another somewhat unrelated drive-by change for the code-generated
-vertex attribute slot indices. Those have changed from using the 'vertex snippet
-name' to using the shader program name.
+The code-generated vertex-attribute slot constants have changed from
+including a vertex shader snippet name to include the shader program name.
 
 For instance with the following shader fragment:
 
@@ -294,7 +299,7 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
 });
 ```
 
-...it's also possible to use explicit attribute locations though and ignore
+...it's also possible to use explicit attribute locations and ignore
 the code-generated constants, for instance:
 
 ```glsl
@@ -317,9 +322,94 @@ sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
 });
 ```
 
-...it's still not allowed to have gaps in the vertex attribute slots though
-(this may come at a later time).
+...note though that it's still not allowed to have gaps in the vertex
+attribute slots though (this may be supported at a later time).
 
 ### When *not* using sokol-shdc:
 
-TODO
+The interior of `sg_shader_desc` has changed to match the new
+'shader-stage-agnostic' sokol-gfx binding model. The toplevel-structure
+now looks like this:
+
+```c
+const sg_shader_desc desc = {
+    .vertex_func = { ... },         // vertex shader source or bytecode
+    .fragment_func = { ... },       // fragment shader source or bytecode
+    .attrs = { ... },               // vertex attribute reflection info
+    .uniform_blocks = { ... },      // reflection info for uniform blocks bindings
+    .storage_buffers = { ... },     // reflection info for storage buffers bindings
+    .images = { ... },              // reflection info for textures bindings
+    .samplers = { ... },            // reflection info for samplers bindings
+    .image_sampler_pairs = { ... }, // how images and samplers are used together in the shader
+};
+```
+
+The array indices in the `uniform_blocks` array match the `ub_slot` parameter
+in the `sg_apply_uniforms()` call:
+
+    sg_shader_desc.uniform_blocks[N] => sg_apply_uniforms(N, ...)
+
+The array indices in the `storage_buffers`, `images` and `samplers` arrays
+match the respective indices in the `sg_bindings` struct:
+
+    sg_shader_desc.images[N] => sg_bindings.images[N]
+    sg_shader_desc.samplers[N] => sg_bindings.samplers[N]
+    sg_shader_desc.storage_buffers[N] => sg_bindings.storage_buffers[N]
+
+Fields that are only required for a specific 3D backend now have consistent
+prefixes:
+
+- D3D11/HLSL: `hlsl_*`
+- GL/GLSL: `glsl_*`
+- Metal/MSL: `msl_*`
+- WebGPU/WGSL: `wgsl_*`
+
+The resource bindings slots now require two new types of information:
+
+- the shader stage this resource binding appears on
+- a 3D backend specific bindslot
+
+The backend specific bindslot struct members need to be filled with the
+shader language specific resource bindslot numbers which also need to
+lie within specific ranges:
+
+- for uniform block items:
+    - `.hlsl_register_b_n = N` => HLSL `register(bN)` where `(N >= 0) && (N < 8)`
+    - `.msl_buffer_n = N` => MSL `[[buffer(N)]]` where `(N >= 0) && (N < 8)`
+    - `.wgsl_group0_binding_n = N` => WGSL `@group(0) @binding(N)` where `(N >= 0) && (N < 8)`
+
+- for images:
+    - `.hlsl_register_t_n = N` => HLSL `register(tN)` where `(N >= 0) && (N < 24)`
+    - `.msl_texture_n = N` => MSL `[[texture(N)]]` where `(N >= 0) && (N < 16)`
+    - `.wgsl_group1_binding_n = N` => WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
+
+- for samplers:
+    - `.hlsl_register_s_n = N` => HLSL `register(sN)` where `(N >= 0) && (N < 16)`
+    - `.msl_sampler_n = N` => MSL `[[sampler(N)]]` where `(N >= 0) && (N < 16)`
+    - `.wgsl_group1_binding_n = N` => WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
+
+- for storage buffers:
+    - `.hlsl_register_t_n = N` => HLSL `register(tN)` where `(N >= 0) && (N < 24)`
+    - `.msl_register_b_n = N` => MSL `[[buffer(N)]]` where `(N >= 8) && (N < 16)`
+    - `.wgsl_group1_binding_n = N` => WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
+    - `.glsl_binding_n = N` => GLSL `layout(binding=N)` where `(N >= 0) && (N < 16)`
+
+These backend-specific bindslots allow a more flexible mapping from the sokol-gfx
+resource binding model to the 3D backend API binding models, but there are still
+some restrictions (which typically exist to allow a more efficient resource binding implementation
+in sokol_gfx.h):
+
+- in WebGPU/WGSL, all uniform blocks must be in `@group(0)` and all other
+  resource types in `@group(1)`
+- in Metal/MSL, the `[[buffer(N)]]` slots 0..7 are reserved for uniform blocks,
+  and `[[buffer(N)]]` slots 8..15 are reserved for storage buffers
+
+For code examples, check out the backend-specific samples:
+
+- for Metal: [https://github.com/floooh/sokol-samples/tree/master/metal](https://github.com/floooh/sokol-samples/tree/master/metal)
+- for D3D11: [https://github.com/floooh/sokol-samples/tree/master/d3d11](https://github.com/floooh/sokol-samples/tree/master/d3d11)
+- for desktop GL: [https://github.com/floooh/sokol-samples/tree/master/glfw](https://github.com/floooh/sokol-samples/tree/master/glfw)
+- for WebGL/GLES3: [https://github.com/floooh/sokol-samples/tree/master/html5](https://github.com/floooh/sokol-samples/tree/master/html5)
+- for WebGPU: [https://github.com/floooh/sokol-samples/tree/master/wgpu](https://github.com/floooh/sokol-samples/tree/master/wgpu)
+
+...and that should be it! Next big thing on the roadmap: compute shader support :)
