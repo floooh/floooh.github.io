@@ -321,7 +321,7 @@ const sg_pipeline_desc desc = {
 ```
 
 ...note though that it's still not allowed to have gaps in the vertex
-attribute slots though (this may be supported at a later time).
+attribute slots (this may be supported at a later time).
 
 ### When *not* using sokol-shdc:
 
