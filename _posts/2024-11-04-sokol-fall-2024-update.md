@@ -25,7 +25,7 @@ The TL;DR is:
   now requires explicit binding annotations via `layout(binding=N)`, where
   `N` directly maps to bindslot indices in the sokol-gfx resource binding API.
 - The concept of 'shader stages' mostly disappears from the sokol-gfx API,
-  shader stages are now only a minor detail in the shader interface reflection
+  shader stages are now only a minor detail of the shader interface reflection
   information in the `sg_shader_desc` struct passed into the `sg_make_shader()`
   function.
 - When *not* using sokol-shdc there's now an explicit mapping from sokol-gfx bindslots
