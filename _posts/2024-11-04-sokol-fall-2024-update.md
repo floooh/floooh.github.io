@@ -372,25 +372,25 @@ shader language specific resource bindslot numbers which also need to
 lie within specific ranges:
 
 - for uniform block items:
-    - `.hlsl_register_b_n = N` => HLSL `register(bN)` where `(N >= 0) && (N < 8)`
-    - `.msl_buffer_n = N` => MSL `[[buffer(N)]]` where `(N >= 0) && (N < 8)`
-    - `.wgsl_group0_binding_n = N` => WGSL `@group(0) @binding(N)` where `(N >= 0) && (N < 8)`
+    - `.hlsl_register_b_n = N;` <= HLSL `register(bN)` where `(N >= 0) && (N < 8)`
+    - `.msl_buffer_n = N;` <= >MSL `[[buffer(N)]]` where `(N >= 0) && (N < 8)`
+    - `.wgsl_group0_binding_n = N;` <= WGSL `@group(0) @binding(N)` where `(N >= 0) && (N < 8)`
 
 - for images:
-    - `.hlsl_register_t_n = N` => HLSL `register(tN)` where `(N >= 0) && (N < 24)`
-    - `.msl_texture_n = N` => MSL `[[texture(N)]]` where `(N >= 0) && (N < 16)`
-    - `.wgsl_group1_binding_n = N` => WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
+    - `.hlsl_register_t_n = N;` <= HLSL `register(tN)` where `(N >= 0) && (N < 24)`
+    - `.msl_texture_n = N;` <= MSL `[[texture(N)]]` where `(N >= 0) && (N < 16)`
+    - `.wgsl_group1_binding_n = N;` <= WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
 
 - for samplers:
-    - `.hlsl_register_s_n = N` => HLSL `register(sN)` where `(N >= 0) && (N < 16)`
-    - `.msl_sampler_n = N` => MSL `[[sampler(N)]]` where `(N >= 0) && (N < 16)`
-    - `.wgsl_group1_binding_n = N` => WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
+    - `.hlsl_register_s_n = N;` <= HLSL `register(sN)` where `(N >= 0) && (N < 16)`
+    - `.msl_sampler_n = N;` <= MSL `[[sampler(N)]]` where `(N >= 0) && (N < 16)`
+    - `.wgsl_group1_binding_n = N;` <= WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
 
 - for storage buffers:
-    - `.hlsl_register_t_n = N` => HLSL `register(tN)` where `(N >= 0) && (N < 24)`
-    - `.msl_register_b_n = N` => MSL `[[buffer(N)]]` where `(N >= 8) && (N < 16)`
-    - `.wgsl_group1_binding_n = N` => WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
-    - `.glsl_binding_n = N` => GLSL `layout(binding=N)` where `(N >= 0) && (N < 16)`
+    - `.hlsl_register_t_n = N;` <= HLSL `register(tN)` where `(N >= 0) && (N < 24)`
+    - `.msl_register_b_n = N;` <= MSL `[[buffer(N)]]` where `(N >= 8) && (N < 16)`
+    - `.wgsl_group1_binding_n = N;` <= WGSL `@group(1) @binding(N)` where `(N >= 0) && (N < 128)`
+    - `.glsl_binding_n = N;` <= GLSL `layout(binding=N)` where `(N >= 0) && (N < 16)`
 
 These backend-specific bindslots allow a more flexible mapping from the sokol-gfx
 resource binding model to the backend 3D-API binding models, but there are still
