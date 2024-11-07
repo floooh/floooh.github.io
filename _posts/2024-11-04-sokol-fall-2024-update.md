@@ -3,6 +3,8 @@ layout: post
 title: "Upcoming Sokol header API changes (Nov 2024)"
 ---
 
+Update: the 'bindings cleanup' update has been merged on 07-Nov-2024
+
 In a couple of days I will merge the next breaking sokol_gfx.h update (aka the
 "Bindings Cleanup"). The update also affects sokol-shdc, so if you're using
 sokol-shdc for shader compilation make sure to update that as well.
