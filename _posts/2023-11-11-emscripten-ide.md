@@ -5,7 +5,9 @@ title: WASM Debugging with Emscripten and VSCode
 
 **TL;DR**: glueing together VSCode, Cmake and the Emscripten SDK to enable an IDE-like workflow (including debugging).
 
-**09-Oct-2024**: updated
+**17-Nov-2024**: looks like the problem that 'early breakpoints' are not caught is fixed, woohoo!
+
+**09-Oct-2024**: updated for the latest sokol_gfx.h and VSCode extension versions.
 
 This is written from the perspective of a UNIX-like OS (macOS or Linux), but should also work on Windows with some minor tweaks.
 
