@@ -9,6 +9,8 @@ for sokol_gfx.h. The only breaking change is that the runtime feature flag
 (this is because the same backends that supported storage buffers before
 now also support compute shaders).
 
+## Availability and Restrictions
+
 Compute shader support is available on the following platform/backend combos:
 
 - macOS and iOS with Metal
@@ -101,3 +103,41 @@ A quick rundown of API additions and changed behaviour:
     ```c
     sg_dispatch(int num_groups_x, int num_groups_y, int num_groups_z);
     ```
+
+## New compute shader samples
+
+For an introduction to compute shader usage in sokol-gfx, check out the new
+sample `instancing-compute-sapp`:
+
+- [C code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/instancing-compute-sapp.c)
+- [GLSL code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/instancing-compute-sapp.glsl)
+- [WebGPU demo](https://floooh.github.io/sokol-webgpu/instancing-compute-sapp.html)
+
+This is an evolution of the [instancing-sapp](https://floooh.github.io/sokol-webgpu/instancing-sapp-ui.html)
+which demonstrated hardware-instanced rendering using the fixed-function vertex pipeline
+and with the dynamic instance data computed on the CPU and uploaded into a
+vertex buffer via `sg_update_buffer()`. The new `instancing-compute-sapp` sample moves
+all those CPU computations to the GPU via compute shaders.
+
+The other compute shader sample is a straight port of the [WebGPU compute boids sample](https://webgpu.github.io/webgpu-samples/?sample=computeBoids)
+to sokol-gfx:
+
+- [C code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/computeboids-sapp.c)
+- [GLSL code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/computeboids-sapp.glsl)
+- [WebGPU demo](https://floooh.github.io/sokol-webgpu/computeboids-sapp.html)
+
+Those two samples use 'cross-backend' GLSL shader code compiled to the underlying
+shading languages via [sokol-shdc](https://github.com/floooh/sokol-tools/blob/master/docs/sokol-shdc.md).
+
+For authoring compute shaders with sokol-shdc it might make sense to read up
+on [GLSL compute shaders in the GL Wiki](https://www.khronos.org/opengl/wiki/Compute_Shader) -
+note though that not all features have been properly tested yet (like sampling
+textures in compute shaders, or accessing shared memory).
+
+For using sokol-gfx compute shaders without sokol-shdc, check out the following
+backend specific versions of the `instancing-compute` sample:
+
+- D3D11: [instancing-compute-d3d11.c](https://github.com/floooh/sokol-samples/blob/sgcompute/d3d11/instancing-compute-d3d11.c)
+- Metal: [instancing-compute-metal.c](https://github.com/floooh/sokol-samples/blob/sgcompute/metal/instancing-compute-metal.c)
+- WebGPU: [instancing-compute-wgpu.c](https://github.com/floooh/sokol-samples/blob/sgcompute/wgpu/instancing-compute-wgpu.c)
+- GL4.3: [instancing-compute-glfw.c](https://github.com/floooh/sokol-samples/blob/sgcompute/glfw/instancing-compute-glfw.c)
