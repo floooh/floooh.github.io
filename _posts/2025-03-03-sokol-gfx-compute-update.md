@@ -130,7 +130,7 @@ immutable buffers without initial content, and such buffers will be
 zero-initialized (note though that dynamic- and streaming-buffers may
 still have undefined buffer content after creation). Zero-initialization is useful
 when using a compute shader to write the initial buffer content instead
-of generating the data on the CPU side.
+of providing the data from the CPU side during the `sg_make_buffer()` call.
 
 Shaders, pipelines and passes now come in two runtime flavours: 'render' vs 'compute',
 where the 'render flavours' are fully compatible with existing code.
