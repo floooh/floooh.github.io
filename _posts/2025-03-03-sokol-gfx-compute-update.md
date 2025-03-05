@@ -96,7 +96,7 @@ layout(binding=0) readonly buffer cs_ssbo_in { particle prt_in[]; };
 layout(binding=1) buffer cs_ssbo_out { particle prt_out[]; };
 ```
 
-If your compute shader only reads (but doesn't write) storage buffer content
+If your compute shader only reads (but doesn't write) storage buffer content,
 its binding declaration should be marked as `readonly`. This information will
 be extracted by sokol-shdc and used by sokol-gfx for hazard-tracking
 needed in some 3D-APIs.
