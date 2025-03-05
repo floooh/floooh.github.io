@@ -144,7 +144,7 @@ A compute pipeline is a regular pipeline object without any render state,
 but with a compute shader attached:
 
 ```c
-sg_pipeline pip = sg_make_shader(&(sg_shader_desc){
+sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
   .compute = true,
   .shader = a_compute_shader,
 });
