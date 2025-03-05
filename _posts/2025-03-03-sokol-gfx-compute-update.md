@@ -219,7 +219,7 @@ Only two details are worth mentioning:
   pass inside `sg_end_pass()`. This synchronization basically updates the
   CPU-side shadow copy of the buffer with the new data that's been written
   by a compute shader. This requires keeping track of all read/write storage
-  buffer bindings inside a compute pass (this is why the new `sg_desc.max_dispatch_calls_per_pass`
+  buffer bindings inside a compute pass (this is what the new `sg_desc.max_dispatch_calls_per_pass`
   config item is used for).
 - On GL, `glMemoryBarrier()` calls are issued (at most once per `sg_apply_bindings()`
   call) when a storage buffer was previously bound as read/write (which sets
