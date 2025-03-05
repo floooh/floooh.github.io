@@ -112,7 +112,7 @@ layout(local_size_x=X, local_size_y=Y, local_size_z=Z) in;
 `@workgroup_size(X,Y,Z)`. On Metal this is called `threadsPerThreadGroup` and
 is **not** defined in the shader code, but on the CPU side when issuing a dispatch
 call (this is another case where sokol-shdc comes in handy, since it extracts
-the workgroup size from the GLSL shader and passes it on to sokol-gfx as
+the workgroup size from the GLSL shader and passes it into sokol-gfx as
 `sg_shader_desc.mtl_threads_per_threadgroup`).
 
 Other then that you mainly need to be aware that your compute shader code must
