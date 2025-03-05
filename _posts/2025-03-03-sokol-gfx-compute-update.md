@@ -116,7 +116,7 @@ the workgroup size from the GLSL shader and passes it into sokol-gfx as
 `sg_shader_desc.mtl_threads_per_threadgroup`).
 
 Other then that you mainly need to be aware that your compute shader code must
-be thread safe because compute shaders have random write access into storage buffers
+be thread safe because compute shaders allow random write access into storage buffers
 and the GPU is spawning many invocations of your shader running in parallel.
 
 ## On the CPU side
