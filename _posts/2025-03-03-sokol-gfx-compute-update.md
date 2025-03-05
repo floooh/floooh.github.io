@@ -60,7 +60,7 @@ sokol-gfx:
 - [WebGPU demo](https://floooh.github.io/sokol-webgpu/computeboids-sapp.html)
 
 Those two samples use 'cross-backend' GLSL shader code compiled to the underlying
-shading languages via [sokol-shdc](https://github.com/floooh/sokol-tools/);
+shading languages via [sokol-shdc](https://github.com/floooh/sokol-tools/).
 
 For authoring compute shaders with sokol-shdc it might make sense to read up
 on [GLSL compute shaders in the GL Wiki](https://www.khronos.org/opengl/wiki/Compute_Shader) -
