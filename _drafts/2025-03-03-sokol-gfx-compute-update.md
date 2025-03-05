@@ -3,8 +3,10 @@ layout: post
 title: The sokol-gfx compute update
 ---
 
+> NOTE: links to the WebGPU live samples will be broken until after the merge
+
 In the next couple of days I will merge initial compute shader support
-for sokol_gfx.h. The update is surprisingly 'low-profile' in terms
+for sokol_gfx.h (and sokol-shdc). The update is surprisingly 'low-profile' in terms
 of API changes, the only breaking change is that the runtime feature flag
 `sg_features.storage_buffer` has been renamed to `sg_features.compute`
 (this is because the same backends that supported storage buffers before
@@ -30,8 +32,9 @@ The initial compute shader support comes with a couple of restricitions
 which will most likely be lifted in later updates (in about that order):
 
 - storage buffers cannot be bound as vertex- or index-buffers
-- no storage textures, e.g. compute shaders can only write to storage buffers
-- there's no way to read data from GPU resources back to the CPU side
+- no storage textures, e.g. compute shaders can only write buffer data but not texture data
+- there's no way to read data from GPU resources back to the CPU side (or
+  copy data between GPU resources)
 
 Right now compute shaders are mostly useful for replacing
 dynamic- and streaming-buffer update scenarios, where dynamic render
@@ -49,8 +52,7 @@ new sample code:
 This is an evolution of the [instancing-sapp](https://floooh.github.io/sokol-webgpu/instancing-sapp-ui.html)
 sample, and moves all particle computations into compute shaders.
 
-The other compute shader sample is a straight port of the [WebGPU compute boids
-sample](https://webgpu.github.io/webgpu-samples/?sample=computeBoids) to
+The other compute shader sample is a straight port of the [WebGPU compute boids sample](https://webgpu.github.io/webgpu-samples/?sample=computeBoids) to
 sokol-gfx:
 
 - [C code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/computeboids-sapp.c)
@@ -58,7 +60,7 @@ sokol-gfx:
 - [WebGPU demo](https://floooh.github.io/sokol-webgpu/computeboids-sapp.html)
 
 Those two samples use 'cross-backend' GLSL shader code compiled to the underlying
-shading languages via [sokol-shdc](https://github.com/floooh/sokol-tools/blob/master/docs/sokol-shdc.md).
+shading languages via [sokol-shdc](https://github.com/floooh/sokol-tools/);
 
 For authoring compute shaders with sokol-shdc it might make sense to read up
 on [GLSL compute shaders in the GL Wiki](https://www.khronos.org/opengl/wiki/Compute_Shader) -
@@ -95,8 +97,8 @@ layout(binding=1) buffer cs_ssbo_out { particle prt_out[]; };
 ```
 
 If your compute shader only reads (but doesn't write) storage buffer content
-it's binding declaration should be marked as `readonly`. This information will
-be extracted by sokol-shdc and used by sokol-gfx to optimize hazard-tracking
+its binding declaration should be marked as `readonly`. This information will
+be extracted by sokol-shdc and used by sokol-gfx for hazard-tracking
 needed in some 3D-APIs.
 
 The other notable shader specialty is the 'workgroup size', which in
@@ -106,17 +108,16 @@ GLSL is defined as:
 layout(local_size_x=X, local_size_y=Y, local_size_z=Z) in;
 ```
 
-...if you're used to HLSL, this is the same as `[numthreads(X,Y,~)]`, or in WGSL
+...if you're used to HLSL, this is the same as `[numthreads(X,Y,Z)]`, or in WGSL
 `@workgroup_size(X,Y,Z)`. On Metal this is called `threadsPerThreadGroup` and
-is **not** defined in the shader code, but on the CPU side when issueing a dispatch
+is **not** defined in the shader code, but on the CPU side when issuing a dispatch
 call (this is another case where sokol-shdc comes in handy, since it extracts
 the workgroup size from the GLSL shader and passes it on to sokol-gfx as
 `sg_shader_desc.mtl_threads_per_threadgroup`).
 
 Other then that you mainly need to be aware that your compute shader code must
-be thread safe, your shader code has random write access into storage buffers
-but the GPU is spawning many invocations of your shader function to run in
-parallel.
+be thread safe because compute shaders have random write access into storage buffers
+and the GPU is spawning many invocations of your shader running in parallel.
 
 ## On the CPU side
 
@@ -126,7 +127,7 @@ written storage buffers in a compute pass for hazard tracking purposes.
 
 There's a minor change when creating buffers: It's now allowed to create
 immutable buffers without initial content, and such buffers will be
-zero-initialized (note though that dynamic- and streaming buffers will
+zero-initialized (note though that dynamic- and streaming buffers may
 still have undefined buffer content after creation). This is useful
 when using a compute shader to write the initial buffer content instead
 of generating the data on the CPU side.
@@ -185,10 +186,11 @@ with information that matches your shader code:
   `vertex_func` and `fragment_func`) to pass a compute shader function as
   backend-specific source code or bytecode blob
 - A Metal-specific `mtl_threads_per_threadgroup` nested struct which
-  communicates the 'workgroup size' extracted from shader code to the Metal API
+  defines the 'workgroup size' to the Metal API (this is in `sg_shader_desc`
+  because those values are normally extracted from shader code via reflection)
 - The `readonly` boolean in the storage buffer bindslot declaration is now
   allowed to be false, but only in compute shaders. The readonly flag is
-  now used by sokol-gfx for 'resource hazard tracking' in some backend APIs.
+  now used by sokol-gfx as hint for 'resource hazard tracking' in some backend APIs.
 - A new HLSL/D3D11 specific item `uint8_t register_u_n` has been added to
   the storage buffer bindslot declaration, this is used to communicate the
   HLSL bindslot for writable storage buffer bindings (which are bound as D3D11
@@ -215,7 +217,7 @@ Only two details are worth mentioning:
   pass inside `sg_end_pass()`. This synchronization basically updates the
   CPU-side shadow copy of the buffer with the new data that's been written
   by a compute shader. This requires keeping track of all read/write storage
-  buffer bindings inside a compute pass (this is what the `sg_desc.max_dispatch_calls_per_pass`
+  buffer bindings inside a compute pass (this is why the new `sg_desc.max_dispatch_calls_per_pass`
   config item is used for).
 - On GL, `glMemoryBarrier()` calls are issued (at most once per `sg_apply_bindings()`
   call) when a storage buffer was previously bound as read/write (which sets
