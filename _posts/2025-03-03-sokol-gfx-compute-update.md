@@ -128,7 +128,7 @@ written storage buffers in a compute pass for hazard tracking purposes.
 There's a minor change when creating buffers: It's now allowed to create
 immutable buffers without initial content, and such buffers will be
 zero-initialized (note though that dynamic- and streaming-buffers may
-still have undefined buffer content after creation). This is useful
+still have undefined buffer content after creation). Zero-initialization is useful
 when using a compute shader to write the initial buffer content instead
 of generating the data on the CPU side.
 
