@@ -75,7 +75,7 @@ backend specific versions of the `instancing-compute` sample:
 - WebGPU: [instancing-compute-wgpu.c](https://github.com/floooh/sokol-samples/blob/sgcompute/wgpu/instancing-compute-wgpu.c)
 - GL4.3: [instancing-compute-glfw.c](https://github.com/floooh/sokol-samples/blob/sgcompute/glfw/instancing-compute-glfw.c)
 
-Also check out the updated documentation of [sokol-shdc](https://github.com/floooh/sokol-tools/blob/master/docs/sokol-shdc.md),
+Also check out the updated documentation of [sokol-shdc](https://github.com/floooh/sokol-tools/blob/sgcompute/docs/sokol-shdc.md),
 and the new documentation comment section on compute shaders in the sokol_gfx.h
 header (search for: `ON COMPUTE PASSES` and re-read the updated section `ON SHADER CREATION`).
 
