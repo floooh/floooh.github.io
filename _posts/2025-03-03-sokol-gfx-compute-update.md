@@ -174,7 +174,9 @@ by the validation layer):
   - `sg_draw()`
 - `sg_dispatch()` must only be called in a compute pass
 - `sg_apply_bindings()` in a compute pass must not attempt to bind vertex- or index-buffers
-- the `sg_apply_pipeline()` pipeline type must match the pass type
+- the `sg_apply_pipeline()` pipeline type must match the pass type (e.g. render pipeline
+  objects can only be applied in render passes, and compute pipeline objects only
+  in compute passes)
 
 ## When not using sokol-shdc
 
