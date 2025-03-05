@@ -1,6 +1,6 @@
 ---
 layout: post
-title: The sokol-gfx compute update
+title: The sokol-gfx compute shader update
 ---
 
 > NOTE: links to the WebGPU live samples will be broken until after the merge
