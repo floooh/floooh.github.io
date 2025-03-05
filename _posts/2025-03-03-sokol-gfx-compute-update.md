@@ -194,7 +194,7 @@ with information that matches your shader code:
   allowed to be false, but only in compute shaders. This flag is
   now used by sokol-gfx as hint for 'resource hazard tracking' in some backend APIs.
 - A new HLSL/D3D11 specific item `uint8_t register_u_n` has been added to
-  the storage buffer bindslot declaration, this is used to communicate the
+  the nested `storage_buffers[]` declarations (struct `sg_shader_storage_buffer`), this is used to communicate the
   HLSL bindslot for writable storage buffer bindings (which are bound as D3D11
   'unordered access views', while readonly storage buffers continue to be
   bound as 'shader resource views').
