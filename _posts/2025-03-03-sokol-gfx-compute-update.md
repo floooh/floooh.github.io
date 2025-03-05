@@ -191,7 +191,7 @@ with information that matches your shader code:
   defines the 'workgroup size' to the Metal API (this is in `sg_shader_desc`
   because those values are normally extracted from shader code via reflection)
 - The `readonly` boolean in the storage buffer bindslot declaration is now
-  allowed to be false, but only in compute shaders. The readonly flag is
+  allowed to be false, but only in compute shaders. This flag is
   now used by sokol-gfx as hint for 'resource hazard tracking' in some backend APIs.
 - A new HLSL/D3D11 specific item `uint8_t register_u_n` has been added to
   the storage buffer bindslot declaration, this is used to communicate the
