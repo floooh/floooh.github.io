@@ -184,7 +184,7 @@ If you don't use sokol-shdc for shader authoring you'll need to populate the
 all-important `sg_shader_desc` struct passed into `sg_make_shader()` yourself
 with information that matches your shader code:
 
-- An nested struct `compute_func` has been added (similar to existing
+- A nested struct `compute_func` has been added (similar to existing
   `vertex_func` and `fragment_func`) to pass a compute shader function as
   backend-specific source code or bytecode blob
 - A Metal-specific `mtl_threads_per_threadgroup` nested struct which
