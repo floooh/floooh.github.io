@@ -3,7 +3,7 @@ layout: post
 title: The sokol-gfx compute shader update
 ---
 
-> NOTE: links to the WebGPU live samples will be broken until after the merge
+**Update:** merged happened on 08-Mar-2025
 
 In the next couple of days I will merge initial compute shader support
 for sokol_gfx.h (and sokol-shdc). The update is surprisingly 'low-profile' in terms
@@ -45,8 +45,8 @@ data is computed on the CPU and uploaded to buffers via `sg_update_buffer()`.
 To get an idea how compute shaders work in sokol-gfx, it's best to read the
 new sample code:
 
-- [C code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/instancing-compute-sapp.c)
-- [GLSL code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/instancing-compute-sapp.glsl)
+- [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.c)
+- [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.glsl)
 - [WebGPU demo](https://floooh.github.io/sokol-webgpu/instancing-compute-sapp.html)
 
 This is an evolution of the [instancing-sapp](https://floooh.github.io/sokol-webgpu/instancing-sapp-ui.html)
@@ -55,8 +55,8 @@ sample, and moves all particle computations into compute shaders.
 The other compute shader sample is a straight port of the [WebGPU compute boids sample](https://webgpu.github.io/webgpu-samples/?sample=computeBoids) to
 sokol-gfx:
 
-- [C code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/computeboids-sapp.c)
-- [GLSL code](https://github.com/floooh/sokol-samples/blob/sgcompute/sapp/computeboids-sapp.glsl)
+- [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/computeboids-sapp.c)
+- [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/computeboids-sapp.glsl)
 - [WebGPU demo](https://floooh.github.io/sokol-webgpu/computeboids-sapp.html)
 
 Those two samples use 'cross-backend' GLSL shader code compiled to the underlying
@@ -70,12 +70,12 @@ textures in compute shaders, or accessing shared memory).
 For using sokol-gfx compute shaders without sokol-shdc, check out the following
 backend specific versions of the `instancing-compute` sample:
 
-- D3D11: [instancing-compute-d3d11.c](https://github.com/floooh/sokol-samples/blob/sgcompute/d3d11/instancing-compute-d3d11.c)
-- Metal: [instancing-compute-metal.c](https://github.com/floooh/sokol-samples/blob/sgcompute/metal/instancing-compute-metal.c)
-- WebGPU: [instancing-compute-wgpu.c](https://github.com/floooh/sokol-samples/blob/sgcompute/wgpu/instancing-compute-wgpu.c)
-- GL4.3: [instancing-compute-glfw.c](https://github.com/floooh/sokol-samples/blob/sgcompute/glfw/instancing-compute-glfw.c)
+- D3D11: [instancing-compute-d3d11.c](https://github.com/floooh/sokol-samples/blob/master/d3d11/instancing-compute-d3d11.c)
+- Metal: [instancing-compute-metal.c](https://github.com/floooh/sokol-samples/blob/master/metal/instancing-compute-metal.c)
+- WebGPU: [instancing-compute-wgpu.c](https://github.com/floooh/sokol-samples/blob/master/wgpu/instancing-compute-wgpu.c)
+- GL4.3: [instancing-compute-glfw.c](https://github.com/floooh/sokol-samples/blob/master/glfw/instancing-compute-glfw.c)
 
-Also check out the updated documentation of [sokol-shdc](https://github.com/floooh/sokol-tools/blob/sgcompute/docs/sokol-shdc.md),
+Also check out the updated documentation of [sokol-shdc](https://github.com/floooh/sokol-tools/blob/master/docs/sokol-shdc.md),
 and the new documentation comment section on compute shaders in the sokol_gfx.h
 header (search for: `ON COMPUTE PASSES` and re-read the updated section `ON SHADER CREATION`).
 
@@ -202,10 +202,10 @@ with information that matches your shader code:
 Also please carefully review the backend-specific compute shader samples
 which directly pass backend-specific shader code into sokol-gfx:
 
-- D3D11: [instancing-compute-d3d11.c](https://github.com/floooh/sokol-samples/blob/sgcompute/d3d11/instancing-compute-d3d11.c)
-- Metal: [instancing-compute-metal.c](https://github.com/floooh/sokol-samples/blob/sgcompute/metal/instancing-compute-metal.c)
-- WebGPU: [instancing-compute-wgpu.c](https://github.com/floooh/sokol-samples/blob/sgcompute/wgpu/instancing-compute-wgpu.c)
-- GL4.3: [instancing-compute-glfw.c](https://github.com/floooh/sokol-samples/blob/sgcompute/glfw/instancing-compute-glfw.c)
+- D3D11: [instancing-compute-d3d11.c](https://github.com/floooh/sokol-samples/blob/master/d3d11/instancing-compute-d3d11.c)
+- Metal: [instancing-compute-metal.c](https://github.com/floooh/sokol-samples/blob/master/metal/instancing-compute-metal.c)
+- WebGPU: [instancing-compute-wgpu.c](https://github.com/floooh/sokol-samples/blob/master/wgpu/instancing-compute-wgpu.c)
+- GL4.3: [instancing-compute-glfw.c](https://github.com/floooh/sokol-samples/blob/master/glfw/instancing-compute-glfw.c)
 
 ## Under the hood
 
