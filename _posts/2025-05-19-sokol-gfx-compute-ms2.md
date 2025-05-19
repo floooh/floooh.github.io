@@ -155,7 +155,7 @@ storage buffers are not available on WebGL2 anyway). To check for this restricti
 use the new `sg_features.separate_buffer_types` boolean:
 
 ```c
-if (sg_query_features().separate_buffer_types) {
+if (!sg_query_features().separate_buffer_types) {
     const sg_buffer buf = sg_make_buffer(&(sg_buffer_desc){
         .usage = {
             .vertex_buffer = true,
