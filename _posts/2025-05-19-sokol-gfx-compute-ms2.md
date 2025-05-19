@@ -1,6 +1,6 @@
 ---
 layout: post
-title: The sokol-gfx Compute Milestone 2 update
+title: The sokol-gfx 'compute milestone 2' update
 ---
 
 In a couple of days I will merge the next breaking sokol_gfx.h update (aka the `compute-ms2`
@@ -38,7 +38,7 @@ for creating immutable buffer objects have been changed like this:
 - when creating an immutable non-storage-buffer object (e.g. the buffer cannot
   be written to with a compute shader), initial data *must* be provided
 - when creating an immutable storage-buffer object, no initial data needs to
-  provided, but the buffer content will be 'undefined'
+  provided, but in that case the buffer content will be 'undefined'
 
 In practice this means that when you use a compute shader to initialize
 storage buffer content you can no longer rely on the initial buffer content being
