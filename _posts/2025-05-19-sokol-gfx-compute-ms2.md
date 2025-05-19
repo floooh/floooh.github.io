@@ -378,13 +378,13 @@ that sokol_gfx.h needs resource-view objects.
 This will allow more flexible resource bindings without creating temporary
 3D-backend objects in the 'hot path' while keeping the sokol_gfx.h backend
 implementations simple (e.g. I want to avoid a dynamic 'hash-and-cache'
-approach as much as possible, it's already bad enough that this is needed
-with WebGPU BindGroups).
+approach for 3D-backend resource objects as much as possible, it's already bad
+enough that this is needed with WebGPU BindGroups).
 
 Currently resource view objects are managed under the hood, for instance
 in the D3D11 backend:
 
-- `sg_buffer` objects with storage buffer usage generally create an Shader Resource View
+- `sg_buffer` objects with storage buffer usage generally create a Shader Resource View
   for readonly-access in vertex-, fragment- and compute-shaders, and if the buffer
   is immutable, also an Unordered Access View for write-access in compute shaders.
   Notably, any starting offsets are hardwired to zero in both view objects.
