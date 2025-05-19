@@ -269,7 +269,7 @@ Next the image must be wrapped in an `sg_attachments` object. This allows to pic
 image surface (mip-level and/or slice) for the compute shader to access.
 Up to 4 (or `SG_MAX_STORAGE_ATTACHMENTS`) images can be defined in a single attachment:
 
-```
+```c
 const sg_attachments atts = sg_make_attachments(&(sg_attachments_desc){
     .storages[SIMG_cs_out_tex] = {
         .image = img,
