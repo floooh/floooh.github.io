@@ -391,7 +391,7 @@ in the D3D11 backend:
 - `sg_image` objects generally create a Shader Resource View object, but without
   allowing to specify a mip-level range, array-slice range or different pixel format.
 - `sg_attachments` objects create:
-    - one Render Target View object per color attachments
+    - one Render Target View object per color attachment
     - an optional Depth Stencil View object for the depth-stencil attachment
     - one Unordered Access View object per storage attachment
 
