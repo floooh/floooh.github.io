@@ -252,7 +252,7 @@ void main() {
 @program compute cs
 ```
 
-On the CPU side, create a storage image with 'storage attachment usage':
+On the CPU side, create an `sg_image` object with 'storage attachment usage':
 
 ```c
 const sg_image img = sg_make_image(&(sg_image_desc){
