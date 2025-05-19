@@ -490,8 +490,8 @@ internal things:
 More info on those planned updates are in the following planning
 tickets:
 
-- resource views: https://github.com/floooh/sokol/issues/1252
-- better internal reference tracking: https://github.com/floooh/sokol/issues/1260
-- glTexStorage vs glTexImage: https://github.com/floooh/sokol/issues/1263
+- resource views: [https://github.com/floooh/sokol/issues/1252](https://github.com/floooh/sokol/issues/1252)
+- better internal reference tracking: [https://github.com/floooh/sokol/issues/1260](https://github.com/floooh/sokol/issues/1260)
+- glTexStorage vs glTexImage: [https://github.com/floooh/sokol/issues/1263](https://github.com/floooh/sokol/issues/1263)
 
 ...and that is all for today :)
