@@ -3,6 +3,8 @@ layout: post
 title: The sokol-gfx 'compute milestone 2' update
 ---
 
+> Update: merge happened on 24-May-2025
+
 In a couple of days I will merge the next breaking sokol_gfx.h update (aka the `compute-ms2`
 update) which makes working with buffer objects a bit more flexible and will allow
 compute shaders to write to `sg_image` objects via 'compute pass attachments'.
@@ -170,15 +172,15 @@ Any invalid combination of usage flags will also be checked in the sokol-gfx val
 
 The following new sample uses a combined vertex/index buffer:
 
-- C code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/vertexindexbuffer-sapp.c](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/vertexindexbuffer-sapp.c)
-- GLSL code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/vertexindexbuffer-sapp.glsl](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/vertexindexbuffer-sapp.glsl)
+- C code: [https://github.com/floooh/sokol-samples/blob/master/sapp/vertexindexbuffer-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/vertexindexbuffer-sapp.c)
+- GLSL code: [https://github.com/floooh/sokol-samples/blob/master/sapp/vertexindexbuffer-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/vertexindexbuffer-sapp.glsl)
 - WASM: [https://floooh.github.io/sokol-webgpu/vertexindexbuffer-sapp-ui.html](https://floooh.github.io/sokol-webgpu/vertexindexbuffer-sapp-ui.html)
 
 The `instancing-compute-sapp` sample has been updated to bind the compute-shader-updated
 storage buffer as vertex buffer with hardware instancing:
 
-- C code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/instancing-compute-sapp.c](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/instancing-compute-sapp.c)
-- GLSL code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/instancing-compute-sapp.glsl](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/instancing-compute-sapp.glsl)
+- C code: [https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.c)
+- GLSL code: [https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.glsl)
 - WASM: [https://floooh.github.io/sokol-webgpu/instancing-compute-sapp-ui.html](https://floooh.github.io/sokol-webgpu/instancing-compute-sapp-ui.html)
 
 There is no sample yet which uses a compute shader to write index data.
@@ -306,14 +308,14 @@ sg_end_pass();
 Find the complete sample here:
 
 - WASM: [https://floooh.github.io/sokol-webgpu/write-storageimage-sapp.html](https://floooh.github.io/sokol-webgpu/write-storageimage-sapp.html)
-- C code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/write-storageimage-sapp.c](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/write-storageimage-sapp.c)
-- GLSL code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/write-storageimage-sapp.glsl](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/write-storageimage-sapp.glsl)
+- C code: [https://github.com/floooh/sokol-samples/blob/master/sapp/write-storageimage-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/write-storageimage-sapp.c)
+- GLSL code: [https://github.com/floooh/sokol-samples/blob/master/sapp/write-storageimage-sapp.glsl](https://github.com/floooh/sokol-samples/blob/master/sapp/write-storageimage-sapp.glsl)
 
 ...and a more advanced example which has been ported from WebGPU:
 
 - WASM: [https://floooh.github.io/sokol-webgpu/imageblur-sapp.html](https://floooh.github.io/sokol-webgpu/imageblur-sapp.html)
-- C code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/imageblur-sapp.c](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/imageblur-sapp.c)
-- GLSL code: [https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/imageblur-sapp.c](https://github.com/floooh/sokol-samples/blob/issue1244/compute-ms2/sapp/imageblur-sapp.c)
+- C code: [https://github.com/floooh/sokol-samples/blob/master/sapp/imageblur-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/imageblur-sapp.c)
+- GLSL code: [https://github.com/floooh/sokol-samples/blob/master/sapp/imageblur-sapp.c](https://github.com/floooh/sokol-samples/blob/master/sapp/imageblur-sapp.c)
 
 ### Detailed change list
 
