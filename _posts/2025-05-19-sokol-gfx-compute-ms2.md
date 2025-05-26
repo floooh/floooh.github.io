@@ -113,6 +113,7 @@ const sg_buffer buf = sg_make_buffer(&(sg_buffer_desc){
         .index_buffer = true,
         .stream_update = true,
     },
+    .size = ...,
 });
 ```
 
@@ -125,6 +126,7 @@ const sg_buffer buf = sg_make_buffer(&(sg_buffer_desc){
         .vertex_buffer = true,
         .storage_buffer = true,
     },
+    .size = ...,
 });
 ```
 
@@ -136,6 +138,7 @@ const sg_buffer buf = sg_make_buffer(&(sg_buffer_desc){
         .index_buffer = true,
         .storage_buffer = true,
     },
+    .size = ...,
 });
 ```
 
