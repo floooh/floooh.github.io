@@ -101,7 +101,7 @@ The following resource view features are planned for a followup 'resource view u
 - Change the max number of per-shader-stage resource bindings of the same type
   from hardwired conservative limits to dynamic device limits exposed in the
   `sg_limits` struct (e.g. more than 4 storage image, 8 storage buffer or 16 texture
-  bindings - instead try to push those limit closer to 32)
+  bindings - instead try to push those limits closer to 32)
 
 For more details about planned 'update 2' features see:
 
