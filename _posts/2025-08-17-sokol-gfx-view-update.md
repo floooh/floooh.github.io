@@ -371,7 +371,7 @@ to distribute new object handles into all corners of your code base):
 
 ```c
 // first uninit/init the parent image with new params:
-sg_unit_image(img);
+sg_uninit_image(img);
 sg_init_image(img, &(sg_image_desc){ ... });
 // then 'cycle' the image's view objects
 sg_uninit_view(tex_view);
