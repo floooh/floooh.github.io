@@ -323,8 +323,8 @@ sg_destroy_image(img);
 
 In sokol-gfx lifetimes are explicit, if you pull the rug under a view
 like this nothing catastrophic will happen (e.g. no crashes or hard
-validation layers errors), but rendering operations involving such 'incomplete'
-views will be silently skipped (this is basically the same behavior as before
+validation layers errors), but rendering operations involving such 'dangling views'
+will be silently skipped (this is basically the same behavior as before
 when trying to render with images or buffers in a non-valid resource state).
 
 Another slightly counter-intuitive behavior might be that a view object
