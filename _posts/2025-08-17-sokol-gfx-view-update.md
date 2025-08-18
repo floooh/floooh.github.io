@@ -161,7 +161,7 @@ decorations.
 
 When using sokol-shdc, the only change on the shader side is that textures,
 storage buffers and storage images now share a common bindslot range, previously
-each binding type had its slot range:
+each binding type had its own slot range:
 
 ```glsl
 @cs cs
