@@ -55,14 +55,7 @@ with `sg_view` instead).
 In sokol-gfx, resource view types are 'runtime flavours' of the same handle type
 `sg_view`. This means that setting the wrong resource type on a bindslot won't
 be a compilation error, but a runtime error in the sokol-gfx validation layer,
-so please make sure to test your code in debug build mode. The validation
-layer is automatically enabled when the `NDEBUG` flag is set, which is the
-defacto-standard used by most C/C++ build systems for identifying debug build mode,
-but if you compile your code directly without a build system you may need
-to set the `NDEBUG` define explicitly (or alternatively the `SOKOL_DEBUG`
-define which also activates the validation layer) - also while at it,
-don't forget to set a log function in `sg_setup()` (easiest way is to just
-plug `slog_func` from the sokol_log.h header into `sg_desc.logger.func`):
+so please make sure to test your code in debug build mode from time to time.
 
 ```c
 sg_setup(&(sg_desc){
