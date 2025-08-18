@@ -456,6 +456,7 @@ sg_image color_img = sg_make_image(&(sg_image_desc){
 });
 sg_image depth_img = sg_make_image(&(sg_image_desc){
     .usage = { .render_attachment = true },
+    // ...
 });
 
 // create an attachments object from those images...
@@ -491,6 +492,7 @@ sg_image color_img = sg_make_image(&(sg_image_desc){
 });
 sg_image depth_img = sg_make_image(&(sg_image_desc){
     .usage = { .depth_stencil_attachment = true },
+    // ...
 });
 
 // create a color- and depth-stencil attachment view
