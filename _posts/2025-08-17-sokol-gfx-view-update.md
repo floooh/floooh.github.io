@@ -517,6 +517,8 @@ sg_begin_pass(&(sg_pass_desc){
         .depth_stencil = depth_att_view,
     },
 });
+// ...
+sg_end_pass();
 
 // and in the swapchain pass, the texture view is bound
 // to sample the offscreen-rendered image as texture:
