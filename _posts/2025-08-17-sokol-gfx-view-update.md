@@ -36,7 +36,7 @@ Typically resource views have a number of different purposes in the various
   selecting a specific mipmap or range of mipmaps in a texture)
 
 In sokol-gfx you can think of view objects mainly as specializations of an
-`sg_image` or `sg_buffer` object for how the resource is going too be accessed in
+`sg_image` or `sg_buffer` object for how the image or buffer is going too be accessed in
 shaders:
 
 - sampling a texture in a shader requires a **texture view**
