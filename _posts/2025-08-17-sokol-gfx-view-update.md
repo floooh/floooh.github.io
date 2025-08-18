@@ -607,7 +607,7 @@ vertex-buffer and index-buffer bind offsets don't have that restriction. The
 alignment restriction is coming in via WebGPU which on some Android devices
 requires this 256 byte alignment, but the only realistic lower choice would be
 64 bytes which frankly isn't that much better
-(https://vulkan.gpuinfo.org/displaydevicelimit.php?platform=android&name=minStorageBufferOffsetAlignment)
+(see: [https://vulkan.gpuinfo.org/displaydevicelimit.php?platform=android&name=minStorageBufferOffsetAlignment](https://vulkan.gpuinfo.org/displaydevicelimit.php?platform=android&name=minStorageBufferOffsetAlignment))
 and would still exclude about 8 percent of Android devices which is quite a lot.
 
 ## When not using sokol-shdc...
