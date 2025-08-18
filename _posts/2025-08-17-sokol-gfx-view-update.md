@@ -11,7 +11,7 @@ pass-attachment objects.
 
 The update also requires to update sokol-shdc and recompile shaders.
 
-The root PR is here: [https://github.com/floooh/sokol/issues/1302](https://github.com/floooh/sokol/issues/1302)
+The root PR is here: [https://github.com/floooh/sokol/pull/1287](https://github.com/floooh/sokol/pull/1287)
 
 After merging the update I will spend a couple of weeks to take care of
 pending issues and PRs before moving on to a followup [resource views update 2](https://github.com/floooh/sokol/issues/1302).
