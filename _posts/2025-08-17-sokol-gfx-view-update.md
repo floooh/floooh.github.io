@@ -62,7 +62,7 @@ but if you compile your code directly without a build system you may need
 to set the `NDEBUG` define explicitly (or alternatively the `SOKOL_DEBUG`
 define which also activates the validation layer) - also while at it,
 don't forget to set a log function in `sg_setup()` (easiest way is to just
-plug `slog_func` into `sg_desc.logger.func` from the sokol_log.h header):
+plug `slog_func` from the sokol_log.h header into `sg_desc.logger.func`):
 
 ```c
 sg_setup(&(sg_desc){
