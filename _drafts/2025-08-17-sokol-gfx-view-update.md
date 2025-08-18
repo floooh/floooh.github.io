@@ -3,6 +3,8 @@ layout: post
 title: The sokol-gfx resource view update.
 ---
 
+> NOTE: the WebGPU sample links point to the 'old' samples until the update is actually merged! The source code samples are uptodate though.
+
 In a couple of days I will merge the next big (and breaking) sokol-gfx
 update which adds resource view objects and in turn removes pre-baked
 pass-attachment objects.
@@ -11,64 +13,95 @@ The update also requires to update sokol-shdc and recompile shaders.
 
 The root PR is here: [https://github.com/floooh/sokol/issues/1302](https://github.com/floooh/sokol/issues/1302)
 
-After mergind the update I will spend a couple of weeks to take care of
-pending issues and PRs before moving on to a followup *resource views update 2*.
+After merging the update I will spend a couple of weeks to take care of
+pending issues and PRs before moving on to a followup [resource views update 2](https://github.com/floooh/sokol/issues/1302).
 
 ## What are resource view objects?
 
 If you're familiar with D3D10 and later you'll feel right at home since
 resource views are a fundamental concept in D3D, and sokol-gfx's concept
 of resource views is closest to D3D11. Other 3D APIs either don't have
-view objects at all (WebGL and GL <4.3), or only associate resource
-views with texture data (GL >= 4.3, Metal and WebGPU).
+view objects at all (WebGL2 and GL before version 4.3), or only associate resource
+views with texture data but not buffer data (GL >= 4.3, Metal and WebGPU).
 
-In a nutshell, sokol-gfx view objects specialize an image or
-buffer resource object for a specific binding type:
+Typically resource views have a number of different purposes in the various
+3D-APIs:
+
+- they specialize a parent resource object for a specific usage in shaders
+  (for instance sampling the same image object as a texture versus using the
+  image object as render target)
+- they can reinterpret the data in a resource object (for instance to a
+  different pixel format or image type)
+- they can define a subset of the data in the resource object (for instance
+  selecting a specific mipmap or range of mipmaps in a texture)
+
+In sokol-gfx you can think of view objects mainly as specializations of an
+`sg_image` or `sg_buffer` object for how the resource is going too be accessed in
+shaders:
 
 - sampling a texture in a shader requires a **texture view**
-- accessing a storage image in a compute shader requires a **storage image view**
+- writing to a storage image in a compute shader requires a **storage image view**
 - accessing a storage buffer in a shader requires a **storage buffer view**
-- each render pass attachment type requires its own view object:
-    - **color attachment views**
-    - **resolve attachment views**
-    - **depth-stencil attachment views**
+- each render pass attachment type requires its own view object type:
+    - **color-attachment views**
+    - **resolve-attachment views**
+    - **depth-stencil-attachment views**
 
-I was actually considering calling this new object type `sg_binding`, but
-since 'view' is the more established term I went with `sg_view` instead.
+Alternatively you can think of view objects as specializations of a resource
+object for a specific bindings type (I was actually considering calling this new
+object type `sg_binding`, but since 'view' is the more established term I went
+with `sg_view` instead).
 
-## New 'unlocked' features
+In sokol-gfx, resource view types are 'runtime flavours' of the same handle type
+`sg_view`. This means that setting the wrong resource type on a bindslot won't
+be a compilation error, but a runtime error in the sokol-gfx validation layer,
+so please make sure to test your code in debug build mode. The validation
+layer is automatically enabled when the `NDEBUG` flag is set, which is the
+defacto-standard used by most C/C++ build system for identifying debug build mode,
+but if you compile your code directly without a build system you may need
+to set the `NDEBUG` define explicitly (or alternatively the `SOKOL_DEBUG`
+define which also activates the validation layer) - also while at it,
+don't forget to set a log function in `sg_setup()` (easiest way is to just
+plug `slog_func` into `sg_desc.logger.func` from the sokol_log.h header):
+
+```c
+sg_setup(&(sg_desc){
+    .environment = sglue_environment(),
+    .logger.func = slog_func,
+});
+```
+
+## New unlocked features
 
 This first sokol-gfx resource view update unlocks the following features:
 
 - Storage buffer bindings can now have an offset. Binding storage buffers
   with offsets is mainly useful when the same buffer contains different
   types of items in different sections of the buffer, and processing
-  those items in separate compute shaders.
+  those items in separate compute shaders - or if you only need to access a section
+  of a buffer with a compute shader.
 - Texture views can define a subset of the parent image by defining
-  their own mipmap- and slice-ranges (not on WebGL, GLES3 or GL4.1, e.g. macOS)
+  their own mipmap- and slice-ranges (not on WebGL, GLES3 or GL4.1 - e.g. macOS)
 - Storage images are no longer 'compute pass attachments', but instead
   bound like regular textures in the `sg_apply_bindings()` call. This
   allows to write to many different storage images in the same compute pass
-  (the number of simultanously bound storage images is still very restricted
+  (the number of simultaneously bound storage images is still very restricted
   though)
 - Combinations of render pass attachment images are no longer 'pre-baked'
   into `sg_attachments` objects. Instead `sg_attachments` is now a
-  transient struct similar to `sg_bindings`. This relaxes another
-  'combinatorial explosion' scenario because rendering code longer needs
-  to predict all possible render attachment combinations upfront.
+  transient struct like `sg_bindings`. This relaxes another
+  'combinatorial explosion scenario' because rendering code longer needs
+  to predict all possible render-pass attachment combinations upfront.
 
 ## Current restrictions and planned features
 
-The following features are planned for a followup 'resource view update 2':
+The following resource view features are planned for a followup 'resource view update 2':
 
-- Currently it's not possible to re-interpret the pixel format
-  or image type in a view object, this is planned for update 2.
-- The maximum number of resource bindings of a specific type is still
-  hardwired to very conservative limits (up to 4 storage image bindings,
-  up to 8 storage buffer bindings per stage), the plan for update 2 is
-  to turn those hardwired limits into dynamic limits which can be queried
-  via `sg_query_limits()`. While at it I'll also try to increase the number
-  of textures that can be bound simultanously.
+- Reinterpret the pixel format and image type of image objects in a view object.
+- Change the max number of per-shader-stage resource bindings of the same type
+  from hardwired conservative limits to dynamic device limits exposed in the
+  `sg_limits` struct (e.g. more than 4 storage image, 8 storage buffer or 16 texture
+  bindings - instead try to push those limit closer to 32)
 
 For more details about planned 'update 2' features see:
 
@@ -77,10 +110,10 @@ For more details about planned 'update 2' features see:
 ## High level overview of public API changes
 
 - the `sg_attachments` object type and related functions have been removed
-- a new object type `sg_view` has been added with related functions
-- `sg_features` gained a new feature flag `.gl_texture_views`, when this is false the GL backend doesn't
-  have full texture view support (doesn't allow to specify a range of mip-levels and
-  slices)
+- a new object type `sg_view` has been added along with related functions
+- `sg_features` gained a new flag `.gl_texture_views`, when this is false the GL backend doesn't
+  have full texture view support (e.g. it's not possible to limit a view to a miplevel or slices
+  subset)
 - the `sg_attachments` name has been repurposed for a transient struct of render pass
   attachment views:
     ```c
@@ -100,7 +133,8 @@ For more details about planned 'update 2' features see:
     } sg_bindings;
     ```
 - the `sg_image_usage` struct now has more detailed usage flags for
-  render pass attachments:
+  render pass attachments, and the `.storage_attachment` usage flag
+  has been renamed to `.storage_image`:
     ```c
     typedef struct sg_image_usage {
         bool storage_image;
@@ -115,9 +149,9 @@ For more details about planned 'update 2' features see:
     - `d3d11_shader_resource_view`
     - `wgpu_texture_view`
 - in `sg_shader_desc`:
-    - the internals of the `sg_shader_desc` struct to describe the shader resource
+    - the internals of the `sg_shader_desc` struct to describe the shader
     binding interface has been changed to a unified array of `sg_shader_view_desc`
-    structs ()
+    structs:
         ```c
         typedef struct sg_shader_desc {
             // ...
@@ -134,7 +168,7 @@ For more details about planned 'update 2' features see:
 
 ## Shader Authoring Changes
 
-> TL;DR: When recompiling existing shaders you might get errors about bindslot
+> TL;DR: When recompiling existing shaders you might get new errors about bindslot
 collisions which need to be resolved by changing the `layout(binding=N)`
 decorations.
 
@@ -150,12 +184,14 @@ layout(binding=0, rgba8) uniform writeonly image2D cs_outp_tex;
 @end
 ```
 
-Note how the texture- and storage-image bindings use the same bindslot 0
-because previously textures and storage images had their own bindslot space.
+Note how in this (old) code-snippet the texture- and storage-image bindings use
+the same bindslot 0 because previously textures and storage images had their own
+bindslot space.
 
 This code will now produce a 'bindslot collision error' when compiled with
 sokol-shdc, because texture- and storage-image bindings now use the same bindslot
-space, so bindings need to be fixed to no longer collide:
+space, so bindings for texture-, storage-buffer- and storage-image-bindings across
+all shader stages need to be fixed to not collide:
 
 ```glsl
 @cs cs
@@ -189,7 +225,13 @@ sg_image img = sg_make_image(&(sg_image_desc){
 });
 sg_view tex_view = sg_make_view(&(sg_view_desc){
     .texture = { .image = img },
-})
+});
+```
+
+You can also chain the designated initializers which looks a bit more compact (unfortunately this isn't supported in most other languages):
+
+```c
+sg_view tex_view = sg_make_view(&(sg_view_desc){ .texture.image = img });
 ```
 
 The `sg_apply_bindings()` call now has an array of `sg_view` handles instead
@@ -235,7 +277,7 @@ sg_image img = sg_query_view_image(tex_view);
 ```
 
 Texture views can select a subrange of mipmaps and slices of their parent
-image (not supported on WebGL2, GLES3 or GL4.1)
+image (not supported on WebGL2, GLES3 or GL4.1):
 ```c
 sg_view tex_view = sg_make_view(&(sg_view_desc){
     .texture = {
@@ -265,8 +307,8 @@ Before moving on to the other view types, a little interlude about
 lifetimes and resource states:
 
 If you're coming from 3D APIs with ref-counted lifetime management like D3D, WebGPU
-or Metal you might be tempted to 'release' the image object right after creating
-its view object since the image object handle isn't really needed anymore:
+or Metal you might be tempted to 'release' a view's parent resource object right after creating
+its view object if the image object handle isn't needed anymore:
 
 ```c
 sg_image img = sg_make_image(&(sg_image_desc){
@@ -281,29 +323,30 @@ sg_destroy_image(img);
 In sokol-gfx lifetimes are explicit, if you pull the rug under a view
 like this nothing catastrophic will happen (e.g. no crashes or hard
 validation layers errors), but rendering operations involving such 'incomplete'
-views will be silently skipped (this is basically the same behaviour as before
+views will be silently skipped (this is basically the same behavior as before
 when trying to render with images or buffers in a non-valid resource state).
 
-Another slightly counter-intuitive behaviour might be that a view object
-remains in valid state despite its parent resource being destroyed, e.g.
+Another slightly counter-intuitive behavior might be that a view object
+remains in valid resource state despite its parent resource being destroyed, e.g.
 following the above example code:
 
 ```c
 // get the destroyed image's resource state
 if (sg_query_image_state(img) == SG_RESOURCESTATE_INVALID) {
     // if-branch taken, since the image had been destroyed
-    ...
+    // ...
 }
 // get the image's texture view resource state
 if (sg_query_view_state(tex_view) == SG_RESOURCESTATE_VALID) {
     // if-branch *also* taken!
+    // ...
 }
 ```
 
-I went a bit back and forth on this decision but I think the behaviour makes
+I went a bit back and forth on this decision but I think the behavior makes
 sense from the perspective that all resource state changes in sokol-gfx
 are explicit (e.g. there are no 'automatic' state changes as
-a side effect of a 'remote' state change, all resource state changes
+a side effect of a 'remote' state change of another object, all resource state changes
 are directly caused by a function call on that resource object. The same
 has always been true for pipelines and their shader object, just not
 specifically documented.
@@ -315,6 +358,11 @@ the following shortcut:
 if (sg_query_image_state(sg_query_view_image(tex_view)) == SG_RESOURCESTATE_VALID) {
     // the view is 'renderable'
 }
+
+// or for storage buffer views:
+if (sg_query_buffer_state(sg_query_view_buffer(sbuf_view)) == SG_RESOURCESTATE_VALID) {
+    // the view is 'renderable'
+}
 ```
 This works because no matter what state the view object is in (or even exists),
 `sq_query_view_image()` will either return an image handle or an invalid handle
@@ -322,17 +370,19 @@ and both can be passed into `sg_query_image_state()`. An invalid image handle
 will return `SG_RESOURCESTATE_INVALID` while a valid image handle will return
 the actual `SG_RESOURCESTATE_*` of the image object.
 
-If the parent resource goes through a 'destroy/make' or 'uninit/init' cycle,
+## Tracking uninit => init cycles
+
+If the parent resource goes through a 'destroy => make' or 'uninit => init' cycle,
 all views which had been created from this parent resource must also be
-recreated, otherwise rendering operations involving such a 'dangling view'
+re-initialized, otherwise rendering operations involving such 'dangling views'
 will silently be skipped.
 
-A common pattern for this situation is to use `uninit/init` because the
-handles will remain valid (e.g. you don't need to distribute new object
-handles into all corners of your code base):
+A common pattern for this situation is to use the 'uninit => init' calls instead
+of 'destroy => make' because the handles will remain valid (e.g. you don't need
+to distribute new object handles into all corners of your code base):
 
 ```c
-// first unit/init the parent image with new init params:
+// first unit/init the parent image with new params:
 sg_unit_image(img);
 sg_init_image(img, &(sg_image_desc){ ... });
 // then 'cycle' the image's view objects
@@ -342,7 +392,7 @@ sg_init_view(tex_view, &(sg_view_desc){ .texture.image = img });
 
 I was at first considering to add a 'managed mode' for views which would track
 the state of their parent resource and automatically go through an uninit/init
-cycle when needed, but this just didn't fit sokol philosophy of explicit
+cycle when needed, but this just didn't fit into the sokol philosophy of explicit
 lifetimes and resource states, and having this one special case for view objects
 caused more confusion which wasn't worth the small gain in convenience (this
 decision also wasn't purely based on gut feeling since I actually *had*
@@ -365,7 +415,7 @@ sg_destroy_image(img);
 sg_destroy_view(view);
 ```
 
-**BE AWARE OF THIS TRAP:**
+**BUT BE AWARE OF THIS TRAP:**
 ```c
 sg_destroy_view(view);
 sg_destroy_image(sg_query_view_image(view));
@@ -393,8 +443,8 @@ Sample code:
 - **miprender-sapp** (render into mipmaps): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/miprender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/miprender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/miprender-sapp-ui.html)
 - **layerrender-sapp** (render into array slice): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/layerrender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/layerrender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/layerrender-sapp-ui.html)
 
-When doing offscreen rendering into an image object, you previously created
-a 'pre-baked' attachments object which was then passed into `sg_begin_pass()`:
+In the previous sokol-gfx version, when doing offscreen rendering into an image object
+a 'pre-baked' attachments object had to be created which was then passed into `sg_begin_pass()`:
 
 E.g. old code:
 ```c
@@ -427,7 +477,7 @@ sg_apply_bindings(&(sg_bindings){
 ```
 
 Now, instead of creating a pre-baked attachments object, separate 'attachment-view'
-objects are created instead upfront, but their combination is no longer
+objects are created upfront, but their combined use for rendering is no longer
 pre-baked but defined on-the-fly in the `sg_begin_pass()` call, much like
 bindings in the `sg_apply_bindings()` call:
 
@@ -450,7 +500,7 @@ sg_view depth_att_view = sg_make_view(&(sg_view_desc){
     .depth_stencil_attachment.image = depth_img,
 });
 
-// since the color-attachment image is also samples as texture,
+// since the color-attachment image is also sampled as texture,
 // we'll also need a texture view:
 sg_view color_tex_view = sg_make_view(&(sg_view_desc){
     .texture.image = color_img,
@@ -610,7 +660,7 @@ sg_shader fsq_shd = sg_make_shader(&(sg_shader_desc){
 ```
 
 Shader code changes are only needed on WebGPU when using storage images. Those have
-moved from `@group(2)` into `@group(1)` (this is because storage images are longer
+moved from `@group(2)` into `@group(1)` (this is because storage images are no longer
 special compute-pass-attachments, but regular bindings just like texture- and
 storage-buffer bindings).
 
@@ -620,9 +670,9 @@ storage-buffer bindings).
 ### Why no vertex- and index-buffer views
 
 I had actually implemented vertex- and index-buffer views at first because it
-would have reduced the size of `sg_bindings` by 40 bytes (8x vertex-buffer-offset and 1x
+would have reduced the size of `sg_bindings` by 40 bytes (32 bytes vertex-buffer-offsets and 4 bytes
 index-buffer-offset). In the end I rolled that change back since none of the
-backend 3D APIs requires view objects for binding vertex- and index-buffers, but
+backend 3D APIs require to create view objects for binding vertex- and index-buffers, but
 some rendering scenarios (like writing a renderer backend for Dear ImGui) heavily
 depend on dynamic offsets for vertex- and index-data.
 
@@ -632,12 +682,22 @@ a D3D12 backend would require adding view objects for vertex- and index-buffers,
 since D3D12 has removed the ability to bind vertex- and index-buffers directly
 with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).
 
-### Why no 'texture usage' in `sg_image_desc`
+### Why no 'texture' field in `sg_image_usage` to indicate that texture views may be created for an image object?
 
-Simply because creating a texture view is always supported for image objct (with
+Simply because creating a texture view is always supported for image object (with
 one 'legacy edge case': WebGL2 and GL4.1 not supporting binding multi-sampled
 images as textures). An explicit `.usage.texture` flag would allow to already
 fail at image object creation instead of failing to create a texture view
 on a multi-sampled image object, but this is such a minor detail that only
 affects 'legacy APIs' (WebGL2 and GL 4.1) that I didn't think adding an
 explicit texture usage flag was worth it.
+
+### What's up with `SG_MAX_VIEW_BINDSLOTS` being this weird `28` instead of some 2^N value?
+
+That way the `sg_bindings` struct is a nice round 256 bytes (64 bytes for vertex
+buffer handles and offsets, 8 bytes for index buffer and offset, 112 bytes for
+view handles, 64 bytes for sampler handles plus 2*4 bytes for the start and end
+canaries).
+
+16 separate samplers might be overkill, so I might tweak the number of views vs
+samplers a bit in the 'resource view update 2'.
