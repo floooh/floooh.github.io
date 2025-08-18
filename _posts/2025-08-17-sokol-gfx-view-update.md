@@ -675,7 +675,7 @@ storage-buffer bindings).
 ### Why no vertex- and index-buffer views
 
 I had actually implemented vertex- and index-buffer views at first because it
-would have reduced the size of `sg_bindings` by 40 bytes (32 bytes vertex-buffer-offsets and 4 bytes
+would have reduced the size of `sg_bindings` by 36 bytes (32 bytes vertex-buffer-offsets and 4 bytes
 index-buffer-offset). In the end I rolled that change back since none of the
 backend 3D APIs require to create view objects for binding vertex- and index-buffers, but
 some rendering scenarios (like writing a renderer backend for Dear ImGui) heavily
