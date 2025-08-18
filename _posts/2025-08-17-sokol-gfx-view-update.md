@@ -689,13 +689,14 @@ with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).
 
 ### Why no 'texture' field in `sg_image_usage` to indicate that texture views may be created for an image object?
 
-Simply because creating a texture view is always supported for image object (with
-one 'legacy edge case': WebGL2 and GL4.1 not supporting binding multi-sampled
-images as textures). An explicit `.usage.texture` flag would allow to already
-fail at image object creation instead of failing to create a texture view
-on a multi-sampled image object, but this is such a minor detail that only
-affects 'legacy APIs' (WebGL2 and GL 4.1) that I didn't think adding an
-explicit texture usage flag was worth it.
+Simply because creating a texture view is always supported for image objects, so
+that flag could be implicitly hardwired to true anyway (with one 'legacy edge
+case': WebGL2 and GL4.1 not supporting binding multi-sampled images as
+textures). In that edge-case, an explicit `.usage.texture` flag would allow to already fail at
+image object creation instead of failing to create a texture view on a
+multi-sampled image object, but since this is such a minor detail which only affects
+'legacy APIs' (WebGL2 and GL 4.1) that I didn't think adding an explicit texture
+usage flag was worth it.
 
 ### What's up with `SG_MAX_VIEW_BINDSLOTS` being this weird `28` instead of some 2^N value?
 
