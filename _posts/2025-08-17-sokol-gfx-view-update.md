@@ -36,7 +36,7 @@ Typically resource views have a number of different purposes in the various
   selecting a specific mipmap or range of mipmaps in a texture)
 
 In sokol-gfx you can think of view objects mainly as specializations of an
-`sg_image` or `sg_buffer` object for how the image or buffer is going too be accessed in
+`sg_image` or `sg_buffer` object for how the image or buffer is going to be accessed in
 shaders:
 
 - sampling a texture in a shader requires a **texture view**
@@ -57,7 +57,7 @@ In sokol-gfx, resource view types are 'runtime flavours' of the same handle type
 be a compilation error, but a runtime error in the sokol-gfx validation layer,
 so please make sure to test your code in debug build mode. The validation
 layer is automatically enabled when the `NDEBUG` flag is set, which is the
-defacto-standard used by most C/C++ build system for identifying debug build mode,
+defacto-standard used by most C/C++ build systems for identifying debug build mode,
 but if you compile your code directly without a build system you may need
 to set the `NDEBUG` define explicitly (or alternatively the `SOKOL_DEBUG`
 define which also activates the validation layer) - also while at it,
@@ -84,7 +84,7 @@ This first sokol-gfx resource view update unlocks the following features:
   their own mipmap- and slice-ranges (not on WebGL, GLES3 or GL4.1 - e.g. macOS)
 - Storage images are no longer 'compute pass attachments', but instead
   bound like regular textures in the `sg_apply_bindings()` call. This
-  allows to write to many different storage images in the same compute pass
+  allows writing to many different storage images in the same compute pass
   (the number of simultaneously bound storage images is still very restricted
   though)
 - Combinations of render pass attachment images are no longer 'pre-baked'
@@ -383,7 +383,7 @@ of 'destroy => make' because the handles will remain valid (e.g. you don't need
 to distribute new object handles into all corners of your code base):
 
 ```c
-// first unit/init the parent image with new params:
+// first uninit/init the parent image with new params:
 sg_unit_image(img);
 sg_init_image(img, &(sg_image_desc){ ... });
 // then 'cycle' the image's view objects
@@ -534,7 +534,7 @@ sg_apply_bindings(&(sg_bindings){
 Samples:
 
 - **write-storageimage-sapp** (write into storage image with compute shader): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/write-storageimage-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/write-storageimage-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/write-storageimage-sapp-ui.html)
-- **imageblut-sapp** (image blurring with compute shaders): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/imageblur-sapp.html)
+- **imageblur-sapp** (image blurring with compute shaders): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/imageblur-sapp.html)
 
 Storage image bindings are no longer defined as compute-pass attachments in `sg_begin_pass()`, but instead
 like regular texture- or storage-buffer-bindings in `sg_apply_bindings()`.
@@ -567,7 +567,7 @@ sg_apply_bindings(&(sg_bindings){
     .views[VIEW_simg] = simg_view,
 })
 sg_dispatch(...);
-sg_end_pass():
+sg_end_pass();
 
 // and to use the compute-shader-updated image as a texture in a render pass,
 // bind the texture view as usual:
@@ -589,7 +589,7 @@ Samples:
 - **vertexpull-sapp** (vertex pulling from storage buffer): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/vertexpull-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/vertexpull-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/vertexpull-sapp-ui.html)
 - **sbuftex-sapp** (access storage buffer in fragment shader): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbuftex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbuftex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbuftex-sapp-ui.html)
 - **instancing-compute-sapp** (update instancing data with compute shader): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/instancing-compute-sapp-ui.html)
-- **sbufoffsets-sapp** (demonstrate storage buffer bindings with offset): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbufoffset-sapp-ui.html)
+- **sbufoffset-sapp** (demonstrate storage buffer bindings with offset): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbufoffset-sapp-ui.html)
 
 
 To bind a buffer object as storage buffer for vertex-pulling or compute-shader access you now need a storage-buffer-view object:
@@ -677,7 +677,7 @@ storage-buffer bindings).
 I had actually implemented vertex- and index-buffer views at first because it
 would have reduced the size of `sg_bindings` by 36 bytes (32 bytes vertex-buffer-offsets and 4 bytes
 index-buffer-offset). In the end I rolled that change back since none of the
-backend 3D APIs require to create view objects for binding vertex- and index-buffers, but
+backend 3D APIs require creating view objects for binding vertex- and index-buffers, but
 some rendering scenarios (like writing a renderer backend for Dear ImGui) heavily
 depend on dynamic offsets for vertex- and index-data.
 
@@ -692,13 +692,13 @@ with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).
 Simply because creating a texture view is always supported for image objects, so
 that flag could be implicitly hardwired to true anyway (with one 'legacy edge
 case': WebGL2 and GL4.1 not supporting binding multi-sampled images as
-textures). In that edge-case, an explicit `.usage.texture` flag would allow to already fail at
+textures). In that edge-case, an explicit `.usage.texture` flag would allow to fail already at
 image object creation instead of failing to create a texture view on a
 multi-sampled image object, but since this is such a minor detail which only affects
 'legacy APIs' (WebGL2 and GL 4.1) that I didn't think adding an explicit texture
 usage flag was worth it.
 
-### What's up with SG_MAX_VIEW_BINDSLOTS being this weird 28 instead of some 2^N value?
+### What's up with SG_MAX_VIEW_BINDSLOTS being this odd 28 instead of some 2^N value?
 
 That way the `sg_bindings` struct is a nice round 256 bytes (64 bytes for vertex
 buffer handles and offsets, 8 bytes for index buffer and offset, 112 bytes for
