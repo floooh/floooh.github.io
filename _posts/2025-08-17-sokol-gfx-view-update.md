@@ -627,11 +627,11 @@ and would still exclude about 8 percent of Android devices which is quite a lot.
 
 Samples:
 
-    - for [D3D11](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/d3d11)
-    - for [Metal](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/metal)
-    - for [desktop GL](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/glfw)
-    - for [WebGL2](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/html5)
-    - for [WebGPU](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/wgpu)
+- for [D3D11](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/d3d11)
+- for [Metal](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/metal)
+- for [desktop GL](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/glfw)
+- for [WebGL2](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/html5)
+- for [WebGPU](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/wgpu)
 
 Some tweaks on the manually populated `sg_shader_desc` structs are needed when not
 using sokol-shdc:
