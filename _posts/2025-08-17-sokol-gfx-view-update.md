@@ -540,7 +540,7 @@ Storage image bindings are no longer defined as compute-pass attachments in `sg_
 like regular texture- or storage-buffer-bindings in `sg_apply_bindings()`.
 
 ```c
-// first create an image object with storage buffer usage:
+// first create an image object with storage-image usage:
 sg_image img = sg_make_image(&(sg_image_desc){
     .usage = { .storage_image = true },
     // ...
