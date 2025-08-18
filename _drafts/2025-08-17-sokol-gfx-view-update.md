@@ -7,10 +7,17 @@ In a couple of days I will merge the next big (and breaking) sokol-gfx
 update which adds resource view objects and in turn removes pre-baked
 pass-attachment objects.
 
+The update also requires to update sokol-shdc and recompile shaders.
+
+The root PR is here: [https://github.com/floooh/sokol/issues/1302](https://github.com/floooh/sokol/issues/1302)
+
+After mergind the update I will spend a couple of weeks to take care of
+pending issues and PRs before moving on to a followup *resource views update 2*.
+
 ## What are resource view objects?
 
 If you're familiar with D3D10 and later you'll feel right at home since
-resource views are a fundamental concept in D3D, and sokol-gfx's idea
+resource views are a fundamental concept in D3D, and sokol-gfx's concept
 of resource views is closest to D3D11. Other 3D APIs either don't have
 view objects at all (WebGL and GL <4.3), or only associate resource
 views with texture data (GL >= 4.3, Metal and WebGPU).
@@ -33,13 +40,12 @@ since 'view' is the more established term I went with `sg_view` instead.
 
 This first sokol-gfx resource view update unlocks the following features:
 
-- Storage buffer bindings can now have an offset, previously only vertex-
-  and index-buffer bindings could have an offset. Binding storage buffers
+- Storage buffer bindings can now have an offset. Binding storage buffers
   with offsets is mainly useful when the same buffer contains different
   types of items in different sections of the buffer, and processing
   those items in separate compute shaders.
 - Texture views can define a subset of the parent image by defining
-  their own mipmap- and slice-range.
+  their own mipmap- and slice-ranges (not on WebGL, GLES3 or GL4.1, e.g. macOS)
 - Storage images are no longer 'compute pass attachments', but instead
   bound like regular textures in the `sg_apply_bindings()` call. This
   allows to write to many different storage images in the same compute pass
@@ -57,20 +63,80 @@ The following features are planned for a followup 'resource view update 2':
 
 - Currently it's not possible to re-interpret the pixel format
   or image type in a view object, this is planned for update 2.
-- The maximum number of resource bindings of a specific type is currently
+- The maximum number of resource bindings of a specific type is still
   hardwired to very conservative limits (up to 4 storage image bindings,
-  up to 8 storage buffer bindings per stage), those very conservative
-  hardwired limits will most likely be replaced with dynamic limits
-  defined in `sg_limts`.
+  up to 8 storage buffer bindings per stage), the plan for update 2 is
+  to turn those hardwired limits into dynamic limits which can be queried
+  via `sg_query_limits()`. While at it I'll also try to increase the number
+  of textures that can be bound simultanously.
 
 For more details about planned 'update 2' features see:
 
 [https://github.com/floooh/sokol/issues/1302](https://github.com/floooh/sokol/issues/1302)
 
+## High level overview of public API changes
 
-## Working with resource view objects
+- the `sg_attachments` object type and related functions have been removed
+- a new object type `sg_view` has been added with related functions
+- `sg_features` gained a new feature flag `.gl_texture_views`, when this is false the GL backend doesn't
+  have full texture view support (doesn't allow to specify a range of mip-levels and
+  slices)
+- the `sg_attachments` name has been repurposed for a transient struct of render pass
+  attachment views:
+    ```c
+    typedef struct sg_attachments {
+        sg_view colors[SG_MAX_COLOR_ATTACHMENTS];
+        sg_view resolves[SG_MAX_COLOR_ATTACHMENTS];
+        sg_view depth_stencil;
+    } sg_attachments;
+    ```
+- the `sg_bindings` struct now has a unified array for views instead of separate
+  arrays for each 'shader resource type' (textures, storage images and storage buffers):
+    ```c
+    typedef struct sg_bindings {
+        // ...
+        sg_view views[SG_MAX_VIEW_BINDSLOTS];
+        // ...
+    } sg_bindings;
+    ```
+- the `sg_image_usage` struct now has more detailed usage flags for
+  render pass attachments:
+    ```c
+    typedef struct sg_image_usage {
+        bool storage_image;
+        bool color_attachment;
+        bool resolve_attachment;
+        bool depth_stencil_attachment;
+        // ...
+    } sg_image_usage;
+    ```
+- in `sg_image_desc` the items to directly inject backend-specific view
+  objects have been removed:
+    - `d3d11_shader_resource_view`
+    - `wgpu_texture_view`
+- in `sg_shader_desc`:
+    - the internals of the `sg_shader_desc` struct to describe the shader resource
+    binding interface has been changed to a unified array of `sg_shader_view_desc`
+    structs ()
+        ```c
+        typedef struct sg_shader_desc {
+            // ...
+            sg_shader_view views[SG_MAX_VIEW_BINDSLOTS];
+            // ...
+        } sg_shader_desc;
+        ```
+    - some renaming to better differentiate between '(storage) image and texture
+      bindings', for instance 'image-sampler-pairs' are now called 'texture-sampler-pairs',
+      since only texture bindings are 'sampled', but not storage-image bindings
+- many new items in the `sg_frame_stats` struct, mostly not directly related
+  to resource views, but filling some gaps
 
-### Shader Authoring Changes
+
+## Shader Authoring Changes
+
+> TL;DR: When recompiling existing shaders you might get errors about bindslot
+collisions which need to be resolved by changing the `layout(binding=N)`
+decorations.
 
 When using sokol-shdc, the only change on the shader side is that textures,
 storage buffers and storage images now share a common bindslot range, previously
@@ -100,7 +166,11 @@ layout(binding=1, rgba8) uniform writeonly image2D cs_outp_tex;
 ```
 This bindslot fixup is the only change required on the shader side.
 
-### Texture Views
+## Working with Texture Views
+
+Sample code:
+- **texcube-sapp** (simple textured rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/texcube-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/texcube-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/texcube-sapp-ui.html)
+- **dyntex-sapp** (CPU-update dynamic texture): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/dyntex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/dyntex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/dyntex-sapp-ui.html)
 
 Let's say a shader defines a texture binding at slot 3:
 
@@ -108,7 +178,7 @@ Let's say a shader defines a texture binding at slot 3:
 layout(binding=3) uniform texture2D tex;
 ```
 
-To 'populate' this bindslot on the CPU side you now need two objects: an image
+To 'populate' this bindslot on the CPU side you need two objects now: an image
 object, and a texture view on the image object:
 
 ```c
@@ -143,9 +213,6 @@ sg_apply_bindings(&(sg_bindings){
     .samplers[SMP_smp] = ...,
 });
 ```
-...using the code-generated constant is just more readable, since the
-connection between the `sg_bindings` bindslot and the binding in the
-shader source code becomes clearer.
 
 In many situations you only need the view handle and don't need the
 separate image handle, this means you can nest the `sg_make_image()`
@@ -161,14 +228,14 @@ sg_view tex_view = sg_make_view(&(sg_view_desc){
 });
 ```
 
-If you still need the image handle later you can extract it from the
+If you need the image handle later you can extract it from the
 view object via `sg_query_view_image()`:
 ```c
 sg_image img = sg_query_view_image(tex_view);
 ```
 
 Texture views can select a subrange of mipmaps and slices of their parent
-image:
+image (not supported on WebGL2, GLES3 or GL4.1)
 ```c
 sg_view tex_view = sg_make_view(&(sg_view_desc){
     .texture = {
@@ -197,11 +264,9 @@ sg_view tex_view = sg_make_view(&(sg_view_desc){
 Before moving on to the other view types, a little interlude about
 lifetimes and resource states:
 
-If you're coming from 3D APIs with ref-counted lifetime management like D3D
-Metal you might be tempted to 'release' the image object right after creating
-its view object since the image object handle isn't really needed anymore
-(but is kept alive by the 3D API because the view bumped the refcount of
-the parent resource):
+If you're coming from 3D APIs with ref-counted lifetime management like D3D, WebGPU
+or Metal you might be tempted to 'release' the image object right after creating
+its view object since the image object handle isn't really needed anymore:
 
 ```c
 sg_image img = sg_make_image(&(sg_image_desc){
@@ -238,7 +303,7 @@ if (sg_query_view_state(tex_view) == SG_RESOURCESTATE_VALID) {
 I went a bit back and forth on this decision but I think the behaviour makes
 sense from the perspective that all resource state changes in sokol-gfx
 are explicit (e.g. there are no 'automatic' state changes as
-a side effect of some other state change, all resource state changes
+a side effect of a 'remote' state change, all resource state changes
 are directly caused by a function call on that resource object. The same
 has always been true for pipelines and their shader object, just not
 specifically documented.
@@ -259,7 +324,8 @@ the actual `SG_RESOURCESTATE_*` of the image object.
 
 If the parent resource goes through a 'destroy/make' or 'uninit/init' cycle,
 all views which had been created from this parent resource must also be
-recreated.
+recreated, otherwise rendering operations involving such a 'dangling view'
+will silently be skipped.
 
 A common pattern for this situation is to use `uninit/init` because the
 handles will remain valid (e.g. you don't need to distribute new object
@@ -276,22 +342,16 @@ sg_init_view(tex_view, &(sg_view_desc){ .texture.image = img });
 
 I was at first considering to add a 'managed mode' for views which would track
 the state of their parent resource and automatically go through an uninit/init
-cycle when needed, but this just didn't fit sokol philosophy of lifetimes and
-resource states being explicit, and having this one special case for view
-objects caused more confusion which wasn't worth the small gain in convenience
-(this decision also wasn't purely based on gut feeling since I actually *had*
+cycle when needed, but this just didn't fit sokol philosophy of explicit
+lifetimes and resource states, and having this one special case for view objects
+caused more confusion which wasn't worth the small gain in convenience (this
+decision also wasn't purely based on gut feeling since I actually *had*
 implemented the 'managed mode' already but then kicked it out again after
-actually starting to port the sokol sample code over).
+actually starting to port the sokol sample code over - it just didn't 'feel right').
 
 When porting existing code over to resource view object, don't forget
-that you need to destroy at least two objects now. It's tempting to just
-replace all image handles with view handles, and then only destroy the
-view but forget to destroy the image. That's a good way to add a quickly
-growing memory leak ;) (at some point the image or buffer pools will be
-exhausted though and resource creation will start to fail - that's why
-it's a good idea to tweak the pool sizes in the `sg_setup()` close to
-the maximum number of resource objects of each type you are expecting.
-
+that you need to destroy at least two objects now for complete cleanup
+(views *and* their parent resource).
 
 The order in which you destroy the views and parent resources doesn't
 matter, this:
@@ -319,3 +379,265 @@ handle, and passing the invalid handle into `sg_destroy_image()` is a silent no-
 `sg_query_view_image(view)` and `sg_destroy_image()` with an invalid handle
 being a silent no-op) can cause trouble in other situations. I'll need to think
 about whether this should at least be logged as an error instead.
+
+## Working with render pass attachment views
+
+Sample code:
+
+- **offscreen-sapp** (simple offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/offscreen-sapp-ui.html)
+- **offscreen-msaa-sapp** (multi-sampled offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-msaa-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-msaa-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/offscreen-msaa-sapp-ui.html)
+- **mrt-sapp** (multiple-render-target, multi-sampled offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/mrt-sap-ui.html)
+- **mrt-pixelformats-sapp** (multiple render target rendering with different pixel formats): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-pixelformats-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-pixelformats-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/mrt-pixelformats-sapp-ui.html)
+- **shadows-sapp** (shadow-mapping with regular shadow map texture): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/shadows-sapp-ui.html)
+- **shadows-depthtex-sapp** (shadow-mapping with a depth-buffer texture): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-depthtex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-depthtex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/shadows-depthtex-sapp-ui.html)
+- **miprender-sapp** (render into mipmaps): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/miprender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/miprender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/miprender-sapp-ui.html)
+- **layerrender-sapp** (render into array slice): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/layerrender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/layerrender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/layerrender-sapp-ui.html)
+
+When doing offscreen rendering into an image object, you previously created
+a 'pre-baked' attachments object which was then passed into `sg_begin_pass()`:
+
+E.g. old code:
+```c
+// create a color and depth-buffer image for offscreen rendering
+sg_image color_img = sg_make_image(&(sg_image_desc){
+    .usage = { .render_attachment = true },
+    // ...
+});
+sg_image depth_img = sg_make_image(&(sg_image_desc){
+    .usage = { .render_attachment = true },
+});
+
+// create an attachments object from those images...
+sg_attachments atts = sg_make_attachments(&(sg_attachments_desc){
+    .colors[0].image = color_img,
+    .depth_stencil.image = depth_img,
+});
+
+// ... in the render loop for the offscreen render pass:
+sg_begin_pass(&(sg_pass){ .attachments = atts });
+// ...
+sg_end_pass();
+
+// ... and in the swapchain pass, bind the color image as texture:
+sg_apply_bindings(&(sg_bindings){
+    // ...
+    .images[TEX_tex] = color_img,
+    // ...
+});
+```
+
+Now, instead of creating a pre-baked attachments object, separate 'attachment-view'
+objects are created instead upfront, but their combination is no longer
+pre-baked but defined on-the-fly in the `sg_begin_pass()` call, much like
+bindings in the `sg_apply_bindings()` call:
+
+```c
+// create color- and depth-buffer images
+// NOTE the more detailed usage flags
+sg_image color_img = sg_make_image(&(sg_image_desc){
+    .usage = { .color_attachment = true },
+    // ...
+});
+sg_image depth_img = sg_make_image(&(sg_image_desc){
+    .usage = { .depth_stencil_attachment = true },
+});
+
+// create a color- and depth-stencil attachment view
+sg_view color_att_view = sg_make_view(&(sg_view_desc){
+    .color_attachment.image = color_img,
+});
+sg_view depth_att_view = sg_make_view(&(sg_view_desc){
+    .depth_stencil_attachment.image = depth_img,
+});
+
+// since the color-attachment image is also samples as texture,
+// we'll also need a texture view:
+sg_view color_tex_view = sg_make_view(&(sg_view_desc){
+    .texture.image = color_img,
+});
+
+// later in the offscreen render pass, the attachment views
+// are passed directly into sg_begin_pass:
+sg_begin_pass(&(sg_pass_desc){
+    .attachments = {
+        .colors[0] = color_att_view,
+        .depth_stencil = depth_att_view,
+    },
+});
+
+// and in the swapchain pass, the texture view is bound
+// to sample the offscreen-rendered image as texture:
+sg_apply_bindings(&(sg_bindings){
+    // ...
+    .views[VIEW_tex] = color_tex_view,
+    // ...
+});
+```
+
+## Working with storage image views
+
+Samples:
+
+- **write-storageimage-sapp** (write into storage image with compute shader): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/write-storageimage-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/write-storageimage-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/write-storageimage-sapp-ui.html)
+- **imageblut-sapp** (image blurring with compute shaders): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/imageblur-sapp.html)
+
+Storage image bindings are no longer defined as compute-pass attachments in `sg_begin_pass()`, but instead
+like regular texture- or storage-buffer-bindings in `sg_apply_bindings()`.
+
+```c
+// first create an image object with storage buffer usage:
+sg_image img = sg_make_image(&(sg_image_desc){
+    .usage = { .storage_image = true },
+    // ...
+});
+
+// to write to the image with a compute shader, a storage image view is needed:
+sg_view simg_view = sg_make_view(&(sg_view_desc){
+    .storage_image = {
+        .image = img,
+        .mip_level = ...,   // optional: select a specific miplevel
+        .slice = ...,       // optional: select a specific slice
+    },
+});
+
+// ...and to sample that same image as a texture for rendering, a texture view is needed:
+sg_view tex_view = sg_make_view(&(sg_view_desc){
+    .texture.image = img,
+});
+
+// storage image views are now applied as regular bindings in a compute pass:
+sg_begin_pass(&(sg_pass){ .compute = true });
+// ...
+sg_apply_bindings(&(sg_bindings){
+    .views[VIEW_simg] = simg_view,
+})
+sg_dispatch(...);
+sg_end_pass():
+
+// and to use the compute-shader-updated image as a texture in a render pass,
+// bind the texture view as usual:
+sg_begin_pass(...);
+// ...
+sg_apply_bindings(&(sg_bindings){
+    // ...
+    .views[VIEW_tex] = tex_view,
+    .samplers[SMP_smp] = smp,
+});
+sg_draw(...);
+sg_end_pass();
+```
+
+## Working with storage buffer views
+
+Samples:
+
+- **vertexpull-sapp** (vertex pulling from storage buffer): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/vertexpull-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/vertexpull-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/vertexpull-sapp-ui.html)
+- **sbuftex-sapp** (access storage buffer in fragment shader): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbuftex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbuftex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbuftex-sapp-ui.html)
+- **instancing-compute-sapp** (update instancing data with compute shader): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/instancing-compute-sapp-ui.html)
+- **sbufoffsets-sapp** (demonstrate storage buffer bindings with offset): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbufoffset-sapp-ui.html)
+
+
+To bind a buffer object as storage buffer for vertex-pulling or compute-shader access you now need a storage-buffer-view object:
+
+```c
+// create a buffer with storage-buffer usage:
+sg_buffer buf = sg_make_buffer(&(sg_buffer_desc){
+    .usage = { .storage_buffer = true },
+    // ...
+});
+
+// create a storage buffer view
+sg_view sbuf_view = sg_make_view(&(sg_view_desc){
+    .storage_buffer = {
+        .buffer = buf,
+        .offset = ...,  // optional 256-byte aligned offset
+    }
+});
+
+// ...later in a render- or compute-pass bind the storage buffer view:
+sg_apply_bindings(&(sg_bindings){
+    .views[VIEW_ssbo] = sbuf_view,
+});
+```
+
+The 256-byte-alignment restriction for the offset is a bit unfortunate, since
+vertex-buffer and index-buffer bind offsets don't have that restriction. The
+alignment restriction is coming in via WebGPU which on some Android devices
+requires this 256 byte alignment, but the only realistic lower choice would be
+64 bytes which frankly isn't that much better
+(https://vulkan.gpuinfo.org/displaydevicelimit.php?platform=android&name=minStorageBufferOffsetAlignment)
+and would still exclude about 8 percent of Android devices which is quite a lot.
+
+## When not using sokol-shdc...
+
+Samples:
+
+    - for [D3D11](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/d3d11)
+    - for [Metal](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/metal)
+    - for [desktop GL](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/glfw)
+    - for [WebGL2](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/html5)
+    - for [WebGPU](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/wgpu)
+
+Some tweaks on the manually populated `sg_shader_desc` structs are needed when not
+using sokol-shdc:
+
+- The separate bindslot reflection arrays for images, storage-buffers and storage-images
+  have been unified into a `views[]` array which mirrors the `views[]` array in the
+  `sg_bindings` struct. The actual reflection information in each view bindslot
+  has remained the same though.
+- The `.image_sampler_pair` array has been renamed to `.texture_sampler_array`, and
+  the struct member `.image_slot` has been renamed to `.view_slot`.
+
+Example from the [wgpu/mrt_wgpu.c sample](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/wgpu/mrt-wgpu.c):
+
+```c
+sg_shader fsq_shd = sg_make_shader(&(sg_shader_desc){
+    // ...
+    .views = {
+        [0].texture = { .stage = SG_SHADERSTAGE_FRAGMENT, .wgsl_group1_binding_n = 0 },
+        [1].texture = { .stage = SG_SHADERSTAGE_FRAGMENT, .wgsl_group1_binding_n = 1 },
+        [2].texture = { .stage = SG_SHADERSTAGE_FRAGMENT, .wgsl_group1_binding_n = 2 },
+    },
+    .samplers = {
+        [0] = { .stage = SG_SHADERSTAGE_FRAGMENT, .wgsl_group1_binding_n = 3 },
+    },
+    .texture_sampler_pairs = {
+        [0] = { .stage = SG_SHADERSTAGE_FRAGMENT, .view_slot = 0, .sampler_slot = 0 },
+        [1] = { .stage = SG_SHADERSTAGE_FRAGMENT, .view_slot = 1, .sampler_slot = 0 },
+        [2] = { .stage = SG_SHADERSTAGE_FRAGMENT, .view_slot = 2, .sampler_slot = 0 },
+    },
+});
+```
+
+Shader code changes are only needed on WebGPU when using storage images. Those have
+moved from `@group(2)` into `@group(1)` (this is because storage images are longer
+special compute-pass-attachments, but regular bindings just like texture- and
+storage-buffer bindings).
+
+
+## Q & A
+
+### Why no vertex- and index-buffer views
+
+I had actually implemented vertex- and index-buffer views at first because it
+would have reduced the size of `sg_bindings` by 40 bytes (8x vertex-buffer-offset and 1x
+index-buffer-offset). In the end I rolled that change back since none of the
+backend 3D APIs requires view objects for binding vertex- and index-buffers, but
+some rendering scenarios (like writing a renderer backend for Dear ImGui) heavily
+depend on dynamic offsets for vertex- and index-data.
+
+I might come back to that idea once additional drawing functions with base-offsets
+are added (which is planned for the 'not-too-distant future'). Also adding
+a D3D12 backend would require adding view objects for vertex- and index-buffers,
+since D3D12 has removed the ability to bind vertex- and index-buffers directly
+with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).
+
+### Why no 'texture usage' in `sg_image_desc`
+
+Simply because creating a texture view is always supported for image objct (with
+one 'legacy edge case': WebGL2 and GL4.1 not supporting binding multi-sampled
+images as textures). An explicit `.usage.texture` flag would allow to already
+fail at image object creation instead of failing to create a texture view
+on a multi-sampled image object, but this is such a minor detail that only
+affects 'legacy APIs' (WebGL2 and GL 4.1) that I didn't think adding an
+explicit texture usage flag was worth it.
