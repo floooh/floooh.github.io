@@ -57,12 +57,6 @@ In sokol-gfx, resource view types are 'runtime flavours' of the same handle type
 be a compilation error, but a runtime error in the sokol-gfx validation layer,
 so please make sure to test your code in debug build mode from time to time.
 
-```c
-sg_setup(&(sg_desc){
-    .environment = sglue_environment(),
-    .logger.func = slog_func,
-});
-```
 
 ## New unlocked features
 
