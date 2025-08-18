@@ -228,7 +228,8 @@ sg_view tex_view = sg_make_view(&(sg_view_desc){
 });
 ```
 
-You can also chain the designated initializers which looks a bit more compact (unfortunately this isn't supported in most other languages):
+Since this is C you can also chain the designated initializers which looks a bit more compact
+(unfortunately this isn't supported in most other languages):
 
 ```c
 sg_view tex_view = sg_make_view(&(sg_view_desc){ .texture.image = img });
