@@ -687,7 +687,7 @@ a D3D12 backend would require adding view objects for vertex- and index-buffers,
 since D3D12 has removed the ability to bind vertex- and index-buffers directly
 with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).
 
-### Why no 'texture' field in `sg_image_usage` to indicate that texture views may be created for an image object?
+### Why no 'texture' field in sg_image_usage to indicate that texture views may be created for an image object?
 
 Simply because creating a texture view is always supported for image objects, so
 that flag could be implicitly hardwired to true anyway (with one 'legacy edge
@@ -698,7 +698,7 @@ multi-sampled image object, but since this is such a minor detail which only aff
 'legacy APIs' (WebGL2 and GL 4.1) that I didn't think adding an explicit texture
 usage flag was worth it.
 
-### What's up with `SG_MAX_VIEW_BINDSLOTS` being this weird `28` instead of some 2^N value?
+### What's up with SG_MAX_VIEW_BINDSLOTS being this weird 28 instead of some 2^N value?
 
 That way the `sg_bindings` struct is a nice round 256 bytes (64 bytes for vertex
 buffer handles and offsets, 8 bytes for index buffer and offset, 112 bytes for
