@@ -495,7 +495,7 @@ sg_image depth_img = sg_make_image(&(sg_image_desc){
     // ...
 });
 
-// create a color- and depth-stencil attachment view
+// create color- and depth-stencil attachment views
 sg_view color_att_view = sg_make_view(&(sg_view_desc){
     .color_attachment.image = color_img,
 });
