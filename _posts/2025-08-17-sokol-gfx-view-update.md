@@ -347,8 +347,8 @@ if (sg_query_view_state(tex_view) == SG_RESOURCESTATE_VALID) {
 I went a bit back and forth on this decision but I think the behavior makes
 sense from the perspective that all resource state changes in sokol-gfx
 are explicit (e.g. there are no 'automatic' state changes as
-a side effect of a 'remote' state change of another object, all resource state changes
-are directly caused by a function call on that resource object. The same
+a side effect of a 'remote' state change of another object, instead all resource state changes
+are directly caused by a function call on that resource object). The same
 has always been true for pipelines and their shader object, just not
 specifically documented.
 
