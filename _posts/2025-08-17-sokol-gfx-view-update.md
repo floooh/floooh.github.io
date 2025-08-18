@@ -28,8 +28,8 @@ Typically resource views have a number of different purposes in the various
 3D-APIs:
 
 - they specialize a parent resource object for a specific usage in shaders
-  (for instance sampling the same image object as a texture versus using the
-  image object as render target)
+  (for instance sampling an image object as a texture versus using the
+  same image object as render target)
 - they can reinterpret the data in a resource object (for instance to a
   different pixel format or image type)
 - they can define a subset of the data in the resource object (for instance
