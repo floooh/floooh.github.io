@@ -343,12 +343,12 @@ If you want to check whether a view is 'renderable' you can use
 the following shortcut:
 
 ```c
-if (sg_query_image_state(sg_query_view_image(tex_view)) == SG_RESOURCESTATE_VALID) {
+if (sg_query_image_state(sg_query_view_image(tex_view))) == SG_RESOURCESTATE_VALID) {
     // the view is 'renderable'
 }
 
 // or for storage buffer views:
-if (sg_query_buffer_state(sg_query_view_buffer(sbuf_view)) == SG_RESOURCESTATE_VALID) {
+if (sg_query_buffer_state(sg_query_view_buffer(sbuf_view))) == SG_RESOURCESTATE_VALID) {
     // the view is 'renderable'
 }
 ```
