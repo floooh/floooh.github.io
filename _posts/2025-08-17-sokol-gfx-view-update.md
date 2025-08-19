@@ -387,7 +387,7 @@ decision also wasn't purely based on gut feeling since I actually *had*
 implemented the 'managed mode' already but then kicked it out again after
 actually starting to port the sokol sample code over - it just didn't 'feel right').
 
-When porting existing code over to resource view object, don't forget
+When porting existing code over to resource view objects, don't forget
 that you need to destroy at least two objects now for complete cleanup
 (views *and* their parent resource).
 
