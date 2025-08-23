@@ -3,7 +3,7 @@ layout: post
 title: The sokol-gfx resource view update.
 ---
 
-> NOTE: the WebGPU sample links point to the 'old' samples until the update is actually merged! The source code samples are uptodate though.
+**Update:** merge happened on 23-Aug-2025.
 
 In a couple of days I will merge the next big (and breaking) sokol-gfx
 update which adds resource view objects and in turn removes pre-baked
@@ -192,8 +192,8 @@ This bindslot fixup is the only change required on the shader side.
 ## Working with Texture Views
 
 Sample code:
-- **texcube-sapp** (simple textured rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/texcube-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/texcube-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/texcube-sapp-ui.html)
-- **dyntex-sapp** (CPU-update dynamic texture): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/dyntex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/dyntex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/dyntex-sapp-ui.html)
+- **texcube-sapp** (simple textured rendering): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/texcube-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/texcube-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/texcube-sapp-ui.html)
+- **dyntex-sapp** (CPU-update dynamic texture): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/dyntex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/dyntex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/dyntex-sapp-ui.html)
 
 Let's say a shader defines a texture binding at slot 3:
 
@@ -422,14 +422,14 @@ about whether this should at least be logged as an error instead.
 
 Sample code:
 
-- **offscreen-sapp** (simple offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/offscreen-sapp-ui.html)
-- **offscreen-msaa-sapp** (multi-sampled offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-msaa-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/offscreen-msaa-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/offscreen-msaa-sapp-ui.html)
-- **mrt-sapp** (multiple-render-target, multi-sampled offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/mrt-sap-ui.html)
-- **mrt-pixelformats-sapp** (multiple render target rendering with different pixel formats): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-pixelformats-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/mrt-pixelformats-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/mrt-pixelformats-sapp-ui.html)
-- **shadows-sapp** (shadow-mapping with regular shadow map texture): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/shadows-sapp-ui.html)
-- **shadows-depthtex-sapp** (shadow-mapping with a depth-buffer texture): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-depthtex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/shadows-depthtex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/shadows-depthtex-sapp-ui.html)
-- **miprender-sapp** (render into mipmaps): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/miprender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/miprender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/miprender-sapp-ui.html)
-- **layerrender-sapp** (render into array slice): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/layerrender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/layerrender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/layerrender-sapp-ui.html)
+- **offscreen-sapp** (simple offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/offscreen-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/offscreen-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/offscreen-sapp-ui.html)
+- **offscreen-msaa-sapp** (multi-sampled offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/offscreen-msaa-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/offscreen-msaa-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/offscreen-msaa-sapp-ui.html)
+- **mrt-sapp** (multiple-render-target, multi-sampled offscreen rendering): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/mrt-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/mrt-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/mrt-sap-ui.html)
+- **mrt-pixelformats-sapp** (multiple render target rendering with different pixel formats): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/mrt-pixelformats-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/mrt-pixelformats-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/mrt-pixelformats-sapp-ui.html)
+- **shadows-sapp** (shadow-mapping with regular shadow map texture): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/shadows-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/shadows-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/shadows-sapp-ui.html)
+- **shadows-depthtex-sapp** (shadow-mapping with a depth-buffer texture): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/shadows-depthtex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/shadows-depthtex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/shadows-depthtex-sapp-ui.html)
+- **miprender-sapp** (render into mipmaps): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/miprender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/miprender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/miprender-sapp-ui.html)
+- **layerrender-sapp** (render into array slice): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/layerrender-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/layerrender-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/layerrender-sapp-ui.html)
 
 In the previous sokol-gfx version, when doing offscreen rendering into an image object
 a 'pre-baked' attachments object had to be created which was then passed into `sg_begin_pass()`:
@@ -520,8 +520,8 @@ sg_apply_bindings(&(sg_bindings){
 
 Samples:
 
-- **write-storageimage-sapp** (write into storage image with compute shader): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/write-storageimage-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/write-storageimage-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/write-storageimage-sapp-ui.html)
-- **imageblur-sapp** (image blurring with compute shaders): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/imageblur-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/imageblur-sapp.html)
+- **write-storageimage-sapp** (write into storage image with compute shader): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/write-storageimage-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/write-storageimage-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/write-storageimage-sapp-ui.html)
+- **imageblur-sapp** (image blurring with compute shaders): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/imageblur-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/imageblur-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/imageblur-sapp.html)
 
 Storage image bindings are no longer defined as compute-pass attachments in `sg_begin_pass()`, but instead
 like regular texture- or storage-buffer-bindings in `sg_apply_bindings()`.
@@ -573,10 +573,10 @@ sg_end_pass();
 
 Samples:
 
-- **vertexpull-sapp** (vertex pulling from storage buffer): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/vertexpull-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/vertexpull-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/vertexpull-sapp-ui.html)
-- **sbuftex-sapp** (access storage buffer in fragment shader): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbuftex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbuftex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbuftex-sapp-ui.html)
+- **vertexpull-sapp** (vertex pulling from storage buffer): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/vertexpull-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/vertexpull-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/vertexpull-sapp-ui.html)
+- **sbuftex-sapp** (access storage buffer in fragment shader): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/sbuftex-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/sbuftex-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbuftex-sapp-ui.html)
 - **instancing-compute-sapp** (update instancing data with compute shader): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/instancing-compute-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/instancing-compute-sapp-ui.html)
-- **sbufoffset-sapp** (demonstrate storage buffer bindings with offset): [C code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/sapp/sbufoffset-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbufoffset-sapp-ui.html)
+- **sbufoffset-sapp** (demonstrate storage buffer bindings with offset): [C code](https://github.com/floooh/sokol-samples/blob/master/sapp/sbufoffset-sapp.c), [GLSL code](https://github.com/floooh/sokol-samples/blob/master/sapp/sbufoffset-sapp.glsl), [WebGPU sample](https://floooh.github.io/sokol-webgpu/sbufoffset-sapp-ui.html)
 
 
 To bind a buffer object as storage buffer for vertex-pulling or compute-shader access you now need a storage-buffer-view object:
@@ -614,11 +614,11 @@ and would still exclude about 8 percent of Android devices which is quite a lot.
 
 Samples:
 
-- for [D3D11](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/d3d11)
-- for [Metal](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/metal)
-- for [desktop GL](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/glfw)
-- for [WebGL2](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/html5)
-- for [WebGPU](https://github.com/floooh/sokol-samples/tree/issue1252/resource_views/wgpu)
+- for [D3D11](https://github.com/floooh/sokol-samples/tree/master/d3d11)
+- for [Metal](https://github.com/floooh/sokol-samples/tree/master/metal)
+- for [desktop GL](https://github.com/floooh/sokol-samples/tree/master/glfw)
+- for [WebGL2](https://github.com/floooh/sokol-samples/tree/master/html5)
+- for [WebGPU](https://github.com/floooh/sokol-samples/tree/master/wgpu)
 
 Some tweaks on the manually populated `sg_shader_desc` structs are needed when not
 using sokol-shdc:
@@ -630,7 +630,7 @@ using sokol-shdc:
 - The `.image_sampler_pair` array has been renamed to `.texture_sampler_array`, and
   the struct member `.image_slot` has been renamed to `.view_slot`.
 
-Example from the [wgpu/mrt_wgpu.c sample](https://github.com/floooh/sokol-samples/blob/issue1252/resource_views/wgpu/mrt-wgpu.c):
+Example from the [wgpu/mrt_wgpu.c sample](https://github.com/floooh/sokol-samples/blob/master/wgpu/mrt-wgpu.c):
 
 ```c
 sg_shader fsq_shd = sg_make_shader(&(sg_shader_desc){
