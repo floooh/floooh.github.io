@@ -674,7 +674,7 @@ a D3D12 backend would require adding view objects for vertex- and index-buffers,
 since D3D12 has removed the ability to bind vertex- and index-buffers directly
 with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).~~
 
-Nvm, I was wrong here, D3D12 just uses the name 'view' both for transient
+**Update:** Nvm, I was wrong here, D3D12 just uses the name 'view' both for transient
 structs and for baked objects, and `D3D12_VERTEX_BUFFER_VIEW` and `D3D12_INDEX_BUFFER_VIEW` are such a transient struct. Thanks to '@lessa@mastodon.gamedev.place` for making me aware of my misconception!
 
 
