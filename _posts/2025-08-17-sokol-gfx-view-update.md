@@ -137,7 +137,7 @@ For more details about planned 'update 2' features see:
     - `wgpu_texture_view`
 - in `sg_shader_desc`:
     - the internals of the `sg_shader_desc` struct to describe the shader
-    binding interface has been changed to a unified array of `sg_shader_view_desc`
+    binding interface has been changed to a unified array of `sg_shader_view`
     structs:
         ```c
         typedef struct sg_shader_desc {
