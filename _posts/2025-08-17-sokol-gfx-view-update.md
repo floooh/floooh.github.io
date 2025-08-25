@@ -669,10 +669,14 @@ some rendering scenarios (like writing a renderer backend for Dear ImGui) heavil
 depend on dynamic offsets for vertex- and index-data.
 
 I might come back to that idea once additional drawing functions with base-offsets
-are added (which is planned for the 'not-too-distant future'). Also adding
+are added (which is planned for the 'not-too-distant future'). ~~Also adding
 a D3D12 backend would require adding view objects for vertex- and index-buffers,
 since D3D12 has removed the ability to bind vertex- and index-buffers directly
-with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).
+with a dynamic offset (at least that's what I'm seeing in the D3D12 docs).~~
+
+Nvm, I was wrong here, D3D12 just uses the name 'view' both for transient
+structs and for baked objects, and `D3D12_VERTEX_BUFFER_VIEW` and `D3D12_INDEX_BUFFER_VIEW` are such a transient struct. Thanks to '@lessa@mastodon.gamedev.place` for making me aware of my misconception!
+
 
 ### Why no 'texture' field in sg_image_usage to indicate that texture views may be created for an image object?
 
