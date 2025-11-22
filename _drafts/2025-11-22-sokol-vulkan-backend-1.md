@@ -68,17 +68,17 @@ the sokol-gfx backend makes use of the following 'modern' features:
   calls instead of being baked into render-pass objects) - e.g. pretty much
   a copy of the Metal render pass model. This is a perfect match for
   sokol-gfx sg_begin_pass()/sg_end_pass()
-- 'synchronization2' (not a drastic change from the original barrier model,
-  I'm just listing it here for completeness)
 - `EXT_descriptor_buffer` - this is a controversial choice, but it's a perfect
-  match for the sokol-gfx binding model and I really did not want to deal
-  with the traditional Vulkan descriptor API (which is an overengineered boondoggle
+  match for the sokol-gfx resource binding model and I really did not want to deal
+  with the traditional rigid Vulkan descriptor API (which is an overengineered boondoggle
   if I've ever seen one). This is also the main reason on why Android had to be left out
   for now, and apparently descriptor buffers are also a poor match for NVIDIA
   GPUs. The plan here is to wait until Khronos completes work on a
-  descriptor pool replacement which AFAIK is a mix of descriptor buffers and
+  descriptor pool replacement which AFAIK will be a mix of descriptor buffers and
   D3D12-style descriptor heaps and then port the `EXT_descriptor_buffer` code
   over to that new resource binding API.
+- 'synchronization2' (not a drastic change from the original barrier model,
+  I'm just listing it here for completeness)
 
 Also to get that out of the way: I still don't think that Vulkan is a
 well-designed 3D-API, it doesn't feel like a 'designed' API at all, but rather like
@@ -89,22 +89,23 @@ OpenGL (with the difference that it took Vulkan only a decade to reach that stat
 
 IMHO it would be better if instead of Vulkan 1.4 we'd be at Vulkan 4.0 now, with
 the assumption that each major version is breaking backward compatibility
-(similar to how D3D versioning worked before D3D12 - btw, where's D3D13 and
-D3D14 Microsoft?!?! - they're both long overdue!). Such major breaking versions
-with removal of deprecated cruft, extensions that had been merged into the core
-API and support for outdated GPUs would make it *much* easier to work with
-Vulkan if you hadn't followed it's development closely since 1.0 (which is the
-exact same problem that OpenGL suffers from).
+(similar to how D3D versioning worked before D3D12 - btw, where's D3D13 and with
+removal of deprecated cruft, extensions that had been merged into the core D3D14
+Microsoft - they're both long overdue!). Such major breaking API versions which
+remove extensions that had been incorporated into the core API and also remove
+support for API features that appease outdated GPU architectures would make it
+*much* easier to work with Vulkan for somebody who hasn't closely followed
+each API change since 2016 (which is the exact same problem that OpenGL suffers from).
 
 For example, the Vulkan implementation on my laptop currently exposes 177(!)
 extensions, many of those are redundant because they had been incorporated into
 the core API in minor Vulkan versions. I really don't understand why such
 'redundant' extensions are listed when I'm specifically asking for a specific
 version of the Vulkan API anyway - and the same should be true for API features
-and types. For instance why does the Vulkan header expose synchronization1
+and type declarations. For instance why does the Vulkan header expose synchronization1
 structs and function prototypes when I'm using synchronization2? At the least
 let me define the intended Vulkan API version before including `<vulkan.h>` and
-don't include the deprecated cruft from older API versions. Such 'minor version
+don't include the deprecated cruft from older API versions. Such 'version
 scoping' would immediately improve the developer experience dramatically without
 having to change the entire versioning philosophy.
 
@@ -124,17 +125,17 @@ to implement slightly different code paths depending on the underlying GPU
 feature set - and once we're there, what's even the point of a common
 'standard API'? IMHO Vulkan should just be honest and mark API features with a
 GPU vendor 'nutrition score' - there's a shitton of 'best practices' posts by
-GPU vendors which describe the best Vulkan code paths on a specific GPU architecture,
+GPU vendors which describe the best Vulkan code paths on their specific GPU architecture,
 but this should really be centralized in the specification. And even if the result
 is a handful completely different sub-APIs for resource binding, so be it - at least then
 it would be easier to pick one instead of having to rely on hear-say which
-extensions or API features provide the best performnace on a specific GPU
-architecture.
+extensions or API features provide the best performance on a specific GPU
+architecture but are a bad choice on another specific GPU architecture.
 
 I think all of the above is a 'Khronos organization syndrome', and in hindsight
 it was foolish to expect that an OpenGL successor could somehow escape the same
-fate as OpenGL. OpenGL didn't start as a bad 3D API, it only become one after
-decades of slow and deliberate work of the Khronos group ;)
+fate as OpenGL. OpenGL didn't start as a bad 3D API, it only became one after
+decades of deliberate work of the Khronos group ;)
 
 There *are* some notable improvements over OpenGL though: everything is
 better documented, the official sample code is in much better shape, and the
@@ -142,9 +143,10 @@ validation layer is very detailed and synchronized with the specification (e.g.
 each validation layer message has a unique id which I can look up in the
 specification - the specification itself is also more 'human readable' than the
 OpenGL spec). As a result, writing code for the Vulkan API is much less
-trial-and-error than writing code for OpenGL (the level of tediousness is about
-the same - it's not like OpenGL is much less verbose than Vulkan - the line count
-of the sokol-gfx OpenGL backend is about the same as the Vulkan backend).
+trial-and-error than writing code for OpenGL. The level of tediousness is about
+the same though - it's not like OpenGL is much less verbose than Vulkan - the line count
+of the sokol-gfx OpenGL backend is about the same as the Vulkan backend, and both
+are about 1/3 bigger than the other backends.
 
 At least there's also a silver lining on the horizon though, but let's see if
 anything of that comes to frution (e.g. fundamental API changes instead of
