@@ -1070,7 +1070,7 @@ and shouldn't go into the core API, because just promoting random vendor
 extensions into core is really not a good way to build an API (and that was
 clear since OpenGL - and the **one** thing that Vulkan should have done better).
 
-Also, a low-level and efficient API **DOES NOT HAVE TO BE** a hassle to use.
+Also, a low-level and explicit API **DOES NOT HAVE TO BE** a hassle to use.
 
 Somehow modern software systems always seem be built around the 'no pain, no
 gain' philosophy (see Rust, Vulkan, Wayland, ...), this sort of self-inflicted
