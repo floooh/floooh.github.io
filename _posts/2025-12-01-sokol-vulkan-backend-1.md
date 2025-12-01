@@ -786,7 +786,7 @@ different compromises:
   small staging buffer (default size: 4 MB), with the downside that the Vulkan
   queue needs to be flushed (e.g. a `vkQueueWaitIdle()` is involved)
 - the 'stream-staging-system' can upload a limited amount of data per-frame
-  through a fixed-size double-buffer staging buffer (default size: 16 MB -
+  through a fixed-size double-buffered staging buffer (default size: 16 MB -
   but this can be tweaked in the `sg_setup()` call of course), this doesn't cause
   any frame-pacing 'disruptions' like the copy-staging-system does
 
