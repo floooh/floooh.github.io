@@ -487,13 +487,13 @@ internal function `_sg_vk_mem_alloc_device_memory()` which takes a 'memory type'
 enum and a `VkMemoryRequirements` pointer as input. The memory type enum is
 sokol-gfx specific and includes:
 
-- a storage buffer (an sg_buffer object with storage buffer usage)
-- a generic buffer (all other sg_buffer types)
-- an image (all usages)
-- an internal staging buffer for the 'copy-staging system'
-- an internal staging buffer for the 'stream-staging system'
-- an internal uniform buffer
-- an internal descriptor buffer
+- storage buffer (an sg_buffer object with storage buffer usage)
+- generic buffer (all other sg_buffer types)
+- image (all usages)
+- internal staging buffer for the 'copy-staging system'
+- internal staging buffer for the 'stream-staging system'
+- internal uniform buffer
+- internal descriptor buffer
 
 Currently all resources are either in 'device-local' memory, or in
 'host-visible + host-coherent' memory. Having the mapping from sokol-specific
