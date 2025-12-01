@@ -597,7 +597,7 @@ shader. Basically what shows up on the shader side whenever you see a
 
 In an ideal world, such a binding would simply be a 'GPU pointer' to some
 opaque struct living in GPU memory which describes to shader code how
-to access bytes in a storage buffer, pixels in an storage image, or how
+to access bytes in a storage buffer, pixels in a storage image, or how
 to perform a texture-sampling operation).
 
 In the real world it's not that simple because this is exactly the one main area
