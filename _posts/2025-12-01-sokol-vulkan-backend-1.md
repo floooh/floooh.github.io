@@ -938,7 +938,8 @@ In `sg_apply_bindings()` barriers are only inserted inside compute passes (becau
 of the above mentioned 'no barriers inside render passes' rule).
 
 In staging operations, barriers are issued at the start and end of the staging
-operation, the 'after-barrier' is not optimal and eventually needs to be fixed.
+operation, the 'after-barrier' is not great and eventually needs to be
+moved elsewhere.
 
 Now the tricky part: moving barriers out of render passes... there is one
 situation where this is relevant: a compute pass writes to a buffer or
