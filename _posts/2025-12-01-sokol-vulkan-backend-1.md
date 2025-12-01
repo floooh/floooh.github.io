@@ -620,7 +620,7 @@ through Vulkan descriptors, but through regular 'bindslot-setter' calls like in
 any other 3D API - go figure).
 
 A Vulkan **descriptor-set** is a group of such concrete bindings which can be
-applied as an atomic unit instead of applying each descriptor individually. In
+applied as an atomic unit instead of applying each binding individually. In
 the end the traditional Vulkan descriptor model isn't all that different from
 the 'old' bindslot model used in Metal V1 or D3D11, the one big and important
 difference is that bindings are not applied individually but as groups.
