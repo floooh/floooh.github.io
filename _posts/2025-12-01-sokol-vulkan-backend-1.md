@@ -379,10 +379,10 @@ That's all there is to the Vulkan backend in sokol_app.h, on to sokol_gfx.h!
 
 ## sokol_gfx.h changes
 
-For the most part, the actual mapping of the sokol-gfx functions to Vulkan
-API function is very straightforward, e.g. the sokol-gfx API matches
-surprisingly well to the Vulkan API. This is mainly thanks to using a couple
-of modern Vulkan features and extensions:
+For the most part, the actual mapping of the sokol-gfx functions to Vulkan API
+function is very straightforward, e.g. the sokol-gfx API functions map
+surprisingly well to Vulkan API function, often the mapping is 1:1. This is
+mainly thanks to using a couple of modern Vulkan features and extensions:
 
 - Dynamic rendering (e.g. `vkBeginRendering()/vkEndRendering()`) is a perfect match
   to sokol-gfx `sg_begin_pass()/sg_end_pass()`, this is not very surprising though
