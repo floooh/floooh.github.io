@@ -22,7 +22,7 @@ The currently known limitiations are:
 
 - the entire code expects a 'desktop GPU feature set' and doesn't implement
   fallback paths for mobile or generally ancient GPUs
-- the window system glue in sokol_app.h is only implemented for Linux/X11
+- the window system glue in sokol_app.h is only implemented for Linux/X11 - and before the question comes up again: it works just fine on Wayland-only distros
 - only tested on an Intel Meteor Lake integrated GPU (which also means
   that some buffer types may be allocated in memory types that are not
   optimal on GPUs without unified memory)
