@@ -835,7 +835,7 @@ The common part in both staging systems is how the actual upload happens:
   system uses double-buffering)
 - a staging operation first memcpy's a chunk of memory into the staging
   buffer and then records a Vulkan command to copy that data from the
-  staging buffer into a Vulkan buffer or image (via `vkCmdCopyBuffer` or
+  staging buffer into a Vulkan buffer or image (via `vkCmdCopyBuffer()` or
   `vkCmdCopyBufferToImage2()`
 - in the stream-staging system each buffer update is always a single call
   to `vkCmdCopyBuffer()` and each image update is always one call to
