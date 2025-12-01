@@ -647,7 +647,7 @@ Ok, back to Vulkan's resource binding lingo:
 A Vulkan **descriptor-set-layout** is the *shape* of a descriptor-set.
 It basically says 'there will be a sampled texture at binding 0, a buffer at
 binding 1 and a sampler at binding 2', but not the concrete texture, buffer or
-sampler objects.
+sampler objects (those are referenced in the concrete **descriptor-sets**).
 
 And finally a Vulkan **pipeline-layout** groups all descriptor-set-layouts required
 by a the shaders of a Vulkan pipeline-state-object.
