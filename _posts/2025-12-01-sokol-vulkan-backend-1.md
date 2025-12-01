@@ -60,12 +60,12 @@ It's *not* mainly about performance, but about 'future potential' and OpenGL
 rot. Essentially, the Vulkan backend is the first step towards deprecating the
 OpenGL backend (first, an alternative to WebGL2 had to happen - which exists now
 with WebGPU, and next an alternative for OpenGL on Linux (and less important:
-Android) had to be implemented (which is the Vulkan backend), because Linux and
-Android are the only two target platforms which are currently limited to a
-single 3D API: OpenGL. All other target platforms already have a more modern
-alternative (Windows with D3D11 and macOS/iOS with Metal). Deprecating the
-OpenGL backend won't happen for a while, but personally I can't wait to free
-sokol-gfx from the 'shackles of OpenGL' ;)
+Android) had to be implemented (which is the Vulkan backend). So far Linux and
+Android were the only sokol-gfx target platforms limited to a single backend: OpenGL.
+All other target platforms already have a more modern alternative (Windows with
+D3D11 and macOS/iOS with Metal). Deprecating the OpenGL backend won't happen for
+a while, but personally I can't wait to free sokol-gfx from the 'shackles of
+OpenGL' ;)
 
 Also another reason why I felt that now is the right time to tackle Vulkan support
 is that the Vulkan API has improved quite a bit since 1.0 in ways that make it a much
