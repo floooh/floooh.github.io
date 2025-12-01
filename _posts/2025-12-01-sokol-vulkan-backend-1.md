@@ -650,7 +650,7 @@ binding 1 and a sampler at binding 2', but not the concrete texture, buffer or
 sampler objects (those are referenced in the concrete **descriptor-sets**).
 
 And finally a Vulkan **pipeline-layout** groups all descriptor-set-layouts required
-by a the shaders of a Vulkan pipeline-state-object.
+by the shader stages of a Vulkan pipeline-state-object.
 
 When coming from WebGPU this should all sound quite familiar since the
 WebGPU bindgroups model is essentially the Vulkan 1.0 descriptor model
