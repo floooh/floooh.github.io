@@ -399,7 +399,7 @@ system, but let's not get ahead of ourselves.
 Apart from the straight mapping of sokol-gfx API calls to Vulkan-API calls, the
 Vulkan backend has to implement a couple of low-level subsystems. This isn't
 all that unusual, other backends also have such subsystems, but the Vulkan
-backend definitely has the most 'subsystem code'.
+backend definitely is the most 'subsystem heavy'.
 
 OTH some concepts of modern Vulkan are quite similar to WebGPU, Metal and even
 D3D11 - and this conceptual overlap significantly simplified the Vulkan
