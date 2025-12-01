@@ -464,7 +464,7 @@ processing any command buffers which might hold references to those objects.
 ### The GPU Memory Allocation System
 
 Currently GPU allocations do *not* go through a custom allocator, instead
-all granular allocation directly call into `vkAllocateMemory()`. Originally
+all granular allocations directly call into `vkAllocateMemory()`. Originally
 I had intended to use SebAaltonen's [OffsetAllocator](https://github.com/sebbbi/OffsetAllocator)
 as the default GPU allocator, but also expose an allocator interface to allow
 users to hook in more comlex allocators like [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator).
