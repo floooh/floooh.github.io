@@ -513,7 +513,7 @@ This single `CPU <=> GPU` sync point is implemented in a function
 `_sg_vk_acquire_frame_command_buffers()`.  The name indicates the main feature
 of that function: it acquires command buffers to record the Vulkan commands of
 the current frame. Command buffers are reused, so this involves waiting for the
-commands buffers to become available (e.g. they are no longer read from by the
+command buffers to become available (e.g. they are no longer read from by the
 GPU). "Command buffers" is plural because there are two command buffers per frame:
 one which records all staging-commands, and one for the actual compute/render
 commands - more on that later in the staging system section.
