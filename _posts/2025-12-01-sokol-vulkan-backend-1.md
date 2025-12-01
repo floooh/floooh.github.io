@@ -764,7 +764,7 @@ the sokol-gfx view or sampler object via `vkGetDescriptorEXT()`.
 Then `sg_apply_bindings()` is just a couple of memcpy's and a Vulkan call:
 
 - for each view and sampler in the `sg_bindings` argument, a memcpy of the
-  descriptor memory blob which was stored in the sokol-gfx view object
+  descriptor memory blob which was stored in the sokol-gfx object
   into the current frame's descriptor buffer happens - e.g. no
   Vulkan calls for that...
 - finally a single call to `vkCmdSetDescriptorBufferOffsetsEXT()` records
