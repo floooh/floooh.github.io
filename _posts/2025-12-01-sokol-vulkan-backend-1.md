@@ -1013,7 +1013,7 @@ The next steps will most likely be:
 - expose a GPU memory allocator interface, and add a sample which hooks up VMA
 - ...maaaybe integrate SebAaltonen's OffsetAllocator as default allocator
   (still not clear if I need that when all modern Vulkan drivers no longer
-  seem to have that infamouse 4096 unique allocations limit)
+  seem to have that infamous 4096 unique allocations limit)
 - tinker around with GPU memory heap types for uniform- and descriptor-buffers
   on GPUs without unified memory (e.g. host-visible + device-local)
 - figure out why exactly RenderDoc doesn't work (apparently it's because
