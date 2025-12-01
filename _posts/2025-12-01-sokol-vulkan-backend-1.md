@@ -467,7 +467,7 @@ Currently GPU allocations do *not* go through a custom allocator, instead
 all granular allocations directly call into `vkAllocateMemory()`. Originally
 I had intended to use SebAaltonen's [OffsetAllocator](https://github.com/sebbbi/OffsetAllocator)
 as the default GPU allocator, but also expose an allocator interface to allow
-users to hook in more comlex allocators like [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator).
+users to hook in more complex allocators like [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator).
 
 Historically a custom allocator was pretty much required because some Vulkan
 drivers only allowed 4096 unique GPU allocations. Today though it looks
