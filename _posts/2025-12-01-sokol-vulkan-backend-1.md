@@ -9,7 +9,7 @@ only received limited testing, has limited platform coverage and some
 known shortcomings and feature gaps which I will address in followup
 updates.
 
-The related PRs are here (without the language bindinds update):
+The related PRs are here:
 
 - [sokol/#1350](https://github.com/floooh/sokol/pull/1350) - this one also
   has all the embedded shaders for the sokol 'utility headers', so it looks much
