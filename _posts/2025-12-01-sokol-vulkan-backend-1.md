@@ -334,7 +334,7 @@ I'll take care of later:
   depend on the system to scale a smaller framebuffer to the window client
   rectangle when needed.
 
-The main area where I struggled with in the sokol-app Vulkan backend was
+The main area I struggled with in the sokol-app Vulkan backend was
 swapchain resizing. Most sokol-app backends kick off any swapchain
 resize operation from the window system's resize event, e.g.:
 
