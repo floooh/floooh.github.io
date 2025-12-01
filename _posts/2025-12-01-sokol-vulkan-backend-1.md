@@ -187,8 +187,7 @@ A new enum `sapp_pixel_format` has been introduced which will play a bigger
 role in the future to allow more configuration options for the sokol-app swapchain.
 
 A ton of backend-specific functions to query backend-specific objects have been
-merged to better harmonize with sokol-gfx, e.g. the following functions to
-obtain backend-specific 3D API objects have been removed:
+merged to better harmonize with sokol-gfx:
 
 ```c
 const void* sapp_metal_get_device(void);
@@ -207,7 +206,7 @@ const void* sapp_wgpu_get_depth_stencil_view(void);
 uint32_t sapp_gl_get_framebuffer(void);
 ```
 
-...and replaced with two new functions:
+...those have been merged into:
 
 ```c
 sapp_environment sapp_get_environment(void);
