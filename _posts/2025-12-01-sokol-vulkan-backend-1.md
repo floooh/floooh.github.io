@@ -540,8 +540,8 @@ API which may require the CPU to wait for the GPU.
 The `_sg_vk_acquire_frame_command_buffers()` function does a couple more things
 after `vkWaitForFences()` returns:
 
-- first it checks if the function had already been called in the current frame,
-  if yes it returns immediately
+- first (actually before the `vkWaitForFences()` call) it checks if the function
+  had already been called in the current frame, if yes it returns immediately
 - `vkResetFences()` is called on the fence we just waited on
 - the delete-queue is drained (e.g. all resources which were recorded for
   destruction in the frame-context we just waited on are finally destroyed)
