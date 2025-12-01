@@ -388,7 +388,7 @@ mainly thanks to using a couple of modern Vulkan features and extensions:
   for sokol-gfx `sg_begin_pass()/sg_end_pass()`, this is not very surprising though
   because the dynamic rendering Vulkan API is basically a 'de-OOP-ed' version of the Metal
   render pass API.
-- `EXT_descriptor_buffers` is an absolutely perfect match to sokol-gfx's
+- `EXT_descriptor_buffers` is an absolutely perfect match for sokol-gfx's
   `sg_apply_bindings()` call, and a 'pretty good' match for `sg_apply_uniforms()`
 
 The main areas for future improvements are the barrier system and the staging
