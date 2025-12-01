@@ -525,7 +525,7 @@ So the first and most important thing the `_sg_vk_acquire_frame_command_buffers(
 does is to wait for the fence of the oldest frame-context with a call to `vkWaitForFences()`.
 
 This potential-wait-operation is the reason why sokol-gfx applications should move
-sokol-gfx code towards the end of the frame callback and try to do all
+sokol-gfx calls towards the end of the frame callback and try to do all
 heavy non-rendering-related CPU work at the start of the frame callback.
 More specifically calls to:
 
