@@ -9,18 +9,27 @@ only received limited testing, has limited platform coverage and some
 known shortcomings and feature gaps which I will address in followup
 updates.
 
+The related PRs are here (without the language bindinds update):
+
+- [sokol/#1350](https://github.com/floooh/sokol/pull/1350) - this one also
+  has all the embedded shaders for the sokol 'utility headers', so it looks much
+  bigger than it actually is (the sokol-gfx backend is around the same size as
+  the GL backend, a bit over 3 kloc)
+- [sokol-tools/#196](https://github.com/floooh/sokol-tools/pull/196) - this
+  is the update for the shader compiler which is already merged
+
 The currently known limitiations are:
 
 - the entire code expects a 'desktop GPU feature set' and doesn't implement
-  fallback paths for mobile GPUs
+  fallback paths for mobile or generally ancient GPUs
 - the window system glue in sokol_app.h is only implemented for Linux/X11
 - only tested on an Intel Meteor Lake integrated GPU (which also means
   that some buffer types may be allocated in memory types that are not
   optimal on GPUs without unified memory)
-- barriers for CPU => GPU updates are currently quite pessimistic
+- barriers for CPU => GPU updates are currently quite conservative
   (e.g. more barriers might be inserted than needed, or at a too
   early point in a frame)
-- there's currently no GPU memory allocator, nor a way to hook in
+- there's currently no GPU memory allocator, nor a way to inject
   an external GPU memory allocator like VMA (at least the latter is planned)
 - rendering is currently only supported to a single swapchain
   (not a problem when used with sokol_app.h because that also only
@@ -28,8 +37,7 @@ The currently known limitiations are:
 - it's currently not possible to inject native Vulkan buffers and images
   into sokol-gfx (that's a somewhat esoteric feature supported by
   the other backends)
-- I couldn't get RenderDoc to work, but it's unclear why (more details
-  on that later)
+- I couldn't get RenderDoc to work, but it's unclear why
 
 On the upside:
 
@@ -50,21 +58,21 @@ It's also important to understand what actually motivated the Vulkan backend
 
 It's *not* mainly about performance, but about 'future potential' and OpenGL
 rot. Essentially, the Vulkan backend is the first step towards deprecating the
-OpenGL backend (first, an alternative to WebGL2 had to happen - which
-exists now with WebGPU, and next an alternative for OpenGL on Linux (and less
-important: Android) had to be found, because Linux and Android are the only two
-target platforms which are currently limited to a single 3D API: OpenGL.
-All other target platforms already have a more modern alternative
-(Windows with D3D11 and macOS/iOS with Metal). Deprecating the OpenGL backend
-won't happen for a while, but personally I can't wait to free sokol-gfx from the
-'shackles of OpenGL' ;)
+OpenGL backend (first, an alternative to WebGL2 had to happen - which exists now
+with WebGPU, and next an alternative for OpenGL on Linux (and less important:
+Android) had to be implemented (which is the Vulkan backend), because Linux and
+Android are the only two target platforms which are currently limited to a
+single 3D API: OpenGL. All other target platforms already have a more modern
+alternative (Windows with D3D11 and macOS/iOS with Metal). Deprecating the
+OpenGL backend won't happen for a while, but personally I can't wait to free
+sokol-gfx from the 'shackles of OpenGL' ;)
 
 Also another reason why I felt that now is the right time to tackle Vulkan support
 is that the Vulkan API has improved quite a bit since 1.0 in ways that make it a much
-better fit for sokol-gfx, in a nutshell (if you already know Vulkan concepts),
-the sokol-gfx backend makes use of the following 'modern' features:
+better fit for sokol-gfx. In a nutshell (if you already know Vulkan concepts),
+the sokol-gfx backend makes use of the following 'modern' Vulkan features:
 
-- 'dynamic rendering' (e.g. render passes are demarcated by begin/end
+- 'dynamic rendering' (e.g. render passes are enclosed by begin/end
   calls instead of being baked into render-pass objects) - e.g. pretty much
   a copy of the Metal render pass model. This is a perfect match for
   sokol-gfx sg_begin_pass()/sg_end_pass()
@@ -283,11 +291,12 @@ initialization dance):
       for the swapchain images, depth-stencil-buffer
       and optional MSAA surface
 - Finally a couple of VkSemaphore objects are created for each
-  stage in the 'swapchain-pipeline':
+  swapchain image (the number of swapchain images is essentially
+  dictated by the Vulkan driver):
     - one `render_finished_semaphore` which signals that the GPU
       has finished rendering to a swapchain surface
     - one `present_complete_semaphore` which signals that presenting
-      a swapchain surface has completed and is ready for reuse
+      a swapchain image has completed and the image ready for reuse
 
 At this point, the Vulkan specific code in sokol_app.h is at about 600
 lines of code, which is a lot of boilerplate, but OTH is a lot less messy
@@ -331,10 +340,10 @@ swapchain resizing. Most sokol-app backends kick off any swapchain
 resize operation from the window system's resize event, e.g.:
 
 - window is resized by user
-- system resize event fires giving the new window size
+- window system resize event fires giving the new window size
 - sokol-app listens for the window system resize event and initiates
   a swapchain resize with the new size coming from the window system
-  event, the stores the new size for sapp_width/height() and finally
+  event, then stores the new size for sapp_width/height() and finally
   fires an `SAPP_EVENTTYPE_RESIZED` event
 
 This doesn't work on the Vulkan backend, the validation layer would sometimes
@@ -348,7 +357,7 @@ out of the loop and let the Vulkan swapchain take full control of the resize
 process:
 
 - window is resized by user
-- system resize event fires, but is now ignored by sokol-app
+- window system resize event fires, but is now ignored by sokol-app
 - the next time `vkQueuePresentKHR()` is called it returns with an error code
   and this triggers a swapchain-resource resize, with the size coming from
   the Vulkan surface object instead of the window system, finally an
@@ -364,8 +373,8 @@ minor artefacts during resizing: sometimes there's a visible gap between the
 Vulkan surface and window border, and the frame rate gets slighly out of whack
 during resize. In comparison, on macOS rendering with Metal during window resize
 is buttery smooth and without resize-jitter or border-gaps (although tbf,
-removing the resize-jitter on macOS had to be implemented by anchoring the
-NSView object to a window border).
+removing the resize-jitter on macOS had to be explicitly implemented by
+anchoring the NSView object to a window border).
 
 That's all there is to the Vulkan backend in sokol_app.h, on to sokol_gfx.h!
 
@@ -397,7 +406,7 @@ OTH some concepts of modern Vulkan are quite similar to WebGPU, Metal and even
 D3D11 - and this conceptual overlap significantly simplified the Vulkan
 backend implementation.
 
-In one area the Vulkan backend has even more straightforward implementations than
+In some areas the Vulkan backend has even more straightforward implementations than
 some of the other backends, for instance the implementation of the resource binding
 call `sg_apply_bindings` in the Vulkan backend is one of the most straightforward
 of all backends and especially compared to the WebGPU backend. In Vulkan it's
@@ -405,11 +414,11 @@ literally just a bunch of memcpy's followed by a single Vulkan API call to
 record an offset into the descriptor buffer (ok, it's actually a bit more
 complicated because of the barrier system). Compared to that, the WebGPU backend
 needs to use a 'hash-and-cache' approach for baked BindGroup objects, e.g.
-calling `sg_apply_bindings()` may involve creating and destroying API objects.
+calling `sg_apply_bindings()` may involve creating and destroying WebGPU objects.
 
 The low-level subsystems in the sokol-gfx Vulkan backend are:
 
-- a 'delete queue' system for delayed resource destruction
+- a 'delete queue' system for delayed Vulkan object destruction
 - the GPU memory allocation system (very rudimentary at the moment)
 - the frame-sync system (e.g. ensuring that the CPU and GPU can work
   in parallel in typical render frames)
@@ -432,25 +441,26 @@ ensues.
 
 IMHO this is much better than any automatic lifetime management system, because
 it avoids any confusion about reference counts (e.g. questions like: when I call
-this function to get a object, will that bump the refcount or not?), but this
-means that a Vulkan backend needs to implement some sort of of garbage collection
-on its own.
+this function to get an object reference, will that bump the refcount or not?),
+but this means that a Vulkan backend needs to implement some sort of of garbage
+collection on its own.
 
 Sokol-gfx uses a double-buffered delete-queue system for this. Each
 'double-buffer-frame-context' owns a delete queue which is a simple fixed-size
 array of pointer-pairs. Each queue item consists of:
 
-- one type-erased Vulkan object pointer (e.g. a simple void*)
+- one type-erased Vulkan object pointer (e.g. a void-pointer)
 - a function pointer for a destructor function which takes a
   void* as argument and knows how to destroy that Vulkan object
 
-All Vulkan objects types which may be referenced in command buffers will
-not call their `vkDestroy*()` functions directly, but instead add them
-to the delete-queue that's associated with the currently recording command
-buffer. At the start of a new frame (what 'new frame' actually means is
-explained down in the 'frame-sync system'), the delete-queue for that
-frame-context is drained by calling the destructor function with the
-Vulkan objec pointer of a queue item.
+All Vulkan objects types which may be referenced in command buffers will not
+call their `vkDestroy*()` functions directly, but instead add them to the
+delete-queue that's associated with the currently recorded command buffer. At
+the start of a new frame (what 'new frame' actually means is explained down in
+the 'frame-sync system'), the delete-queue for that frame-context is drained by
+calling the destructor function with the Vulkan object pointer of a queue item.
+This makes sure that any Vulkan objects are kept alive until the GPU has finished
+processing any command buffers which might hold references to those objects.
 
 ### The GPU Memory Allocation System
 
@@ -458,28 +468,28 @@ Currently GPU allocations do *not* go through a custom allocator, instead
 all granular allocation directly call into `vkAllocateMemory()`. Originally
 I had intended to use SebAaltonen's [OffsetAllocator](https://github.com/sebbbi/OffsetAllocator)
 as the default GPU allocator, but also expose an allocator interface to allow
-users to hook in custom allocators like [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator).
+users to hook in more comlex allocators like [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator).
 
 Historically a custom allocator was pretty much required because some Vulkan
 drivers only allowed 4096 unique GPU allocations. Today though it looks
 like pretty much all (desktop) Vulkan drivers allow 4 billion allocations (at least
-according to the [Vulkan hardware database](https://vulkan.gpuinfo.org/).
+according to the [Vulkan hardware database](https://vulkan.gpuinfo.org/)).
 
-The plan is still to at least allow hooking up a custom GPU allocator via an
+The plan is still to at least allow injecting a custom GPU allocator via an
 allocator interface, and also maybe to integrate OffsetAllocator as default
 allocator, but without knowing the memory allocation strategy of Vulkan drivers
 this may be redundant. E.g. if a Vulkan driver essentially integrates something
 like VMA anyway there's not much point stacking another allocator on top of it,
-at least with a fairly high level API wrapper like sokol-gfx.
+at least for a fairly high level API wrapper like sokol-gfx.
 
 In any case, the current GPU memory allocation implementation is prepared for
-a bit more abstraction in the future. All GPU allocation go through a single
+a bit more abstraction in the future. All GPU allocations go through a single
 internal function `_sg_vk_mem_alloc_device_memory()` which takes a 'memory type'
 enum and a `VkMemoryRequirements` pointer as input. The memory type enum is
 sokol-gfx specific and includes:
 
-- storage buffer (an sg_buffer object with storage buffer usage)
-- generic buffer (all other sg_buffer types)
+- a storage buffer (an sg_buffer object with storage buffer usage)
+- a generic buffer (all other sg_buffer types)
 - an image (all usages)
 - an internal staging buffer for the 'copy-staging system'
 - an internal staging buffer for the 'stream-staging system'
@@ -495,27 +505,30 @@ flags in the future (or delegate that decision to an external memory allocator).
 
 The frame sync system is mainly concerned about letting the CPU and GPU work
 in parallel without stepping on each other's feet. This basically comes down
-to double-buffer all resources which are written by the CPU and read by the
+to double-buffering all resources which are written by the CPU and read by the
 GPU, and to have one sync-point in a sokol-gfx frame where the CPU needs to
 wait for the oldest 'frame-context' to become available (e.g. is no longer
-read by the GPU, i.e. is 'no longer in flight').
+'in flight').
 
 This single `CPU <=> GPU` sync point is implemented in a function
 `_sg_vk_acquire_frame_command_buffers()`.  The name indicates the main feature
 of that function: it acquires command buffers to record the Vulkan commands of
 the current frame. Command buffers are reused, so this involves waiting for the
 commands buffers to become available (e.g. they are no longer read from by the
-GPU).
+GPU). "Command buffers" is plural because there are two command buffers per frame:
+one which records all staging-commands, and one for the actual compute/render
+commands - more on that later in the staging system section.
 
 For this `CPU <=> GPU` synchronization, each double-buffered frame-context owns
-a `VkFence` which is signalled when the GPU is done processing a 'submit' (more on that later).
+a `VkFence` which is signalled when the GPU is done processing a 'queue submit'.
 
 So the first and most important thing the `_sg_vk_acquire_frame_command_buffers()` function
 does is to wait for the fence of the oldest frame-context with a call to `vkWaitForFences()`.
 
-This wait-operation is the reason why sokol-gfx applications should move any sokol-gfx
-towards the end of a frame and try do all the heavy CPU works before the first sokol-gfx
-call. Specifically calls to:
+This potential-wait-operation is the reason why sokol-gfx applications should move
+sokol-gfx code towards the end of the frame callback and try to do all
+heavy non-rendering-related CPU work at the start of the frame callback.
+More specifically calls to:
 
 - `sg_begin_pass()`
 - `sg_update_buffer()`
@@ -536,14 +549,14 @@ after `vkWaitForFences()` returns:
 - any command buffers associated with the new frame are reset via `vkResetCommandBuffer()`
 - ...and recording into those command buffers is started via `vkBeginCommandBuffer()`
 - additionally the other subsystems are informed because they might want to do their
-  own thing by calling:
+  own thing:
   - `_sg_vk_uniform_after_acquire()`
   - `_sg_vk_bind_after_acquire()`
   - `_sg_vk_staging_stream_after_acquire()`
 
 The other internal function of the frame-sync system is `_sg_vk_submit_frame_command_buffers()`.
-This is called at the end of a 'sokol-gfx frame' in `sg_commit()` call. The main job
-of this function is to call submit the recorded command buffers for the current frame
+This is called at the end of a 'sokol-gfx frame' in the `sg_commit()` call. The main job
+of this function is to submit the recorded command buffers for the current frame
 via `vkQueueSubmit()`. This submit operation uses the two semaphores we got handed
 from the outside world (e.g. sokol-app) as part of the swapchain information
 in `sg_begin_pass()`:
@@ -561,7 +574,7 @@ Before the `vkQueueSubmit()` call there's a bit more housekeeping happening:
     - `_sg_vk_bind_before_submit()`
     - `_sg_vk_uniform_before_submit()`
 - recording into the command buffers which are associated with the current
-  frame context are is finished via `vkEndCommandBuffers()`
+  frame context is finished via `vkEndCommandBuffers()`
 
 It's also important to note that there is one other potential `CPU <=> GPU`
 sync-point in a frame, and that's in the first `sg_begin_pass()` for a
@@ -570,7 +583,7 @@ swapchain render pass: the swapchain-info struct that's passed into
 `vkAcquireNextImageKHR()` (when using sokol_app.h this happens in the
 `sapp_get_swapchain()` call - usually indirectly via `sglue_swapchain()`).
 
-That is all for frame-sync system in sokol-gfx, all in all quite similar to
+That is all for the frame-sync system in sokol-gfx, all in all quite similar to
 Metal or WebGPU, just with more code bloat (as is the Vulkan way).
 
 ### Resource binding via EXT_descriptor_buffer
@@ -583,16 +596,16 @@ reference to a Vulkan buffer, image or sampler which needs to be accessible in a
 shader. Basically what shows up on the shader side whenever you see a
 `layout(binding=x) ...`. In sokol-gfx lingo this is called a 'binding'.
 
-In an ideal world, such a binding is simply a 'GPU pointer' to some
+In an ideal world, such a binding would simply be a 'GPU pointer' to some
 opaque struct living in GPU memory which describes to shader code how
 to access bytes in a storage buffer, pixels in an storage image, or how
 to perform a texture-sampling operation).
 
 In the real world it's not that simple because this is exactly the one main area
-where GPU architectures differ the most: on some GPUs this information is
+where GPU architectures still differ dramatically: on some GPUs this information might be
 hardwired into register tables and/or involves fixed-function features instead
-being just 'structs in GPU memory' - and unfortunately those differences are
-not limited shitty mobile GPUs, but are also still present in desktop GPUs.
+of being just 'structs in GPU memory' - and unfortunately those differences are
+not limited to shitty mobile GPUs, but are also still present in desktop GPUs.
 Intel, AMD and NVIDIA all have different opinions on how this whole resource binding
 thing should work - and I'm not sure anything has changed in the last decade
 since Vulkan promised us a more-or-less direct mapping to the underlying hardware.
@@ -611,11 +624,11 @@ A Vulkan **descriptor-set** is a group of such concrete bindings which can be
 applied as an atomic unit instead of applying each descriptor individually. In
 the end the traditional Vulkan descriptor model isn't all that different from
 the 'old' bindslot model used in Metal V1 or D3D11, the one big and important
-difference is that bindings are no longer applied individually but as groups.
+difference is that bindings are not applied individually but as groups.
 
-The downside of such a 'bind group model' is course that specific combinations
-may be unpredictable - which is the one big recurring topic in Vulkan (very slow)
-API evolution.
+The downside of such a 'bind group model' is of course that specific binding
+combinations may be unpredictable - which is the one big recurring topic in
+Vulkan's (very slow) API evolution.
 
 In 'old Vulkan' pretty much all state-combinations in all areas of the API need
 to be known upfront in order to move as much work as possible into the
@@ -624,28 +637,18 @@ but unfortunately only theoretically. In practice there are a lot of use cases
 where pre-baking everything is simply not possible, especially outside the game
 engine world, and even in gaming it doesn't quite work - whenever you see
 stuttering when something new appears on screen in modern games built on top of
-state-of-the-art engines calling into modern 3D APIs -that's the basic design
+state-of-the-art engines calling into modern 3D APIs - that's most likely the core design
 philosophy of Vulkan and D3D12 crashing and burning after colliding with
-reality.
+reality. Thankfully - but unfortunately very slowly - this is changing. Most of Vulkan's
+progress in the last decade was about rolling the core API back to a more 'dynamic'
+programming model.
 
-Thankfully - but unfortunately very slowly - this is changing. Most of Vulkan's
-progress in the last decade was about rolling the API back to a more dynamic
-programming model. But sometimes this is going too far. OpenGL's flat 'state soup'
-was equally bad, not necessarily for performance reason but because of robustness.
-In OpenGL it is very simple to mess up the internal state machine by accidentially
-leaking incorrect state from the last draw call or even the last frame.
+Ok, back to Vulkan's resource binding lingo:
 
-IMHO the ideal middle ground is small-ish immutable state objects like in D3D11
-or Metal. Immutability in small doses is actually a very good thing!
-
-...anyway, back to Vulkan descriptors...
-
-A Vulkan **descriptor-set-layout** is the *shape* of a descriptor-set, think of
-it as the descriptor-sets type which needs to be known upfront before any
-concrete descriptor-sets can exist. It basically says 'there will be a sampled
-texture at binding 0, a buffer at binding 1 and a sampler at binding 2', but not
-the concrete texture, buffer or sampler objects (those are recorded into a
-concrete descriptor-set).
+A Vulkan **descriptor-set-layout** is the *shape* of a descriptor-set.
+It basically says 'there will be a sampled texture at binding 0, a buffer at
+binding 1 and a sampler at binding 2', but not the concrete texture, buffer or
+sampler objects.
 
 And finally a Vulkan **pipeline-layout** groups all descriptor-set-layouts required
 by a the shaders of a Vulkan pipeline-state-object.
@@ -659,7 +662,7 @@ WebGPU bindgroups model is essentially the Vulkan 1.0 descriptor model
 - WebGPU BindGroupLayout maps to Vulkan descriptor set layouts
 - WebGPU PipelineLayout maps to Vulkan pipeline layouts
 
-Traditional Vulkan then adds descriptor pools on top of that but tbh I didn't
+'Old Vulkan' then adds descriptor pools on top of that but tbh I didn't
 even bother to deal with those and skipped right to `EXT_descriptor_buffer`.
 
 With the descriptor buffer extension, descriptors and descriptor sets are 'just
@@ -669,19 +672,22 @@ opaque memory blobs seem to be between 16 and 256 bytes per descriptor).
 
 Binding resources with `EXT_descriptor_buffers` essentially looks like this:
 
+In the init-phase:
 - create a descriptor buffer big enough to hold all descriptors needed in
   a worst-case frame
-- for all bindings in a descriptor-set-layout, ask Vulkan for the size and
-  relative offsets (to the start of the descriptors) and store those somewhere
+- for each item in a descriptor-set-layout, ask Vulkan for the descriptor size and
+  relative offset to the start of the descriptor-set data in the descriptor buffer
 - similar for all concrete descriptors, ask Vulkan to copy their opaque memory
-  representation into some memory location and keep those around for later
-- then during rendering, simply write descriptor sets by memcpy'ing the opaque
-  descriptor blobs into the descriptor buffer, using the offsets we also got
-  upfront
-- finally record the offset into the descriptor buffer into a Vulkan command
-  buffer - and that's it
+  representation into some private memory location and keep those around for the render
+  phase (of course it's also possible to move this step into the render phase)
 
-This is pretty much the same procedure how uniform data snippet updates are
+In the render-phase:
+- memcpy the concrete descriptor set blobs we stored upfront into
+  the descriptor buffer, using the offsets we also stored upfront
+- finally record the start offset in the descriptor buffer into a Vulkan command
+  buffer via a Vulkan API call, and that's it!
+
+This is pretty much the same procedure how uniform data updates are
 performed in the sokol-gfx Metal and WebGPU backends, now just extended to
 resource bindings.
 
@@ -689,38 +695,29 @@ E.g. TL;DR: both uniform data snippets and resource bindings are
 'just frame-transient data snippets' which are memcpy'ed into per-frame
 buffers and the buffer offsets recorded before the next draw- or dispatch-call.
 
-In sokol-gfx all Vulkan objects required for the resource binding system can be
-created upfront:
+In sokol-gfx, the VkDescriptorSetLayout and VkPipelineLayout objects are created
+in `sg_make_shader()` using the shader interface reflection information provided
+in `sg_shader_desc` arg (which is usually code-generated by the sokol-shdc
+shader compiler).
 
-- descriptor-set-layouts and pipeline-layouts are created in `sg_make_shader()`
-  using the shader interface reflection information in `sg_shader_desc`
-  (uniform block bindings live in descriptor set 0, and texture, storage buffer
-  storage image and sampler bindings live in descriptor set 1)
-- the `EXT_descriptor_buffer` specific descriptor sizes and offsets are also
-  queried and stored in `sg_make_shader()`
-- the per-descriptor opaque memory blobs are copied upfront into sokol-gfx
-  view objects during `sg_make_view()` (the only exception here are uniform
-  block descriptors because those have an unpredictable dynamic offset)
+- the first descriptor set layout (set 0) describes all uniform block bindings
+  used by the shader across all shader stages
+- the second descriptor set layout (set 1) describes all texture, storage buffer,
+  storage image and sampler bindings
 
-...so a 'resource binding' operation in the sokol-gfx Vulkan backend via
-the `EXT_descriptor_buffer` extension essentially comes down to:
-
-- copy a bunch of small-ish (16..256 bytes) memory blocks into the
-  current frame's descriptor buffer
-- call a Vulkan function to record an offset into the descriptor buffer
-  for the next draw- or dispatch-call
-
+...additionally, `sg_make_shader()` queries the descriptor sizes and offsets
+within their descriptor set (this is `EXT_descriptor_buffer` functionality).
 
 ### The uniform update system:
 
-Conceptually uniform updates in the Vulkan backned are similar to the Metal backend:
+Conceptually uniform updates in the Vulkan backend are similar to the Metal backend:
 
 - a double-buffered uniform buffer big enough to hold all uniform updates
   for a worst-case frame, allocated in host-visible memory (so that the memory
   is directly writable by the CPU and directly readable by the GPU)
 - a call to `sg_apply_uniforms()` memcpy's the uniform data snippet into the
   next free uniform buffer location (taking alignment requirements into account),
-  this can happen independently for up to 8 'uniform block slots'
+  this happens individually for the up to 8 'uniform block slots'
 - before the next draw- or dispatch-call, the offsets into the uniform buffer for the up to
   8 uniform block slots are recorded into the current command buffer
 
@@ -730,7 +727,8 @@ works on a single uniform block slot, but in Vulkan all uniform block slots are
 grouped into one descriptor set, and we only want to apply that descriptor-set
 at most once per draw/dispatch call.
 
-The actual `sg_apply_uniforms()` call is extremely cheap:
+The actual `sg_apply_uniforms()` call is extremely cheap since no Vulkan API
+calls are performed:
 
 - a simple memcpy of the uniform data snippet into the per-frame uniform buffer
 - writing the 'GPU buffer address' and snippet size into a cached
@@ -746,106 +744,341 @@ is set the actual uniform block descriptor set binding happens:
 - the start offset of the descriptor-set in the descriptor buffer is recorded
   into the current frame command buffer via `vkCmdSetDescriptorBufferOffsetsEXT()`
 
-...delaying the binding operation for uniform data into the draw- or dispatch-call
-to avoid redundant calls is actually something that I'll also do in the WebGPU
-backend (I was taking notes while implementing the Vulkan backend which improvements
-could be back-ported to the WebGPU backend, and I'll take care of those
-right after the Vulkan backend is merged).
+...delaying the operation to record the uniform buffer offsets into the draw- or
+dispatch-call to avoid redundant API calls is actually something that I will also
+need to implement in the WebGPU backend (I was taking notes while implementing
+the Vulkan backend which improvements could be back-ported to the WebGPU
+backend, and I'll take care of those right after the Vulkan backend is merged).
 
 ### The resource binding system
 
-(TODO)
+Updating resource bindings via `sg_apply_bindings()` is very similar to the
+uniform update system, but actually even simpler because no extra uniform buffer
+is involved, and some more initialization can be moved into the init-phase when
+creating view objects:
 
+When creating a texture-, storage-buffer- or storage-image-view object via
+`sg_make_view()` or a sampler object via `sg_make_sampler)`, the concrete
+descriptor data (those little 16..256 byte opaque memory blobs) is copied into
+the sokol-gfx view object via `vkGetDescriptorEXT()`.
 
-### The copy-staging system
+Then `sg_apply_bindings()` is just a couple of memcpy's and a Vulkan call:
 
-(TODO)
+- for each view and sampler in the `sg_bindings` argument, a memcpy of the
+  descriptor memory blob which was stored in the sokol-gfx view object
+  into the current frame's descriptor buffer happens - e.g. no
+  Vulkan calls for that...
+- finally a single call to `vkCmdSetDescriptorBufferOffsetsEXT()` records
+  the descriptor buffer offset into the current frame's command buffer
 
-### The stream-staging system
+Vertex- and index-buffer bindings happen via traditional bindslot calls
+(`vkCmdBindVertexBuffers` and `vkCmdBindIndexBuffer`). Additionally,
+barriers may be inserted inside `sg_apply_bindings()` but that will be explained
+further down in the barrier system.
 
-(TODO)
+### The two staging systems
+
+Sokol-gfx currently has two separate staging systems for uploading CPU-side
+data into GPU-memory with the rather arbitrary names 'copy-staging-system' and
+'stream-staging-system'. Both can upload data into buffers and images, but with
+different compromises:
+
+- the 'copy-staging-system' can upload large amounts of data through a single
+  small staging buffer (default size: 4 MB), with the downside that the Vulkan
+  queue needs to be flushed (e.g. a `vkQueueWaitIdle()` is involved)
+- the 'stream-staging-system' can upload a limited amount of data per-frame
+  through a fixed-size double-buffer staging buffer (default size: 16 MB -
+  but this can be tweaked in the `sg_setup()` call of course), this doesn't cause
+  any frame-pacing 'disruptions' like the copy-staging-system does
+
+The copy-staging-system is currently used:
+
+1. to upload initial content into immutable buffers and images within
+   `sg_make_buffer()` and `sg_make_image()`
+2. to upload data into `usage.dynamic_update` images and buffers
+   in the `sg_update_buffer()`, `sg_append_buffer()` and `sg_update_image()` calls
+
+The stream-staging system is only used for `usage.stream_update` resources
+when calling `sg_update_buffer()`, `sg_append_buffer()` and `sg_update_image()`.
+
+This means that the correct choice of `usage.dynamic_update` and
+`usage.stream_update` for buffers and images is much more important in the
+Vulkan backend than in other backends.
+
+In general:
+
+- creating an immutable buffer or image **with initial content** in the
+  render-phase will 'disrupt' rendering (how bad this disruption actually is
+  remains to be seen though)
+- the same disruption happens for updating a buffer or image with `usage.update_dynamic`,
+- make sure to use `usage.stream_update` for buffers and images that need to be updated each
+  frame, but be aware that those uploads go through a single per-frame staging
+  buffer which needs to be big enough to hold all stream-uploads in a single
+  frame (staging buffer sizes can be adjusted in the sg_setup() call)
+
+The strategy for updating `usage.dynamic_update` may change in the future. For
+instance I was considering treating dynamic-updates exactly the same as
+stream-updates (e.g. going through the per-frame staging buffer to avoid
+the `vkQueueWaitIdle()`), and when the staging buffer would overflow
+fall back to the copy-staging system (also for stream-updates). This
+felt too unpredictable to me, so I didn't go that way for now.
+
+Note that the staging system is the most likely system to drastically change
+in the future (together with the barrier system). One of the important planned
+changes in my mental sokol-gfx roadmap is a rewrite of the resource update API,
+and this rewrite will most likely 'favour' modern 3D APIs and not worry about
+OpenGL as much as the current very restrictive resource update API does.
+
+The common part in both staging systems is how the actual upload happens:
+
+- staging buffers are allocated in CPU-visible + cache-coherent memory
+  (the copy-staging system uses a single small buffer, while the stream-staging
+  system uses double-buffering)
+- a staging operations first memcpy's a chunk of memory into the staging
+  buffer and then records a Vulkan command to copy that data from the
+  staging buffer into a Vulkan buffer or image (via `vkCmdCopyBuffer` or
+  `vkCmdCopyBufferToImage2()`
+- in the stream-staging system each buffer update is always a single call
+  to `vkCmdCopyBuffer()` and each image update is always one call to
+  `vkCmdCopyBufferToImage2()` per mipmap
+- in the copy-staging-system, staging operations which are bigger than the
+  staging buffer size will be split into multiple copy operations,
+  each copy-step involving a `vkQueueWaitIdle`
+- overflowing the stream-staging buffer is a 'soft error', e.g. an
+  error will be logged but otherwise this is a no-op
+
+There is another notable implementation detail in the stream-staging
+system which is related to the barrier system:
+
+All stream-staging copy commands are recorded into a separate Vulkan command
+buffer object so that they are not interleaved with the compute/render commands
+which are recorded into the regular per-frame command buffer.
+
+This is done to move any staging commands out of render passes which is pretty
+much required for barrier management (I don't quite remember though if the
+Vulkan validation layer only complained about issuing barriers inside
+`vkBeginRendering/vkEndRendering` or if copy commands were also prohibited during
+the render phase).
+
+Long story short: all Vulkan commands used for staging operations are recorded
+into a separate command buffer so that all GPU => CPU copies can be moved in
+front of any computer/render commands because of various Vulkan API usage
+restrictions. This was necessary because sokol-gfx allows to call the
+resource update functions at any point in a frame, most importantly within render passes.
+
+### The resource barrier system
+
+This was by far the biggest hassle and took a long time to get right, involving
+several rewrites (and there's *still* quite a lot of room for improvement).
+
+The first implementation phase was basically to come up with a general barrier
+insertion strategy which isn't completely dumb yet still satisfies the Vulkan
+default validation layer, the second and much harder step was then to also satisify
+the optional synchronization2 validation layer (which even most 'official'
+Vulkan samples don't seem to get right - go figure).
+
+I won't bore you with what Vulkan barriers are or why they are necessary, just
+that barriers are usually needed when a Vulkan buffer or image changes the way
+it is accessed by the CPU or GPU (for instance when a resource changes from
+being a staging-upload target to being accessed by a shader, or when an image
+object changes from being used as a pass attachment to being sampled as a
+texture).
+
+In sokol-gfx I tried as much as possible to use a 'lazy barrier system', e.g.
+a barrier is inserted at the latest possible moment before a resource is used.
+
+The basic idea is that sokol-gfx buffers and images keep track of their current
+'access state', this may be a combination of:
+
+- staging upload target
+- vertex buffer binding
+- index buffer binding
+- read-only storage buffer binding
+- read-write storage buffer binding
+- texture binding
+- storage image binding (always read-write)
+- a pass attachment (in the flavours color, resolve, depth or stencil)
+- a special 'discard' access modifier for pass attachments
+  (used with `SG_LOADACTION_DONTCARE`)
+- swapchain presentation
+
+Implicity those access states carry additional information which may be needed
+for picking the right barrier type, like whether shader accesses are read-only,
+read-write or write-only, and whether the access may happen exclusively in
+compute passes, render passes, or both.
+
+Ideally barriers would always be inserted right at the point before a resource
+is bound (because only at that point it's clear what the new access state is).
+
+Unfortunately it's not that simple: there's a metric shitton of arbitrary
+restrictions in Vulkan where exactly barriers may be inserted. The main
+limitation is that no barriers can be inserted between `vkBeginRendering` and
+`vkEndRendering` (which is hella weird, it would be obvious to disallow barriers
+that involve the current pass attachments, but not for any other resources used
+in the pass).
+
+This limitation is currently the main reason why the sokol-gfx barrier system
+is not optimal in some cases, because it requires to move any barriers that would
+be inserted inside render passes before the start of the render pass. However sokol-gfx
+can't predict what resources will actually be used in the render pass
+(spoiler: there's a surprisingly simple solution to this problem which I
+should have thought of myself much earlier - but that will be for a later
+Vulkan backend update).
+
+Currently, barriers insertion points are in the following sokol-gfx functions:
+
+- `sg_begin_pass()`
+- `sg_apply_bindings()`
+- `sg_end_pass()`
+- all staging functions
+
+The obvious barriers in begin- and end-pass are for image objects transitioning
+in and out of attachment state.
+
+In `sg_apply_bindings()` barriers are only inserted inside compute passes (because
+of the above mentioned 'no barriers inside render passes' rule).
+
+In staging operations, barriers are issued at the start and end of the staging
+operation, the 'after-barrier' is not optimal and eventually needs to be fixed.
+
+Now the tricky part: moving barriers out of render passes... there is one
+situation where this is relevant: a compute pass writes to a buffer or
+image, and that buffer or image is then read by a shader in a render pass. Ideally
+the barrier for this would happen inside the render pass in `sg_apply_bindings()`,
+but Vulkan validation layer says "no".
+
+What happens instead is that any resource that's (potentially) written in a
+compute pass is tracked as 'dirty', and then in the `sg_end_pass()` of the compute
+pass, very conservative barriers are inserted for all those dirty resources.
+'Conservative' means that I cannot predict how the resource will be used next,
+so buffers are generally transitioned into 'vertex+index+storage-buffer access
+state' and images are generally transferred into 'texture access state'.
+
+This generally appears to work but is not optimal. We'd like to delay those
+barriers to when the resources are actually used, and also tighten the scope
+of the barriers to their actual usage.
+
+The solution for this is surprisingly simple: use the same 'time warp' that is
+used for recording staging operations by recording barrier commands that would
+need to be issued from within sokol-gfx render passes into a separate command
+buffer which can then be enqueued **before** another command buffer which holds
+all render/compute commands for the pass.
+
+This is a perfect solution but requires a couple of changes which I didn't want
+to do in the first Vulkan backend release to not push that out even further:
+
+- instead of a single command buffer per frame to hold all render/compute
+  commands, one command buffer per sokol-gfx pass is needed
+- for render passes, a separate command buffer per pass is needed to record
+  barrier commands so that the barriers can be moved out of Vulkan's
+  `vkBeginRendering/vkEndRendering`
+
+...inside `sg_apply_bindings()` and `sg_end_pass()` we're now doing some serious
+time-travelling-shit:
+
+Each resource that's used in a render pass will keep track of all the 'access
+states' it's used as in the `sg_apply_bindings` call (for buffers that may be
+vertex-, index- or read-only-storage-buffer-binding and for images it can only
+be texture-binding), additionally the resource is uniquely-added to a tracking
+array.
+
+In `sg_end_pass()` we now have a list of all bound resources and their binding
+types, and this information can be used to record 'just the right' barriers into
+the **separate** command buffer that's been set aside for render pass
+barriers. This barrier command buffer is then enqueued **before** the command
+buffer which holds the render commands for that pass and voila: perfectly scoped
+render pass barriers. But as I said, this will need to wait until a followup
+update.
 
 ### Everything else...
 
-(TODO)
+The rest of the Vulkan backend is so straightforward that it's not
+worth writing about, essentially 1:1 mappings from sokol-gfx API functions
+to Vulkan API functions (the blog post is long enough as it is).
 
+Apart from the resource update system (which is overly restrictive and
+conservative in sokol-gfx, mainly because of OpenGL/WebGL), the sokol-gfx API
+actually is a really good match for Vulkan. There are no expensive operations
+(like creating and discarding Vulkan objects) happening in the 'hot-path'. The
+use of `EXT_descriptor_buffer` is not a great choice for some GPU architectures,
+but as I said at the start: I'm waiting for Khronos to finish their new resource
+binding API which apparently will be a mix of D3D12-style descriptor heaps and
+`EXT_descriptor_buffer`.
 
+The next steps will most likely be:
 
+- porting the backend to Windows (still limited to Intel GPU though)
+- port the backend to NVIDIA (will have to wait until around January because
+  I'll be away from my NVIDIA PC for the rest of the year)
+- expose a GPU memory allocator interface, and add a sample which hooks up VMA
+- ...maaaybe integrate SebAaltonen's OffsetAllocator as default allocator
+  (still not clear if I need that when all modern Vulkan drivers no longer
+  seem to have that infamouse 4096 unique allocations limit)
+- tinker around with GPU memory heap types for uniform- and descriptor-buffers
+  on GPUs without unified memory (e.g. host-visible + device-local)
+- figure out why exactly RenderDoc doesn't work (apparently it's because
+  of `EXT_descriptor_buffer`, but RenderDoc claims to support the extension since 1.41)
+- add support for debug labels (not much point to implement this before
+  RenderDoc works)
+- implement the improved resource barrier system outlined above
+- add support for multiple swapchain passes (not needed when used with sokol_app.h,
+  but required for any 'multi-window-scenario')
+- improve interoperability with Vulkan code that exists outside sokol-gfx
+  (injecting Vulkan buffers and images into `sg_make_buffer/sg_make_image`
+  and add the missing `sg_vk_query_*()` functions to expose internal
+  Vulkan object handles)
 
-#### FIXME: shorten this and turn from rant into constructive criticism
+Originally I also had a long rant about the Vulkan API design in this
+blog post, maybe I'll put that into a separate post and also
+change the style from rant into 'constructive criticism' (as hard as that will be lol).
 
-Also to get that out of the way: I still don't think that Vulkan is a
-well-designed 3D-API, it doesn't feel like a 'designed' API at all, but rather like
-an adhoc collection of concepts thrown together without any consideration
-for how well those different concepts work together. From that perspective,
-Vulkan (even without extensions) is already in similar messy state as
-OpenGL (with the difference that it took Vulkan only a decade to reach that state).
+My verdict about Vulkan so far is basically: Not great, not terrible.
 
-IMHO it would be better if instead of Vulkan 1.4 we'd be at Vulkan 4.0 now, with
-the assumption that each major version is breaking backward compatibility
-(similar to how D3D versioning worked before D3D12 - btw, where's D3D13 and with
-removal of deprecated cruft, extensions that had been merged into the core D3D14
-Microsoft - they're both long overdue!). Such major breaking API versions which
-remove extensions that had been incorporated into the core API and also remove
-support for API features that appease outdated GPU architectures would make it
-*much* easier to work with Vulkan for somebody who hasn't closely followed
-each API change since 2016 (which is the exact same problem that OpenGL suffers from).
+It's better than OpenGL but not as good (from an API user's perspective) as pretty
+much any other 3D API.  In many places Vulkan is already the same mess as
+OpenGL. Sediment layers of outdated, deprecated or competing features and
+extensions which is incredibly hard to make sense of when not closely following
+Vulkan's development since its initial release in 2016 (which is the exact same
+problem that ruined OpenGL).
 
-For example, the Vulkan implementation on my laptop currently exposes 177(!)
-extensions, many of those are redundant because they had been incorporated into
-the core API in minor Vulkan versions. I really don't understand why such
-'redundant' extensions are listed when I'm specifically asking for a specific
-version of the Vulkan API anyway - and the same should be true for API features
-and type declarations. For instance why does the Vulkan header expose synchronization1
-structs and function prototypes when I'm using synchronization2? At the least
-let me define the intended Vulkan API version before including `<vulkan.h>` and
-don't include the deprecated cruft from older API versions. Such 'version
-scoping' would immediately improve the developer experience dramatically without
-having to change the entire versioning philosophy.
+At the very least, please, please, PLEASE aggressively remove cruft and reduce
+the 'optional-features creep' in minor Vulkan API versions (which I think should
+actually be major versions - 4 breaking versions in 10 years sounds just about right).
 
-IMHO Vulkan also has fundamentally failed at the 'low-level explicit API' promise.
-GPUs still have significantly different resource binding models, and the idea
-that GPU architectures would somehow converge to an ideal common architecture
-hasn't manifested itself in the real-world a decade later and this fundamentally
-clashes with the abstraction level of Vulkan. On one hand, GPU architectures
-still fundamentally differ, but on the other hand the Vulkan API model is so
-low-level that it cannot provide enough 'wiggle room' for drivers to implement
-an optimal solution for a specific GPU. The result is a mess of optional
-extensions which allow a more optimal code path on a specific GPU architecture
-but either are not supported at all, or with reduced performance on other GPU
-architectures. The result is that Vulkan could just as well be a bunch of
-GPU-specific APIs, because a 'perfect' Vulkan-based rendering engine would need
-to implement slightly different code paths depending on the underlying GPU
-feature set - and once we're there, what's even the point of a common
-'standard API'? IMHO Vulkan should just be honest and mark API features with a
-GPU vendor 'nutrition score' - there's a shitton of 'best practices' posts by
-GPU vendors which describe the best Vulkan code paths on their specific GPU architecture,
-but this should really be centralized in the specification. And even if the result
-is a handful completely different sub-APIs for resource binding, so be it - at least then
-it would be easier to pick one instead of having to rely on hear-say which
-extensions or API features provide the best performance on a specific GPU
-architecture but are a bad choice on another specific GPU architecture.
+For instance when I'm working against the Vulkan 1.3 API I really don't care
+about any legacy features which have been replaced by newer systems (like
+synchronization2 replacing the old synchronization API). Don't expose the
+extensions that have been incorporated into core up to 1.3, and also let me filter
+out all those outdated declarations from the Vulkan headers so that Intellisense
+doesn't suggest outdated declarations. Don't require me to explicitly enable any
+little feature (like anisotropic filtering) when creating a Vulkan device. If
+some shitty old-school GPU doesn't have anisotropic filtering, then just
+silently ignore it instead of polluting the 3D API for all eternity just for
+this one GPU model which probably wasn't even produced anymore even back in
+2016.
 
-I think all of the above is a 'Khronos organization syndrome', and in hindsight
-it was foolish to expect that an OpenGL successor could somehow escape the same
-fate as OpenGL. OpenGL didn't start as a bad 3D API, it only became one after
-decades of deliberate work of the Khronos group ;)
+Vulkan profiles are a good idea in theory, but please move them into the
+core API instead of implementing them as a Vulkan SDK feature. Give
+me a `vkCreateSystemDefaultDevice(VK_PROFILE_*)` function to get rid of those
+500 lines of boilerplate that **every single Vulkan programmer** needs to
+duplicate line by line anyway (people who need more control about the setup
+process can still use that traditional initialization dance).
 
-There *are* some notable improvements over OpenGL though: everything is
-better documented, the official sample code is in much better shape, and the
-validation layer is very detailed and synchronized with the specification (e.g.
-each validation layer message has a unique id which I can look up in the
-specification - the specification itself is also more 'human readable' than the
-OpenGL spec). As a result, writing code for the Vulkan API is much less
-trial-and-error than writing code for OpenGL. The level of tediousness is about
-the same though - it's not like OpenGL is much less verbose than Vulkan - the line count
-of the sokol-gfx OpenGL backend is about the same as the Vulkan backend, and both
-are about 1/3 bigger than the other backends.
+And PLEASE get somebody into Khronos who has the power to inject at least a
+minimal amount of taste and elegance into Vulkan and who has a clear idea what should
+and shouldn't go into the core API, because just promoting random vendor
+extensions into core is really not a good way to build an API (and that was
+clear since OpenGL - and the **one** thing that Vulkan should have done better).
 
-At least there's also a silver lining on the horizon though, but let's see if
-anything of that comes to frution (e.g. fundamental API changes instead of
-just throwing even more extensions into the mix):
+Also, a low-level and efficient API **DOES NOT HAVE TO BE** a hassle to use.
 
-[The Road to the Future](https://www.youtube.com/watch?v=NM-SzTHAKGo)
+Somehow modern software systems always seem be built around the 'no pain, no
+gain' philosophy (see Rust, Vulkan, Wayland, ...), this sort of self-inflicted
+suffering for the sake of purity is such a weird Christian flex that
+I'm starting to wonder if 'religious memes' surviving under the surface in even
+the most rational and atheist developer brains is actually a thing...
 
-Ok, rant over, back to sokol-gfx :)
+Maybe we should return to the 'Californian hippie attitude' for building computer
+systems and software - apparently that had worked pretty great in the 70's and 80's ;)
+
+...ok I'm getting into old-man-yells-at-cloud-mode again, so I'll better stop here :D
