@@ -385,7 +385,7 @@ surprisingly well to Vulkan API function, often the mapping is 1:1. This is
 mainly thanks to using a couple of modern Vulkan features and extensions:
 
 - Dynamic rendering (e.g. `vkBeginRendering()/vkEndRendering()`) is a perfect match
-  to sokol-gfx `sg_begin_pass()/sg_end_pass()`, this is not very surprising though
+  for sokol-gfx `sg_begin_pass()/sg_end_pass()`, this is not very surprising though
   because the dynamic rendering Vulkan API is basically a 'de-OOP-ed' version of the Metal
   render pass API.
 - `EXT_descriptor_buffers` is an absolutely perfect match to sokol-gfx's
