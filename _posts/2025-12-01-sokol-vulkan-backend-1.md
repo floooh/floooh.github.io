@@ -815,7 +815,7 @@ In general:
   buffer which needs to be big enough to hold all stream-uploads in a single
   frame (staging buffer sizes can be adjusted in the sg_setup() call)
 
-The strategy for updating `usage.dynamic_update` may change in the future. For
+The strategy for updating `usage.dynamic_update` resources may change in the future. For
 instance I was considering treating dynamic-updates exactly the same as
 stream-updates (e.g. going through the per-frame staging buffer to avoid
 the `vkQueueWaitIdle()`), and when the staging buffer would overflow
