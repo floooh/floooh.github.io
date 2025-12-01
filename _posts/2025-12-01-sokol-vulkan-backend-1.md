@@ -759,7 +759,7 @@ creating view objects:
 When creating a texture-, storage-buffer- or storage-image-view object via
 `sg_make_view()` or a sampler object via `sg_make_sampler)`, the concrete
 descriptor data (those little 16..256 byte opaque memory blobs) is copied into
-the sokol-gfx view object via `vkGetDescriptorEXT()`.
+the sokol-gfx view or sampler object via `vkGetDescriptorEXT()`.
 
 Then `sg_apply_bindings()` is just a couple of memcpy's and a Vulkan call:
 
