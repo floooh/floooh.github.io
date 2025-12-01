@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Experimental Sokol Vulkan backend"
+title: "The experimental Sokol Vulkan backend"
 ---
 
 In a couple of days I will merge the first implementation of a sokol-gfx
