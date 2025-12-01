@@ -587,8 +587,8 @@ Metal or WebGPU, just with more code bloat (as is the Vulkan way).
 
 ### Resource binding via EXT_descriptor_buffer
 
-...a little detour into Vulkan descriptors and how the Vulkan sokol-gfx maps
-its resource binding model to Vulkan.
+...a little detour into Vulkan descriptors and how the sokol-gfx resource binding
+model maps to Vulkan.
 
 Conceptually and somewhat simplified, a Vulkan **descriptor** is an abstract
 reference to a Vulkan buffer, image or sampler which needs to be accessible in a
