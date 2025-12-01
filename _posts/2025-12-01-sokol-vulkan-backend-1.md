@@ -929,7 +929,7 @@ Currently, barriers insertion points are in the following sokol-gfx functions:
 - `sg_begin_pass()`
 - `sg_apply_bindings()`
 - `sg_end_pass()`
-- all staging functions
+- `sg_update/append_*()`
 
 The obvious barriers in begin- and end-pass are for image objects transitioning
 in and out of attachment state.
