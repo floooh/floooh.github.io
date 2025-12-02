@@ -924,7 +924,7 @@ can't predict what resources will actually be used in the render pass
 should have thought of myself much earlier - but that will be for a later
 Vulkan backend update).
 
-Currently, barriers insertion points are in the following sokol-gfx functions:
+Currently, barrier insertion points are in the following sokol-gfx functions:
 
 - `sg_begin_pass()`
 - `sg_apply_bindings()`
