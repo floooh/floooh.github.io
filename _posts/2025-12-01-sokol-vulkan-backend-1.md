@@ -681,8 +681,8 @@ In the init-phase:
   phase (of course it's also possible to move this step into the render phase)
 
 In the render-phase:
-- memcpy the concrete descriptor set blobs we stored upfront into
-  the descriptor buffer, using the offsets we also stored upfront
+- memcpy the concrete descriptor blobs we stored upfront into the descriptor
+  buffer to build an adhoc descriptor set, using the offsets we also stored upfront
 - finally record the start offset in the descriptor buffer into a Vulkan command
   buffer via a Vulkan API call, and that's it!
 
