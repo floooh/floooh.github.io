@@ -3,6 +3,8 @@ layout: post
 title: "The experimental Sokol Vulkan backend"
 ---
 
+Update: merge happened on [02-Dec-2025](https://github.com/floooh/sokol/blob/master/CHANGELOG.md#02-dec-2025).
+
 In a couple of days I will merge the first implementation of a sokol-gfx
 Vulkan backend. Please consider this backend as 'experimental', it has
 only received limited testing, has limited platform coverage and some
