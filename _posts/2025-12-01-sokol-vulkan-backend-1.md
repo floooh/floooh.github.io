@@ -1061,7 +1061,7 @@ Vulkan profiles are a good idea in theory, but please move them into the
 core API instead of implementing them as a Vulkan SDK feature. Give
 me a `vkCreateSystemDefaultDevice(VK_PROFILE_*)` function to get rid of those
 500 lines of boilerplate that **every single Vulkan programmer** needs to
-duplicate line by line anyway (people who need more control about the setup
+duplicate line by line anyway (people who need more control over the setup
 process can still use that traditional initialization dance).
 
 And PLEASE get somebody into Khronos who has the power to inject at least a
