@@ -441,7 +441,7 @@ ensues.
 IMHO this is much better than any automatic lifetime management system, because
 it avoids any confusion about reference counts (e.g. questions like: when I call
 this function to get an object reference, will that bump the refcount or not?),
-but this means that a Vulkan backend needs to implement some sort of of garbage
+but this means that a Vulkan backend needs to implement some sort of garbage
 collection on its own.
 
 Sokol-gfx uses a double-buffered delete-queue system for this. Each
