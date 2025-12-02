@@ -496,7 +496,7 @@ sokol-gfx specific and includes:
 - internal descriptor buffer
 
 Currently all resources are either in 'device-local' memory, or in
-'host-visible + cache-coherent' memory. Having the mapping from sokol-specific
+'host-visible + host-coherent' memory. Having the mapping from sokol-specific
 memory type to Vulkan memory flags in one place makes it easier to tweak those
 flags in the future (or delegate that decision to an external memory allocator).
 
