@@ -878,7 +878,7 @@ Vulkan samples don't seem to get right - go figure).
 
 I won't bore you with what Vulkan barriers are or why they are necessary, just
 that barriers are usually needed when a Vulkan buffer or image changes the way
-it is accessed by the CPU or GPU (for instance when a resource changes from
+it is accessed by the GPU (for instance when a resource changes from
 being a staging-upload target to being accessed by a shader, or when an image
 object changes from being used as a pass attachment to being sampled as a
 texture).
