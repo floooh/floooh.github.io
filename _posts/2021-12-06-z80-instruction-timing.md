@@ -3,7 +3,7 @@ layout: post
 title: Getting into way too much detail with the Z80 netlist simulation
 ---
 
-TL;DR: a detailed look at Z80 instruction timings with the help of a 
+TL;DR: a detailed look at Z80 instruction timings with the help of a
 Z80 netlist simulation.
 
 ## Table of Content
@@ -51,7 +51,7 @@ The Z80 has probably the most messy and irregular instruction set of the popular
 8-bit CPUs (certainly when compared to the MOS 6502 or Motorola 6800). The reason
 is that the Z80 had to be binary compatible with the Intel 8080. While the 8080
 has a reasonably clean and structured instruction set, the only way for the Z80
-to add new instructions while remaining 8080-compatible was to fill the 'gaps' 
+to add new instructions while remaining 8080-compatible was to fill the 'gaps'
 in the 8080 instruction set.
 
 This is why the Z80 instruction set looks clean and structured only in some places
@@ -68,7 +68,7 @@ the first byte is always the opcode byte.
 This simple rule is also true for the Z80-specific 'prefixed instructions', which
 superficially seem to have two opcode bytes. But as we'll see later, instruction
 prefixes are actually complete instructions on their own which just influence how
-the following opcode byte is decoded. 
+the following opcode byte is decoded.
 
 Prefixes aside, there are only three basic instruction 'shapes':
 
@@ -319,7 +319,7 @@ IO READ:
 │  T  │ IORQ │ RD │ WR │ AB   │ DB │
 ├─────┼──────┼────┼────┼──────┼────┤
 │ 1/0 │      │    │    │ 1122 │ 78 │
-│ 1/1 │      │    │    │ 1122 │ 78 │ 
+│ 1/1 │      │    │    │ 1122 │ 78 │
 │ 2/0 │ IORQ │ RD │    │ 1122 │ 33 │
 │ 2/1 │ IORQ │ RD │    │ 1122 │ 33 │
 │ 3/0 │ IORQ │ RD │    │ 1122 │ 33 │
@@ -362,7 +362,7 @@ type.
 In the opcode fetch machine cycle, the wait pin is sampled in the second half-cycle
 of T2. If the WAIT pin isn't active in this exact half-cycle, the CPU will not enter
 wait mode, otherwise the CPU will insert extra 'wait cycles' until the
-WAIT pin goes inactive. 
+WAIT pin goes inactive.
 
 For instance if the WAIT pin is only active in the second half cycle of T2, the opcode
 fetch machine cycle will be stretched from 4 to 5 clock cycles:
@@ -377,7 +377,7 @@ OPCODE FETCH:
 │ 2/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │
 │ 2/1 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin sampled here
 │ 3/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ <== one extra clock cycle inserted
-│ 3/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ 
+│ 3/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │
 │ 4/0 │    │      │ RFSH │    │    │      │ 0000 │ 31 │ <== regular execution continues here
 │ 4/1 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
 │ 5/0 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
@@ -417,7 +417,7 @@ OPCODE FETCH:
 │ 2/1 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin sampled here
 │ 3/0 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== WAIT pin active for 3 half cycles
 │ 3/1 │ M1 │ MREQ │      │ RD │    │ WAIT │ 0000 │ 31 │ <== first inserted clock cycle completes
-│ 4/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ <== a second wait clock cycle is inserted    
+│ 4/0 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │ <== a second wait clock cycle is inserted
 │ 4/1 │ M1 │ MREQ │      │ RD │    │      │ 0000 │ 31 │
 │ 5/0 │    │      │ RFSH │    │    │      │ 0000 │ 31 │ <== regular execution continues here
 │ 5/1 │    │ MREQ │ RFSH │    │    │      │ 0000 │ 31 │
@@ -460,7 +460,7 @@ MEM WRITE:
 │ 4/1 │      │    │    │      │ 1234 │ 11 │
 ```
 
-In IO read and write machine cycles, the WAIT pin is sampled one full clock 
+In IO read and write machine cycles, the WAIT pin is sampled one full clock
 cycle later, at the second half-cycle of T3:
 ```
 IO READ:
@@ -593,22 +593,22 @@ XOR A + NOP:
 │  T  │ M1 │ MREQ │ RFSH │ RD │ WR │ AF   │ Flags    │
 ├─────┼────┼──────┼──────┼────┼────┼──────┼──────────┤
 │ 1/0 │ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ <== XOR A start
-│ 1/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ 2/0 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ 2/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ 3/0 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
-│ 3/1 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
-│ 4/0 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
-│ 4/1 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │ 
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
+│ 2/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
+│ 3/0 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │
+│ 4/0 │    │ MREQ │ RFSH │    │    │ FFAC │ SzYhXVnc │
+│ 4/1 │    │      │ RFSH │    │    │ FFAC │ SzYhXVnc │
 ├─────┼────┼──────┼──────┼────┼────┼──────┼──────────┤
 │ 1/0 │ M1 │      │      │    │    │ FFAC │ SzYhXVnc │ <== NOP starts here
-│ 1/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
-│ 2/0 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │ 
+│ 1/1 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
+│ 2/0 │ M1 │ MREQ │      │ RD │    │ FFAC │ SzYhXVnc │
 │ 2/1 │ M1 │ MREQ │      │ RD │    │ 00AC │ SzYhXVnc │ <== A updated here
-│ 3/0 │    │      │ RFSH │    │    │ 00AC │ SzYhXVnc │ 
-│ 3/1 │    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ <== flags updated here 
-│ 4/0 │    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ 
-│ 4/1 │    │      │ RFSH │    │    │ 0044 │ sZyhxVnc │ 
+│ 3/0 │    │      │ RFSH │    │    │ 00AC │ SzYhXVnc │
+│ 3/1 │    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │ <== flags updated here
+│ 4/0 │    │ MREQ │ RFSH │    │    │ 0044 │ sZyhxVnc │
+│ 4/1 │    │      │ RFSH │    │    │ 0044 │ sZyhxVnc │
 ```
 
 The results of the **XOR A** instruction only become available
@@ -616,7 +616,7 @@ at the end of the second and third clock cycles of the following instruction.
 
 Thankfully this overlapped execution is hardly relevant for CPU
 emulators, because it only affects the internal state of the CPU, not any state
-that's observable from the outside. 
+that's observable from the outside.
 
 ## The 3 Instruction Subsets
 
@@ -633,7 +633,7 @@ subsets because they only slightly modify the behaviour of the main
 instructions.
 
 This means there are 571 unique instructions in the Z80 instruction set
-(counting the RETI and RETN instructions as one because they have 
+(counting the RETI and RETN instructions as one because they have
 identical behaviour).
 
 ## The 2-3-3 Opcode Bit Pattern
@@ -643,7 +643,7 @@ Opcode bytes can be split into three bit groups to reveal a hidden
 
 ```
   7 6   5 4 3   2 1 0
-| x x | y y y | z z z | 
+| x x | y y y | z z z |
 ```
 
 The two top-most bits (xx) split the instruction space into 4 quadrants,
@@ -795,7 +795,7 @@ INC (HL):
 
 As expected, there's an opcode fetch, memory read and memory write machine cycle.
 An extra clock cycle has been squeezed inbetween the read and write machine cycle,
-no doubt to increment the byte that's been loaded from memory before it is 
+no doubt to increment the byte that's been loaded from memory before it is
 written back.
 
 #### INC/DEC ss
@@ -822,9 +822,9 @@ INC BC:
 │ 6/1 │    │      │      │    │    │ 0000 │ 03 │ 0000 │
 ```
 It's interesting that the result is already available at the
-end of the first extra clock cycle. No idea why there's 
-a second 'wasted' clock cycle, especially since the 
-16-bit INC/DEC instructions don't update the flag bits. 
+end of the first extra clock cycle. No idea why there's
+a second 'wasted' clock cycle, especially since the
+16-bit INC/DEC instructions don't update the flag bits.
 
 #### ADD HL,ss
 
@@ -861,7 +861,7 @@ ADD HL,DE
 ```
 
 This time, no clock cycles are wasted. The 16-bit result is only
-ready in the very last half cycle of the instruction. Not shown 
+ready in the very last half cycle of the instruction. Not shown
 here is that the flag bits (H and C) are updated in the opcode fetch
 machine cycle of the next instruction (at M1/T3/1).
 
@@ -891,14 +891,14 @@ JR d
 │ 7/0 │    │ MREQ │      │ RD │    │ 0003 │ FC │ 0004 │ 5555 │
 │ 7/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │
 │ 8/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ <== 5 extra clock cycles
-│ 8/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ 
-│ 9/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │ 
-│ 9/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│10/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│10/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│11/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│11/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
-│12/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │ 
+│ 8/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │
+│ 9/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5555 │
+│ 9/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │
+│10/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │
+│10/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │
+│11/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │
+│11/1 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │
+│12/0 │    │      │      │    │    │ 0003 │ FC │ 0004 │ 5500 │
 │12/1 │    │      │      │    │    │ 0001 │ FC │ 0004 │ 0000 │ <== dst addr in WZ
 ```
 
@@ -944,7 +944,7 @@ DJNZ d - branch taken:
 │ 4/0 │    │ MREQ │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
 │ 4/1 │    │      │ RFSH │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │
 │ 5/0 │    │      │      │    │    │ 0002 │ 10 │ 0004 │ 0255 │ 5555 │ <== 1 extra clock cycle
-│ 5/1 │    │      │      │    │    │ 0000 │ 10 │ 0004 │ 0255 │ 5555 │        
+│ 5/1 │    │      │      │    │    │ 0000 │ 10 │ 0004 │ 0255 │ 5555 │
 │ 6/0 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0255 │ 5555 │ <== memory read
 │ 6/1 │    │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 0155 │ 5555 │ <== B decremented
 │ 7/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0155 │ 5555 │
@@ -979,7 +979,7 @@ DJNZ d - branch not taken:
 │ 4/0 │    │ MREQ │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
 │ 4/1 │    │      │ RFSH │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
 │ 5/0 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │ <== 1 extra clock cycle
-│ 5/1 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │        
+│ 5/1 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │
 │ 6/0 │    │      │      │    │    │ 0004 │ 10 │ 0004 │ 0155 │ 0002 │ <== memory read
 │ 6/1 │    │ MREQ │      │ RD │    │ 0004 │ 10 │ 0005 │ 0055 │ 0002 │ <== B decremented
 │ 7/0 │    │ MREQ │      │ RD │    │ 0004 │ FD │ 0005 │ 0055 │ 0002 │
@@ -1107,7 +1107,7 @@ CALL nn
 ```
 
 Like in other branch instructions, the **PC** register isn't updated in the instruction,
-instead it switches to ```dst addr + 1``` in the second half cycle of the first 
+instead it switches to ```dst addr + 1``` in the second half cycle of the first
 subroutine instruction:
 
 ```
@@ -1157,9 +1157,9 @@ CALL NZ,nn - branch not taken
 #### RET cc
 
 The conditional return instructions **RET cc** adds or inserts one clock cycle after the
-opcode fetch. If the condition is false the instruction ends here, otherwise two more 
+opcode fetch. If the condition is false the instruction ends here, otherwise two more
 memory read machine cycles are added to load the return address from the stack into
-WZ. 
+WZ.
 
 ```
 RET Z - condition false
@@ -1192,14 +1192,14 @@ RET Z - condition true
 │ 4/0 │    │ MREQ │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
 │ 4/1 │    │      │ RFSH │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
 │ 5/0 │    │      │      │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │ <== one extra clock cycle
-│ 5/1 │    │      │      │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │ 
+│ 5/1 │    │      │      │    │    │ 0006 │ C8 │ 2006 │ 00FE │ 2000 │
 │ 6/0 │    │      │      │    │    │ 00FE │ C8 │ 2006 │ 00FE │ 2000 │ <== memory read
 │ 6/1 │    │ MREQ │      │ RD │    │ 00FE │ C8 │ 2006 │ 00FE │ 2000 │
 │ 7/0 │    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FE │ 2000 │
 │ 7/1 │    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FF │ 2000 │
 │ 8/0 │    │ MREQ │      │ RD │    │ 00FE │ 06 │ 2006 │ 00FF │ 2000 │
 │ 8/1 │    │      │      │    │    │ 00FE │ 06 │ 2006 │ 00FF │ 2006 │
-│ 9/0 │    │      │      │    │    │ 00FF │ 06 │ 2006 │ 00FF │ 2006 │ <== memory read 
+│ 9/0 │    │      │      │    │    │ 00FF │ 06 │ 2006 │ 00FF │ 2006 │ <== memory read
 │ 9/1 │    │ MREQ │      │ RD │    │ 00FF │ 06 │ 2006 │ 00FF │ 2006 │
 │10/0 │    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 00FF │ 2006 │
 │10/1 │    │ MREQ │      │ RD │    │ 00FF │ 00 │ 2006 │ 0100 │ 2006 │
@@ -1319,7 +1319,7 @@ PUSH DE:
 #### RST p
 
 The **RST p** instructions insert one clock cycle between the opcode fetch
-and first memory write machine cycle to pre-decrement the stack pointer. 
+and first memory write machine cycle to pre-decrement the stack pointer.
 The WZ register is used as temporary storage of the destination address:
 
 ```
@@ -1376,7 +1376,7 @@ All prefix bytes (**CB**, **DD**, **ED**, **FD**) execute as regular 4-cycle ins
     - the ED and CB prefixes each select an entirely different instruction subset
     - the DD and FD prefix select the main instruction subset but replace usage of
       HL with IX or IY (highly simplified, see the DD/FD section for details)
-    - the ED prefix cancels any "active effects" of the DD and FD prefixes (for instance 
+    - the ED prefix cancels any "active effects" of the DD and FD prefixes (for instance
       the byte sequence **DD ED B0** doesn't cause the LDIR instruction to use
       IX instead of HL)
 
@@ -1385,7 +1385,7 @@ Sequences of the same prefix byte sometimes behave unexpected:
 - Sequences of **DD** or **FD**, or a mix of them inhibit interrupt handling
   until the end of the instruction following the DD/FD sequence. The following
   instruction will be modified depending on the last prefix byte in the sequence.
-  **DD** and **FD** prefixes don't 'stack', e.g. it's not possible to load the 16-bit 
+  **DD** and **FD** prefixes don't 'stack', e.g. it's not possible to load the 16-bit
   value 3333h into both IX and IY with the following byte sequence: **DD FD 21 33 33**,
   instead the **FD** prefix cancels the effect of the **DD** prefix, and only the
   **IY** register is loaded with the value.
@@ -1408,7 +1408,7 @@ prefix instruction.
 The **DD** and **FD** prefix instructions modify the behaviour of the following
 opcode byte as follows:
 
-All uses of the **L**, **H**, **HL** and **(HL)** will be replaced with 
+All uses of the **L**, **H**, **HL** and **(HL)** will be replaced with
 **IXL**, **IXH**, **IX** and **(IX+d)** (for the **DD** prefix), or **IYL**,
 **IYH**, **IY** and **(IY+d)** (for the **FD** prefix), with the following
 exceptions:
@@ -1573,7 +1573,7 @@ so sequences of **DD ED op** or **FD ED op** execute as regular **ED op**.
 ### ED Quadrant 1 (x == 01)
 
 ED Quadrant 1 has quite obviously been stuffed with random instructions that didn't fit into the
-main instruction subset. It also looks like the Z80 designers didn't care too much about making 
+main instruction subset. It also looks like the Z80 designers didn't care too much about making
 efficient use of the available opcodes: 8 opcode slots perform the **NEG** instruction,
 8 more are used for the **RETI/RETN** instruction (despite the different names, RETI and RETN
 behave identically), and 4 opcode slots are used for **IM 0**. Furthermore, the last two
@@ -1608,7 +1608,7 @@ ADC HL,DE
 │ 3/1 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
 │ 4/0 │    │ MREQ │ RFSH │    │    │ 0003 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
 │ 4/1 │    │      │ RFSH │    │    │ 0000 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
-│ 5/0 │ M1 │      │      │    │    │ 0008 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== opcode fetch 
+│ 5/0 │ M1 │      │      │    │    │ 0008 │ ED │ 0008 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │ <== opcode fetch
 │ 5/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ ED │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
 │ 6/0 │ M1 │ MREQ │      │ RD │    │ 0008 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
 │ 6/1 │ M1 │ MREQ │      │ RD │    │ 0008 │ 5A │ 0009 │ 1111 │ 2222 │ 5555 │ sZyhxVnc │
@@ -2204,7 +2204,7 @@ and take 15 clock cycles:
 
 4 + 4 + 3 + 1 + 3 = **15 clock cycles**
 
-The **BIT x,(HL)** instructions in CB quadrant 1 don't have the memory write cycle, but still add 
+The **BIT x,(HL)** instructions in CB quadrant 1 don't have the memory write cycle, but still add
 an extra clock cycle after the memory read:
 
 - opcode fetch CB prefix: 4 clock cycles
@@ -2828,7 +2828,7 @@ EI + RETI (maskable interrupt)
 
 ### NMI Timing
 
-When an NMI is triggered, the IFF1 bit and the HALT state (if active) will be cleared 
+When an NMI is triggered, the IFF1 bit and the HALT state (if active) will be cleared
 in the last half-cycle of the current instruction.
 
 Next, an opcode fetch machine cycle is performed (NOT an interrupt acknowledge
@@ -2838,7 +2838,7 @@ the resulting opcode byte will be ignored.
 The opcode fetch is followed by an extra clock cycle.
 
 Next, two regular memory write machine cycles are performed to put the current
-PC on the stack. 
+PC on the stack.
 
 Execution then continues at the first instruction of the interrupt service
 routine at address 0066h.
@@ -2909,7 +2909,7 @@ of instruction where INT was detected):
 │ X/0 │    │ MREQ │      │ RFSH │    │    │ INT │ 0003 │ 00 │ 0004 │ IFF1 │ <== interrupt detected
 │ X/1 │    │      │      │ RFSH │    │    │     │ 0000 │ 00 │ 0004 │      │ <== IFF1 and HALT cleared
 ├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
-│ 1/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge 
+│ 1/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │ <== interrupt acknowledge
 │ 1/1 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
 │ 2/0 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
 │ 2/1 │ M1 │      │      │      │    │    │     │ 0004 │ 00 │ 0004 │      │
@@ -2956,7 +2956,7 @@ as return address on the stack. Next, execution will continue in the interrupt
 service routine at the hardwired address 0038h:
 
 ```
-Mode 1 Interrupt (starting with last clock cycle of instruction where 
+Mode 1 Interrupt (starting with last clock cycle of instruction where
 INT was detected):
 ┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
 │  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
@@ -3026,7 +3026,7 @@ value **0300** is stored, which is the entry address of the interrupt
 service routine:
 
 ```
-Mode 2 Interrupt (starting with last clock cycle of instruction where 
+Mode 2 Interrupt (starting with last clock cycle of instruction where
 INT was detected):
 ┌─────┬────┬──────┬──────┬──────┬────┬────┬─────┬──────┬────┬──────┬──────┐
 │  T  │ M1 │ MREQ │ IORQ │ RFSH │ RD │ WR │ INT │ AB   │ DB │ PC   │ IFF1 │
@@ -3060,18 +3060,18 @@ INT was detected):
 │12/1 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
 │13/0 │    │ MREQ │      │      │    │ WR │     │ 5553 │ 08 │ 0008 │      │
 │13/1 │    │      │      │      │    │    │     │ 5553 │ 08 │ 0008 │      │
-│10/0 │    │      │      │      │    │    │     │ 01E0 │ E0 │ 0008 │      │ <== memory read from 01E0 (I<<8)|(E0)
-│10/1 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ E0 │ 0008 │      │
-│11/0 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │ <== data bus: ISR address low byte (00)
-│11/1 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
-│12/0 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
-│12/1 │    │      │      │      │    │    │     │ 01E0 │ 00 │ 0008 │      │
-│13/0 │    │      │      │      │    │    │     │ 01E1 │ 00 │ 0008 │      │ <== memory read from 01E1
-│13/1 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 00 │ 0008 │      │
-│12/0 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │ <==> data bus: ISR address high byte (03)
-│12/1 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
-│13/0 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
-│13/1 │    │      │      │      │    │    │     │ 01E1 │ 03 │ 0008 │      │
+│14/0 │    │      │      │      │    │    │     │ 01E0 │ E0 │ 0008 │      │ <== memory read from 01E0 (I<<8)|(E0)
+│14/1 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ E0 │ 0008 │      │
+│15/0 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │ <== data bus: ISR address low byte (00)
+│15/1 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
+│16/0 │    │ MREQ │      │      │ RD │    │     │ 01E0 │ 00 │ 0008 │      │
+│16/1 │    │      │      │      │    │    │     │ 01E0 │ 00 │ 0008 │      │
+│17/0 │    │      │      │      │    │    │     │ 01E1 │ 00 │ 0008 │      │ <== memory read from 01E1
+│17/1 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 00 │ 0008 │      │
+│18/0 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │ <==> data bus: ISR address high byte (03)
+│18/1 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
+│19/0 │    │ MREQ │      │      │ RD │    │     │ 01E1 │ 03 │ 0008 │      │
+│19/1 │    │      │      │      │    │    │     │ 01E1 │ 03 │ 0008 │      │
 ├─────┼────┼──────┼──────┼──────┼────┼────┼─────┼──────┼────┼──────┼──────┤
 │ 1/0 │ M1 │      │      │      │    │    │     │ 0300 │ 03 │ 0008 │      │ <== ISR: opcode fetch
 │ 1/1 │ M1 │ MREQ │      │      │ RD │    │     │ 0300 │ 03 │ 0301 │      │ <== PC updated to ISR + 1
