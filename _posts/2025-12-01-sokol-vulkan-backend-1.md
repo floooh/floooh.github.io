@@ -286,9 +286,9 @@ initialization dance):
     - pixel format currently either RGBA8 or BGRA8 (no sRGB)
     - present-mode hardwired to `VK_PRESENT_MODE_FIFO_KHR`
     - composite-alpha hardwired to `VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR`
-    - `VkImage` and `VkImageView` objects are obtained or created
-      for the swapchain images, depth-stencil-buffer
-      and optional MSAA surface
+  - `VkImage` and `VkImageView` objects are obtained or created
+    for the swapchain images, depth-stencil-buffer
+    and optional MSAA surface
 - Finally a couple of VkSemaphore objects are created for each
   swapchain image (the number of swapchain images is essentially
   dictated by the Vulkan driver):
