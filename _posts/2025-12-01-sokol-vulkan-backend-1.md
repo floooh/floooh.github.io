@@ -705,7 +705,7 @@ shader compiler).
   storage image and sampler bindings
 
 ...additionally, `sg_make_shader()` queries the descriptor sizes and offsets
-within their descriptor set (this is `EXT_descriptor_buffer` functionality).
+within their descriptor set.
 
 ### The uniform update system:
 
