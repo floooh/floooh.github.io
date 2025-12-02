@@ -366,7 +366,7 @@ This fixes any validation layer warnings and is in the end a cleaner
 implementation compared to letting the window system dictate the swapchain size.
 
 There are downsides though: At least on my Kubuntu laptop it looks like the
-window system and Vulkan swapchain code doesn't run in in lock step. Instead the
+window system and Vulkan swapchain code doesn't run in lock step. Instead the
 Vulkan swapchain seems to lag behind the window system a bit and this results in
 minor artefacts during resizing: sometimes there's a visible gap between the
 Vulkan surface and window border, and the frame rate gets slighly out of whack
