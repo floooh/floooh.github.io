@@ -1049,8 +1049,8 @@ For instance when I'm working against the Vulkan 1.3 API I really don't care
 about any legacy features which have been replaced by newer systems (like
 synchronization2 replacing the old synchronization API). Don't expose the
 extensions that have been incorporated into core up to 1.3, and also let me filter
-out all those outdated declarations from the Vulkan headers so that Intellisense
-doesn't suggest outdated information. Don't require me to explicitly enable every
+out all those outdated declarations from the Vulkan headers so that code-completion
+doesn't suggest outdated API types and functions. Don't require me to explicitly enable every
 little feature (like anisotropic filtering) when creating a Vulkan device. If
 some shitty old-school GPU doesn't have anisotropic filtering, then just
 silently ignore it instead of polluting the 3D API for all eternity just for
