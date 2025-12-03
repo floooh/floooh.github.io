@@ -810,7 +810,7 @@ In general:
 - creating an immutable buffer or image **with initial content** in the
   render-phase will 'disrupt' rendering (how bad this disruption actually is
   remains to be seen though)
-- the same disruption happens for updating a buffer or image with `usage.update_dynamic`,
+- the same disruption happens for updating a buffer or image with `usage.dynamic_update`,
 - make sure to use `usage.stream_update` for buffers and images that need to be updated each
   frame, but be aware that those uploads go through a single per-frame staging
   buffer which needs to be big enough to hold all stream-uploads in a single
