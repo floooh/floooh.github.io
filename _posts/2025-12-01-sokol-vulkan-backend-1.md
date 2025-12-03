@@ -15,7 +15,7 @@ The related PRs are here:
 
 - [sokol/#1350](https://github.com/floooh/sokol/pull/1350) - this one also
   has all the embedded shaders for the sokol 'utility headers', so it looks much
-  bigger than it actually is (the sokol-gfx backend is around the same size as
+  bigger than it actually is (the Vulkan backend is around the same size as
   the GL backend, a bit over 3 kloc)
 - [sokol-tools/#196](https://github.com/floooh/sokol-tools/pull/196) - this
   is the update for the shader compiler which is already merged
