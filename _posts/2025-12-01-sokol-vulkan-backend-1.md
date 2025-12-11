@@ -230,9 +230,9 @@ void-pointers so that they can be tunneled through backend-agnostic code):
 
 ```c
 typedef struct sapp_vulkan_environment {
-    const void* physical_device;  // vkPhysicalDevice*
-    const void* device;           // vkDevice*
-    const void* queue;            // vkQueue*
+    const void* physical_device;  // vkPhysicalDevice
+    const void* device;           // vkDevice
+    const void* queue;            // vkQueue
     uint32_t queue_family_index;
 } sapp_vulkan_environment;
 ```
