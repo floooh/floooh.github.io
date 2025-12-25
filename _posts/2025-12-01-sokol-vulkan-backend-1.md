@@ -225,7 +225,7 @@ That's it for the public API changes in sokol_app.h, now on to the Vulkan
 specific parts:
 
 The new struct `sapp_environment` contains a nested struct
-`sapp_vulkan_envirnonment vulkan;` with Vulkan object pointers (as type-erased
+`sapp_vulkan_environment vulkan;` with Vulkan object pointers (as type-erased
 void-pointers so that they can be tunneled through backend-agnostic code):
 
 ```c
