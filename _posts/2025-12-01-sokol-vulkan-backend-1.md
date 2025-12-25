@@ -548,7 +548,7 @@ after `vkWaitForFences()` returns:
   destruction in the frame-context we just waited on are finally destroyed)
 - any command buffers associated with the new frame are reset via `vkResetCommandBuffer()`
 - ...and recording into those command buffers is started via `vkBeginCommandBuffer()`
-- additionally the other subsystems are informed because they might want to do their
+- additionally the other subsystems are notified because they might want to do their
   own thing:
   - `_sg_vk_uniform_after_acquire()`
   - `_sg_vk_bind_after_acquire()`
