@@ -453,7 +453,7 @@ array of pointer-pairs. Each queue item consists of:
 - a function pointer for a destructor function which takes a
   void* as argument and knows how to destroy that Vulkan object
 
-All Vulkan objects types which may be referenced in command buffers will not
+All Vulkan object types which may be referenced in command buffers will not
 call their `vkDestroy*()` functions directly, but instead add them to the
 delete-queue that's associated with the currently recorded command buffer. At
 the start of a new frame (what 'new frame' actually means is explained down in
