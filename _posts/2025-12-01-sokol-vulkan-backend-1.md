@@ -230,9 +230,9 @@ void-pointers so that they can be tunneled through backend-agnostic code):
 
 ```c
 typedef struct sapp_vulkan_environment {
-    const void* physical_device;  // vkPhysicalDevice
-    const void* device;           // vkDevice
-    const void* queue;            // vkQueue
+    const void* physical_device;  // VkPhysicalDevice
+    const void* device;           // VkDevice
+    const void* queue;            // VkQueue
     uint32_t queue_family_index;
 } sapp_vulkan_environment;
 ```
@@ -243,14 +243,14 @@ for a sokol-gfx swapchain render pass:
 
 ```c
 typedef struct sapp_vulkan_swapchain {
-    const void* render_image;           // vkImage
-    const void* render_view;            // vkImageView
-    const void* resolve_image;          // vkImage;
-    const void* resolve_view;           // vkImageView
-    const void* depth_stencil_image;    // vkImage
-    const void* depth_stencil_view;     // vkImageView
-    const void* render_finished_semaphore;  // vkSemaphore
-    const void* present_complete_semaphore; // vkSemaphore
+    const void* render_image;           // VkImage
+    const void* render_view;            // VkImageView
+    const void* resolve_image;          // VkImage;
+    const void* resolve_view;           // VkImageView
+    const void* depth_stencil_image;    // VkImage
+    const void* depth_stencil_view;     // VkImageView
+    const void* render_finished_semaphore;  // VkSemaphore
+    const void* present_complete_semaphore; // VkSemaphore
 } sapp_vulkan_swapchain;
 ```
 
@@ -262,14 +262,14 @@ initialization dance):
   this is essentially the glue between a Vulkan swapchain and a specific
   window system. In the first release this window system glue code is only
   implemented for X11 via `vkCreateXlibSurfaceKHR`.
-- A `vkPhysicalDevice` is picked, this is the first time where the sokol-app
+- A `VkPhysicalDevice` is picked, this is the first time where the sokol-app
   backend takes a couple of shortcuts, initialization will fail if:
   - EXT_descriptor_buffer is not supported (this currently rules out
     most mobile devices)
   - the supported Vulkan API version is not at least 1.3
   - no 'queue family' exists which supports graphics, compute, transfer
     and presentation commands all on the same queue
-- Next a logical `vkDevice` object is created with the following required
+- Next a logical `VkDevice` object is created with the following required
   features and extensions (with the exception of compressed texture formats
   which are optional):
   - a single queue for all commands
