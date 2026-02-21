@@ -113,23 +113,25 @@ are already authored in 'Vulkan-flavoured GLSL', the only missing information
 is the descriptor set for resource bindings.
 
 Sokol-shdc shaders only declare a bindslot on resource bindings with
-different 'bind spaces' for uniform blocks and anything else, for instance:
+different 'bind spaces' for uniform blocks, samplers and anything else,
+for instance:
 
 ```glsl
 layout(binding=0) uniform fs_params { ... };
 layout(binding=0) uniform texture2D tex;
-layout(binding=1) uniform sampler smp;
+layout(binding=0) uniform sampler smp;
 ```
 
-Sokol-shdc performs a backend-specific bindslot allocation which for SPIRV output
-simply assigns descriptor sets (uniform blocks live in descriptor set 0 and
-everything else in descriptor set 1), so the above code snippet essentially
-becomes:
+Sokol-shdc performs a backend-specific bindslot allocation which for SPIRV
+output assigns descriptor sets (uniform blocks live in descriptor set 0 and
+everything else in descriptor set 1), and remap sampler bindings to resolve
+bindslot collisions with textures, storage-buffer and storage-images, so the
+above code snippet essentially becomes:
 
 ```glsl
 layout(set=0, binding=0) uniform fs_params { ... };
 layout(set=1, binding=0) uniform texture2D tex;
-layout(set=1, binding=1) uniform sampler smp;
+layout(set=1, binding=32) uniform sampler smp;
 ```
 
 The one thing that's not straightforward is that sokol-shdc does a 'double-tap'
